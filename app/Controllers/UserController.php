@@ -122,7 +122,7 @@ class UserController
             $YeniId = $Repo->ekle([
                 'AdSoyad' => $AdSoyad,
                 'KullaniciAdi' => $KullaniciAdi,
-                'Sifre' => $SifreHash,
+                'Parola' => $SifreHash,
                 'Rol' => $Rol,
                 'Aktif' => 1
             ], Context::kullaniciId());
@@ -130,6 +130,56 @@ class UserController
         });
 
         Response::json(['status' => 'ok']);
+    }
+
+    public static function update(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Geçersiz kullanıcı.', 422);
+            return;
+        }
+
+        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        $Repo = new UserRepository();
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            return;
+        }
+
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Kullanıcı bulunamadı.', 404);
+            return;
+        }
+
+        // Superadmin düzenlenemez (kendi dışında)
+        if (($Mevcut['Rol'] ?? '') === 'superadmin' && $Id !== $KullaniciId) {
+            Response::error('Süper admin düzenlenemez.', 403);
+            return;
+        }
+
+        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
+            $Guncellenecek = [];
+            if (isset($Girdi['AdSoyad']) && trim($Girdi['AdSoyad'])) {
+                $Guncellenecek['AdSoyad'] = trim($Girdi['AdSoyad']);
+            }
+            if (isset($Girdi['Rol']) && in_array($Girdi['Rol'], ['user', 'admin'])) {
+                $Guncellenecek['Rol'] = $Girdi['Rol'];
+            }
+            if (isset($Girdi['Sifre']) && strlen($Girdi['Sifre']) >= 6) {
+                $Guncellenecek['Parola'] = password_hash($Girdi['Sifre'], PASSWORD_BCRYPT);
+            }
+
+            if (!empty($Guncellenecek)) {
+                $Repo->yedekle($Id, 'bck_tnm_user', $KullaniciId);
+                $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+                ActionLogger::update('tnm_user', ['Id' => $Id], array_keys($Guncellenecek));
+            }
+        });
+
+        Response::json(['status' => 'success']);
     }
 
     public static function changePassword(): void
@@ -162,7 +212,7 @@ class UserController
         }
 
         // Mevcut şifre kontrolü
-        if (!password_verify($MevcutSifre, $Kullanici['Sifre'])) {
+        if (!password_verify($MevcutSifre, $Kullanici['Parola'])) {
             Response::error('Mevcut şifre yanlış.', 422);
             return;
         }
@@ -171,7 +221,7 @@ class UserController
 
         Transaction::wrap(function () use ($Repo, $KullaniciId, $YeniHash) {
             $Repo->yedekle($KullaniciId, 'bck_tnm_user', $KullaniciId);
-            $Repo->guncelle($KullaniciId, ['Sifre' => $YeniHash], $KullaniciId);
+            $Repo->guncelle($KullaniciId, ['Parola' => $YeniHash], $KullaniciId);
             ActionLogger::logla('password_change', 'tnm_user', ['Id' => $KullaniciId], 'ok');
         });
 

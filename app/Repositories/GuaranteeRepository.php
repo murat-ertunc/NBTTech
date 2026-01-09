@@ -6,6 +6,22 @@ class GuaranteeRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_teminat';
 
+    /**
+     * Tüm aktif teminatları müşteri adı ile birlikte getir
+     */
+    public function tumAktifler(): array
+    {
+        $Sql = "SELECT t.*, m.Unvan AS MusteriUnvan 
+                FROM {$this->Tablo} t 
+                LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id 
+                WHERE t.Sil = 0 
+                ORDER BY t.Id DESC";
+        $Stmt = $this->Db->query($Sql);
+        $Sonuclar = $Stmt->fetchAll();
+        $this->logSelect(['Sil' => 0], $Sonuclar);
+        return $Sonuclar;
+    }
+
     public function musteriTeminatlari(int $MusteriId): array
     {
         $Stmt = $this->Db->prepare("SELECT * FROM {$this->Tablo} WHERE MusteriId = :Mid AND Sil = 0 ORDER BY Id DESC");

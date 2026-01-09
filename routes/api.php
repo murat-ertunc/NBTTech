@@ -192,6 +192,12 @@ $Router->add('PUT', '/api/users/{id}/block', function ($Parametreler) {
 	App\Controllers\UserController::block($Parametreler);
 });
 
+$Router->add('PUT', '/api/users/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin'])) return;
+	App\Controllers\UserController::update($Parametreler);
+});
+
 $Router->add('DELETE', '/api/users/{id}', function ($Parametreler) {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin'])) return;
@@ -222,4 +228,117 @@ $Router->add('GET', '/api/logs', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'admin'])) return;
     App\Controllers\LogController::index();
+});
+
+// Alarm API
+$Router->add('GET', '/api/alarms', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    (new App\Controllers\AlarmController())->index();
+});
+
+// Calendar API
+$Router->add('GET', '/api/calendar', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    (new App\Controllers\CalendarController())->index();
+});
+
+$Router->add('GET', '/api/calendar/day/{date}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    (new App\Controllers\CalendarController())->day($Parametreler['date']);
+});
+
+// Görüşme İşlemleri
+$Router->add('GET', '/api/meetings', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\MeetingController::index();
+});
+$Router->add('POST', '/api/meetings', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\MeetingController::store();
+});
+$Router->add('PUT', '/api/meetings/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\MeetingController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/meetings/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\MeetingController::delete($Parametreler);
+});
+
+// Kişi (İletişim) İşlemleri
+$Router->add('GET', '/api/contacts', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\ContactController::index();
+});
+$Router->add('POST', '/api/contacts', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\ContactController::store();
+});
+$Router->add('PUT', '/api/contacts/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\ContactController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/contacts/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\ContactController::delete($Parametreler);
+});
+
+// Damga Vergisi İşlemleri
+$Router->add('GET', '/api/stamp-taxes', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\StampTaxController::index();
+});
+$Router->add('POST', '/api/stamp-taxes', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\StampTaxController::store();
+});
+$Router->add('PUT', '/api/stamp-taxes/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\StampTaxController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/stamp-taxes/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\StampTaxController::delete($Parametreler);
+});
+
+// Dosya İşlemleri
+$Router->add('GET', '/api/files', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\FileController::index();
+});
+$Router->add('POST', '/api/files', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\FileController::store();
+});
+$Router->add('PUT', '/api/files/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\FileController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/files/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\FileController::delete($Parametreler);
+});
+$Router->add('GET', '/api/files/{id}/download', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+    App\Controllers\FileController::download($Parametreler);
 });
