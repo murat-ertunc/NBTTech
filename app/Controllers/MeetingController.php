@@ -53,9 +53,7 @@ class MeetingController
             'Kisi' => isset($Girdi['Kisi']) ? trim((string)$Girdi['Kisi']) : null
         ];
 
-        $Id = Transaction::wrap(function () use ($Repo, $YuklenecekVeri, $KullaniciId) {
-            return $Repo->ekle($YuklenecekVeri, $KullaniciId);
-        });
+        $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
 
         Response::json(['id' => $Id], 201);
     }
@@ -76,17 +74,15 @@ class MeetingController
             return;
         }
 
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
-            $Guncellenecek = [];
-            if (isset($Girdi['Tarih'])) $Guncellenecek['Tarih'] = $Girdi['Tarih'];
-            if (isset($Girdi['Konu'])) $Guncellenecek['Konu'] = trim((string)$Girdi['Konu']);
-            if (isset($Girdi['Notlar'])) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
-            if (isset($Girdi['Kisi'])) $Guncellenecek['Kisi'] = trim((string)$Girdi['Kisi']);
+        $Guncellenecek = [];
+        if (isset($Girdi['Tarih'])) $Guncellenecek['Tarih'] = $Girdi['Tarih'];
+        if (isset($Girdi['Konu'])) $Guncellenecek['Konu'] = trim((string)$Girdi['Konu']);
+        if (isset($Girdi['Notlar'])) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
+        if (isset($Girdi['Kisi'])) $Guncellenecek['Kisi'] = trim((string)$Girdi['Kisi']);
 
-            if (!empty($Guncellenecek)) {
-                $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
-            }
-        });
+        if (!empty($Guncellenecek)) {
+            $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+        }
 
         Response::json(['status' => 'success']);
     }
@@ -106,9 +102,7 @@ class MeetingController
             return;
         }
 
-        Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
-            $Repo->softSil($Id, $KullaniciId);
-        });
+        $Repo->softSil($Id, $KullaniciId);
 
         Response::json(['status' => 'success']);
     }

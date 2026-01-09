@@ -24,7 +24,12 @@ class ContactRepository extends BaseRepository
 
     public function musteriKisileri(int $MusteriId): array
     {
-        $Stmt = $this->Db->prepare("SELECT * FROM {$this->Tablo} WHERE MusteriId = :Mid AND Sil = 0 ORDER BY AdSoyad ASC");
+        $Sql = "SELECT k.*, m.Unvan AS MusteriUnvan 
+                FROM {$this->Tablo} k 
+                LEFT JOIN tbl_musteri m ON k.MusteriId = m.Id 
+                WHERE k.MusteriId = :Mid AND k.Sil = 0 
+                ORDER BY k.AdSoyad ASC";
+        $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute(['Mid' => $MusteriId]);
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0], $Sonuclar);

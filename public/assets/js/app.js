@@ -494,6 +494,38 @@ const NbtModal = {
     },
 
     /**
+     * Field-level hata göster (Bootstrap is-invalid class)
+     */
+    showFieldError(modalId, fieldId, message) {
+        const field = document.querySelector(`#${modalId} #${fieldId}`);
+        if (field) {
+            field.classList.add('is-invalid');
+            // Varolan feedback'i bul veya oluştur
+            let feedback = field.parentElement.querySelector('.invalid-feedback');
+            if (!feedback) {
+                feedback = document.createElement('div');
+                feedback.className = 'invalid-feedback';
+                field.parentElement.appendChild(feedback);
+            }
+            feedback.textContent = message;
+        }
+    },
+
+    /**
+     * Tüm field-level hataları temizle
+     */
+    clearFieldErrors(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        modal.querySelectorAll('.is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+        });
+        modal.querySelectorAll('.invalid-feedback').forEach(el => {
+            el.textContent = '';
+        });
+    },
+
+    /**
      * Modal hata temizle
      */
     clearError(modalId) {
@@ -502,17 +534,88 @@ const NbtModal = {
             errorEl.classList.add('d-none');
             errorEl.textContent = '';
         }
+        // Field-level hataları da temizle
+        this.clearFieldErrors(modalId);
     },
 
     /**
-     * Form sıfırla
+     * Form sıfırla - hidden id alanları hariç tüm inputları temizle
      */
     resetForm(modalId) {
-        const form = document.querySelector(`#${modalId} form`);
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        
+        // MusteriId gibi önemli hidden field'ları sakla (data-preserve-value attribute'u olanlar veya musteri içerenler)
+        const preserveFields = {};
+        modal.querySelectorAll('input[type="hidden"]').forEach(el => {
+            const elIdLower = el.id.toLowerCase();
+            const hasPreserveAttr = el.hasAttribute('data-preserve-value');
+            
+            if (hasPreserveAttr) {
+                preserveFields[el.id] = el.getAttribute('data-preserve-value');
+                console.log(`resetForm: Will preserve ${el.id} from attr:`, preserveFields[el.id]);
+            } else if (elIdLower.includes('musteri') && elIdLower.includes('id')) {
+                preserveFields[el.id] = el.value;
+                console.log(`resetForm: Will preserve ${el.id} from value:`, el.value);
+            }
+        });
+        
+        // Form varsa reset et
+        const form = modal.querySelector('form');
         if (form) {
             form.reset();
+        } else {
+            // Form yoksa manuel temizlik
+            modal.querySelectorAll('input:not([type="hidden"]), textarea, select').forEach(el => {
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    el.checked = false;
+                } else if (el.tagName === 'SELECT') {
+                    el.selectedIndex = 0;
+                } else {
+                    el.value = '';
+                }
+            });
+            // Hidden id alanlarını temizle (örn: paymentId, meetingId vs.)
+            modal.querySelectorAll('input[type="hidden"][id$="Id"]').forEach(el => {
+                // MusteriId gibi parent id'leri korumak için sadece kendi id'si olan alanları temizle
+                const elIdLower = el.id.toLowerCase();
+                if (el.id === modalId.replace('Modal', 'Id') || (el.id.endsWith('Id') && !elIdLower.includes('musteri'))) {
+                    el.value = '';
+                }
+            });
         }
+        
+        // Saklanan değerleri geri yükle
+        Object.keys(preserveFields).forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field && preserveFields[fieldId]) {
+                field.value = preserveFields[fieldId];
+                console.log(`resetForm: Restored ${fieldId} to ${preserveFields[fieldId]}`);
+            }
+        });
+        
         this.clearError(modalId);
+    },
+    
+    /**
+     * Save butonunu disable/enable et + spinner göster
+     */
+    setLoading(modalId, loading) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        const btn = modal.querySelector('[id^="btnSave"], .btn-primary');
+        if (!btn) return;
+        
+        if (loading) {
+            btn.disabled = true;
+            btn._originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kaydediliyor...';
+        } else {
+            btn.disabled = false;
+            if (btn._originalHtml) {
+                btn.innerHTML = btn._originalHtml;
+            }
+        }
     }
 };
 

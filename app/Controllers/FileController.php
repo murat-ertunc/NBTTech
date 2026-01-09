@@ -39,7 +39,18 @@ class FileController
 
         // Multipart form-data kontrolü
         if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-            Response::error('Dosya yüklenemedi.', 422);
+            $errorMessages = [
+                UPLOAD_ERR_INI_SIZE => 'Dosya boyutu sunucu limitini aşıyor.',
+                UPLOAD_ERR_FORM_SIZE => 'Dosya boyutu form limitini aşıyor.',
+                UPLOAD_ERR_PARTIAL => 'Dosya kısmen yüklendi.',
+                UPLOAD_ERR_NO_FILE => 'Dosya seçilmedi.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Geçici klasör bulunamadı.',
+                UPLOAD_ERR_CANT_WRITE => 'Dosya yazılamadı.',
+                UPLOAD_ERR_EXTENSION => 'Dosya uzantısı engellendi.'
+            ];
+            $errorCode = $_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE;
+            $errorMsg = $errorMessages[$errorCode] ?? 'Dosya yüklenemedi.';
+            Response::error($errorMsg, 422);
             return;
         }
 
@@ -55,8 +66,40 @@ class FileController
         $FileType = $File['type'];
         $TempPath = $File['tmp_name'];
 
+        // Dosya boyutu kontrolü (maksimum 10MB)
+        $maxSize = 10 * 1024 * 1024; // 10MB
+        if ($FileSize > $maxSize) {
+            $sizeMB = round($FileSize / (1024 * 1024), 2);
+            Response::error("Dosya boyutu çok büyük ({$sizeMB}MB). Maksimum 10MB yüklenebilir.", 422);
+            return;
+        }
+
+        // İzin verilen dosya türleri
+        $allowedTypes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'text/plain',
+            'application/zip',
+            'application/x-rar-compressed',
+            'application/octet-stream' // Bazı tarayıcılar bilinmeyen türler için bu gönderir
+        ];
+        
+        // İzin verilen uzantılar
+        $allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'txt', 'zip', 'rar'];
+        $Extension = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
+        
+        if (!in_array($Extension, $allowedExtensions)) {
+            Response::error('Bu dosya türü desteklenmiyor. İzin verilen türler: PDF, Word, Excel, Resimler, TXT, ZIP, RAR', 422);
+            return;
+        }
+
         // Güvenli dosya adı oluştur
-        $Extension = pathinfo($OriginalName, PATHINFO_EXTENSION);
         $SafeName = uniqid() . '_' . time() . '.' . $Extension;
         
         // Upload dizinini oluştur
@@ -81,11 +124,16 @@ class FileController
             'Aciklama' => isset($_POST['Aciklama']) ? trim((string)$_POST['Aciklama']) : null
         ];
 
-        $Id = Transaction::wrap(function () use ($Repo, $YuklenecekVeri, $KullaniciId) {
-            return $Repo->ekle($YuklenecekVeri, $KullaniciId);
-        });
-
-        Response::json(['id' => $Id, 'path' => $YuklenecekVeri['DosyaYolu']], 201);
+        try {
+            $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
+            Response::json(['id' => $Id, 'path' => $YuklenecekVeri['DosyaYolu']], 201);
+        } catch (\Exception $e) {
+            // Hata durumunda yüklenen dosyayı sil
+            if (file_exists($DestPath)) {
+                unlink($DestPath);
+            }
+            Response::error('Dosya kaydedilemedi: ' . $e->getMessage(), 500);
+        }
     }
 
     public static function update(array $Parametreler): void

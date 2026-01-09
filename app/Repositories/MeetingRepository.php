@@ -24,7 +24,12 @@ class MeetingRepository extends BaseRepository
 
     public function musteriGorusmeleri(int $MusteriId): array
     {
-        $Stmt = $this->Db->prepare("SELECT * FROM {$this->Tablo} WHERE MusteriId = :Mid AND Sil = 0 ORDER BY Tarih DESC, Id DESC");
+        $Sql = "SELECT g.*, m.Unvan AS MusteriUnvan 
+                FROM {$this->Tablo} g 
+                LEFT JOIN tbl_musteri m ON g.MusteriId = m.Id 
+                WHERE g.MusteriId = :Mid AND g.Sil = 0 
+                ORDER BY g.Tarih DESC, g.Id DESC";
+        $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute(['Mid' => $MusteriId]);
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0], $Sonuclar);

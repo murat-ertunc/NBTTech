@@ -54,9 +54,7 @@ class StampTaxController
             'BelgeNo' => isset($Girdi['BelgeNo']) ? trim((string)$Girdi['BelgeNo']) : null
         ];
 
-        $Id = Transaction::wrap(function () use ($Repo, $YuklenecekVeri, $KullaniciId) {
-            return $Repo->ekle($YuklenecekVeri, $KullaniciId);
-        });
+        $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
 
         Response::json(['id' => $Id], 201);
     }
@@ -77,18 +75,16 @@ class StampTaxController
             return;
         }
 
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
-            $Guncellenecek = [];
-            if (isset($Girdi['Tarih'])) $Guncellenecek['Tarih'] = $Girdi['Tarih'];
-            if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
-            if (isset($Girdi['DovizCinsi'])) $Guncellenecek['DovizCinsi'] = trim((string)$Girdi['DovizCinsi']);
-            if (isset($Girdi['Aciklama'])) $Guncellenecek['Aciklama'] = trim((string)$Girdi['Aciklama']);
-            if (isset($Girdi['BelgeNo'])) $Guncellenecek['BelgeNo'] = trim((string)$Girdi['BelgeNo']);
+        $Guncellenecek = [];
+        if (isset($Girdi['Tarih'])) $Guncellenecek['Tarih'] = $Girdi['Tarih'];
+        if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
+        if (isset($Girdi['DovizCinsi'])) $Guncellenecek['DovizCinsi'] = trim((string)$Girdi['DovizCinsi']);
+        if (isset($Girdi['Aciklama'])) $Guncellenecek['Aciklama'] = trim((string)$Girdi['Aciklama']);
+        if (isset($Girdi['BelgeNo'])) $Guncellenecek['BelgeNo'] = trim((string)$Girdi['BelgeNo']);
 
-            if (!empty($Guncellenecek)) {
-                $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
-            }
-        });
+        if (!empty($Guncellenecek)) {
+            $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+        }
 
         Response::json(['status' => 'success']);
     }
@@ -108,9 +104,7 @@ class StampTaxController
             return;
         }
 
-        Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
-            $Repo->softSil($Id, $KullaniciId);
-        });
+        $Repo->softSil($Id, $KullaniciId);
 
         Response::json(['status' => 'success']);
     }

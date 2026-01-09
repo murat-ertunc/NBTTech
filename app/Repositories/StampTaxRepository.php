@@ -2,9 +2,15 @@
 
 namespace App\Repositories;
 
+use App\Core\Transaction;
+use App\Services\Logger\ActionLogger;
+
 class StampTaxRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_damgavergisi';
+
+    // Tablo artık standart alan adlarına sahip (EklemeZamani, EkleyenUserId, Guid, BIT Sil)
+    // Bu yüzden BaseRepository'nin ekle() metodunu kullanıyoruz - özel override gerekmiyor
 
     /**
      * Tüm aktif damga vergilerini müşteri adı ile birlikte getir
@@ -24,7 +30,12 @@ class StampTaxRepository extends BaseRepository
 
     public function musteriDamgaVergileri(int $MusteriId): array
     {
-        $Stmt = $this->Db->prepare("SELECT * FROM {$this->Tablo} WHERE MusteriId = :Mid AND Sil = 0 ORDER BY Tarih DESC, Id DESC");
+        $Sql = "SELECT d.*, m.Unvan AS MusteriUnvan 
+                FROM {$this->Tablo} d 
+                LEFT JOIN tbl_musteri m ON d.MusteriId = m.Id 
+                WHERE d.MusteriId = :Mid AND d.Sil = 0 
+                ORDER BY d.Tarih DESC, d.Id DESC";
+        $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute(['Mid' => $MusteriId]);
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0], $Sonuclar);

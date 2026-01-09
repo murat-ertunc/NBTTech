@@ -15,7 +15,7 @@ class FileRepository extends BaseRepository
                 FROM {$this->Tablo} f 
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id 
                 WHERE f.Sil = 0 
-                ORDER BY f.OlusturmaZamani DESC";
+                ORDER BY f.EklemeZamani DESC";
         $Stmt = $this->Db->query($Sql);
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['Sil' => 0], $Sonuclar);
@@ -24,7 +24,12 @@ class FileRepository extends BaseRepository
 
     public function musteriDosyalari(int $MusteriId): array
     {
-        $Stmt = $this->Db->prepare("SELECT * FROM {$this->Tablo} WHERE MusteriId = :Mid AND Sil = 0 ORDER BY OlusturmaZamani DESC");
+        $Sql = "SELECT f.*, m.Unvan AS MusteriUnvan 
+                FROM {$this->Tablo} f 
+                LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id 
+                WHERE f.MusteriId = :Mid AND f.Sil = 0 
+                ORDER BY f.EklemeZamani DESC";
+        $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute(['Mid' => $MusteriId]);
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0], $Sonuclar);

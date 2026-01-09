@@ -325,15 +325,20 @@ const CustomerModule = {
             Aciklama: document.getElementById('customerAciklama').value.trim() || null
         };
 
+        // Frontend validasyon
+        NbtModal.clearError('customerModal');
         if (!data.Unvan) {
-            NbtModal.showError('customerModal', 'Unvan zorunludur');
+            NbtModal.showFieldError('customerModal', 'customerUnvan', 'Unvan zorunludur');
+            NbtModal.showError('customerModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
         if (data.Unvan.length < 2) {
+            NbtModal.showFieldError('customerModal', 'customerUnvan', 'Unvan en az 2 karakter olmalıdır');
             NbtModal.showError('customerModal', 'Unvan en az 2 karakter olmalıdır');
             return;
         }
 
+        NbtModal.setLoading('customerModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/customers/${id}`, data);
@@ -350,6 +355,8 @@ const CustomerModule = {
             }
         } catch (err) {
             NbtModal.showError('customerModal', err.message);
+        } finally {
+            NbtModal.setLoading('customerModal', false);
         }
     },
 
@@ -469,9 +476,9 @@ const CustomerDetailModule = {
     async loadRelatedData(key, endpoint) {
         try {
             const response = await NbtApi.get(`${endpoint}?musteri_id=${this.customerId}`);
-            this.data[key] = (response.data || []).filter(item => 
-                parseInt(item.MusteriId, 10) === this.customerId
-            );
+            // Backend zaten musteri_id parametresiyle filtrelenmiş veriyi döndürüyor
+            // Bu yüzden client-side filtrelemeye gerek yok
+            this.data[key] = response.data || [];
         } catch (err) {
             this.data[key] = [];
         }
@@ -812,8 +819,8 @@ const CustomerDetailModule = {
             <div class="card shadow-sm">
                 <div class="card-header py-2 bg-white d-flex justify-content-between align-items-center">
                     <span class="fw-semibold"><i class="bi bi-calendar3 me-2"></i>Takvim</span>
-                    <button type="button" class="btn btn-success btn-sm" data-add="event">
-                        <i class="bi bi-plus-lg me-1"></i>Etkinlik Ekle
+                    <button type="button" class="btn btn-success btn-sm" data-add="meeting">
+                        <i class="bi bi-plus-lg me-1"></i>Görüşme Ekle
                     </button>
                 </div>
                 <div class="card-body" id="customerCalendar">
@@ -1051,20 +1058,131 @@ const CustomerDetailModule = {
         if (tab === 'takvim') {
             setTimeout(() => {
                 const calContainer = document.getElementById('customerCalendar');
-                if (calContainer && typeof NbtCalendar !== 'undefined') {
-                    NbtCalendar.render(calContainer, {
-                        events: (NbtCalendar.events || []).filter(e => e.customerId === this.customerId),
-                        onDayClick: (date, events) => {
-                            if (events.length) {
-                                NbtToast.info(`${date}: ${events.length} etkinlik`);
+                if (calContainer) {
+                    // Görüşmeleri takvim eventi formatına dönüştür
+                    const meetings = this.data.meetings || [];
+                    const calendarEvents = meetings.map(m => ({
+                        id: m.Id,
+                        date: m.Tarih?.split('T')[0] || m.Tarih,
+                        title: m.Konu,
+                        description: m.Notlar || '',
+                        customerId: m.MusteriId,
+                        type: 'meeting'
+                    }));
+                    
+                    if (typeof NbtCalendar !== 'undefined' && NbtCalendar.render) {
+                        NbtCalendar.render(calContainer, {
+                            events: calendarEvents,
+                            onDayClick: (date, events) => {
+                                if (events.length) {
+                                    const eventList = events.map(e => `• ${e.title}`).join('\n');
+                                    NbtToast.info(`${date}: ${events.length} görüşme\n${eventList}`);
+                                }
                             }
-                        }
-                    });
-                } else if (calContainer) {
-                    calContainer.innerHTML = '<div class="text-center text-muted py-5">Takvim yükleniyor...</div>';
+                        });
+                    } else {
+                        // NbtCalendar yoksa basit bir takvim görünümü oluştur
+                        this.renderSimpleCalendar(calContainer, calendarEvents);
+                    }
                 }
             }, 100);
         }
+    },
+
+    renderSimpleCalendar(container, events) {
+        // Görüşmeleri tarihe göre grupla
+        const eventsByDate = {};
+        events.forEach(e => {
+            const date = e.date;
+            if (!eventsByDate[date]) eventsByDate[date] = [];
+            eventsByDate[date].push(e);
+        });
+        
+        // Bu ayın günlerini oluştur
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        
+        const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
+                           'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+        const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+        
+        let html = `
+            <div class="simple-calendar">
+                <div class="text-center mb-3">
+                    <h5 class="mb-0">${monthNames[month]} ${year}</h5>
+                </div>
+                <div class="row row-cols-7 text-center fw-bold border-bottom pb-2 mb-2">
+                    ${dayNames.map(d => `<div class="col small">${d}</div>`).join('')}
+                </div>
+                <div class="row row-cols-7 text-center g-1">
+        `;
+        
+        // Ayın ilk gününden önceki boş günler
+        const startDay = (firstDay.getDay() + 6) % 7; // Pazartesi = 0
+        for (let i = 0; i < startDay; i++) {
+            html += '<div class="col p-2"></div>';
+        }
+        
+        // Ayın günleri
+        for (let day = 1; day <= lastDay.getDate(); day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayEvents = eventsByDate[dateStr] || [];
+            const isToday = day === today.getDate();
+            const hasEvents = dayEvents.length > 0;
+            
+            html += `
+                <div class="col p-1">
+                    <div class="rounded ${isToday ? 'bg-primary text-white' : ''} ${hasEvents ? 'border border-success' : ''} p-2" 
+                         style="min-height: 60px; cursor: ${hasEvents ? 'pointer' : 'default'}"
+                         ${hasEvents ? `title="${dayEvents.map(e => e.title).join(', ')}"` : ''}>
+                        <div class="small ${isToday ? '' : 'text-muted'}">${day}</div>
+                        ${hasEvents ? `<div class="badge bg-success mt-1" style="font-size: 0.6rem">${dayEvents.length}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += `
+                </div>
+                <div class="mt-3">
+                    <h6 class="text-muted">Bu Ayki Görüşmeler</h6>
+                    <div class="list-group list-group-flush">
+        `;
+        
+        // Bu aydaki görüşmeleri listele
+        const thisMonthEvents = events.filter(e => {
+            const eventDate = new Date(e.date);
+            return eventDate.getMonth() === month && eventDate.getFullYear() === year;
+        }).sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        if (thisMonthEvents.length === 0) {
+            html += '<div class="text-muted small py-2">Bu ay görüşme bulunmuyor</div>';
+        } else {
+            thisMonthEvents.forEach(e => {
+                html += `
+                    <div class="list-group-item list-group-item-action py-2 px-0 border-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge bg-primary me-2">${e.date}</span>
+                                <span class="fw-semibold">${e.title}</span>
+                            </div>
+                        </div>
+                        ${e.description ? `<small class="text-muted">${e.description}</small>` : ''}
+                    </div>
+                `;
+            });
+        }
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = html;
     },
 
     applyFilter(panelId) {
@@ -1145,8 +1263,11 @@ const CustomerDetailModule = {
     },
 
     openAddModal(type) {
-        // Backend'i henüz hazır olmayan modüller
-        const comingSoonTypes = ['event'];
+        const customerId = this.customerId;
+        console.log('=== openAddModal START ===', type, 'customerId:', customerId);
+        
+        // Backend'i henüz hazır olmayan modüller (şu an hepsi hazır)
+        const comingSoonTypes = [];
         if (comingSoonTypes.includes(type)) {
             NbtToast.info('Bu modül yakında aktif olacak');
             return;
@@ -1177,31 +1298,66 @@ const CustomerDetailModule = {
             return;
         }
 
-        NbtModal.resetForm(modalId);
-        
-        // Müşteri seçimini otomatik doldur (select element)
-        const selectId = `${type}MusteriId`;
-        const selectEl = document.getElementById(selectId);
-        if (selectEl && selectEl.tagName === 'SELECT') {
-            this.populateCustomerSelect(selectEl);
-            selectEl.value = this.customerId;
-            selectEl.disabled = true;
-        }
-        
-        // Hidden MusteriId için (meeting, contact, stamptax, file modal'ları)
+        // Hidden MusteriId map
         const hiddenMusteriIdMap = {
             meeting: 'meetingMusteriId',
             contact: 'contactMusteriId',
             stamptax: 'stampTaxMusteriId',
             file: 'fileMusteriId'
         };
-        const hiddenId = hiddenMusteriIdMap[type];
-        if (hiddenId) {
-            const hiddenEl = document.getElementById(hiddenId);
+        const hiddenFieldId = hiddenMusteriIdMap[type];
+
+        // ÖNEMLİ: Reset'ten ÖNCE hidden field'ı set et
+        if (hiddenFieldId) {
+            const hiddenEl = document.getElementById(hiddenFieldId);
             if (hiddenEl) {
-                hiddenEl.value = this.customerId;
+                hiddenEl.value = customerId;
+                // Data attribute olarak da sakla
+                hiddenEl.setAttribute('data-preserve-value', customerId);
+                console.log(`PRE-SET ${hiddenFieldId} to ${customerId}`);
             }
         }
+
+        NbtModal.resetForm(modalId);
+        
+        // Reset'ten SONRA tekrar kontrol et ve set et
+        if (hiddenFieldId) {
+            const hiddenEl = document.getElementById(hiddenFieldId);
+            if (hiddenEl) {
+                const preservedValue = hiddenEl.getAttribute('data-preserve-value');
+                if (preservedValue) {
+                    hiddenEl.value = preservedValue;
+                    console.log(`POST-RESET ${hiddenFieldId} restored to ${preservedValue}`);
+                } else {
+                    hiddenEl.value = customerId;
+                    console.log(`POST-RESET ${hiddenFieldId} set to ${customerId}`);
+                }
+            }
+        }
+        
+        // Müşteri seçimini otomatik doldur (select element)
+        const selectId = `${type}MusteriId`;
+        const selectEl = document.getElementById(selectId);
+        if (selectEl && selectEl.tagName === 'SELECT') {
+            this.populateCustomerSelect(selectEl);
+            selectEl.value = customerId;
+            selectEl.disabled = true;
+        }
+        
+        // Bir kez daha garantiye alıyoruz - modal açıldıktan 50ms sonra
+        setTimeout(() => {
+            if (hiddenFieldId) {
+                const checkEl = document.getElementById(hiddenFieldId);
+                if (checkEl) {
+                    if (!checkEl.value || checkEl.value === '') {
+                        checkEl.value = customerId;
+                        console.warn(`TIMEOUT-FIX: Re-set ${hiddenFieldId} to ${customerId}`);
+                    } else {
+                        console.log(`TIMEOUT-CHECK: ${hiddenFieldId} is OK with value:`, checkEl.value);
+                    }
+                }
+            }
+        }, 50);
 
         // Ödeme modal'ında fatura dropdown'ı doldur
         if (type === 'payment') {
@@ -1417,19 +1573,40 @@ const InvoiceModule = {
 
     async save() {
         const id = document.getElementById('invoiceId').value;
+        
+        // MusteriId'yi al - SELECT'ten veya CustomerDetailModule'den
+        let musteriId = parseInt(document.getElementById('invoiceMusteriId').value);
+        if (!musteriId || isNaN(musteriId)) {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
         const data = {
-            MusteriId: parseInt(document.getElementById('invoiceMusteriId').value),
+            MusteriId: musteriId,
             Tarih: document.getElementById('invoiceTarih').value,
             Tutar: parseFloat(document.getElementById('invoiceTutar').value) || 0,
             DovizCinsi: document.getElementById('invoiceDoviz').value,
             Aciklama: document.getElementById('invoiceAciklama').value.trim() || null
         };
 
-        if (!data.MusteriId) {
-            NbtModal.showError('invoiceModal', 'Müşteri seçiniz');
+        // Frontend validasyon
+        NbtModal.clearError('invoiceModal');
+        if (!data.MusteriId || isNaN(data.MusteriId)) {
+            NbtModal.showFieldError('invoiceModal', 'invoiceMusteriId', 'Müşteri seçiniz');
+            NbtModal.showError('invoiceModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
+        if (!data.Tarih) {
+            NbtModal.showFieldError('invoiceModal', 'invoiceTarih', 'Tarih zorunludur');
+            NbtModal.showError('invoiceModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
+        if (!data.Tutar || data.Tutar <= 0) {
+            NbtModal.showFieldError('invoiceModal', 'invoiceTutar', 'Tutar zorunludur');
+            NbtModal.showError('invoiceModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
 
+        NbtModal.setLoading('invoiceModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/invoices/${id}`, data);
@@ -1448,6 +1625,8 @@ const InvoiceModule = {
             }
         } catch (err) {
             NbtModal.showError('invoiceModal', err.message);
+        } finally {
+            NbtModal.setLoading('invoiceModal', false);
         }
     },
 
@@ -1536,6 +1715,28 @@ const PaymentModule = {
         });
     },
 
+    _musteriChangeHandler: null,
+    
+    async loadInvoicesForCustomer(musteriId) {
+        const faturaSelect = document.getElementById('paymentFaturaId');
+        if (!faturaSelect) return;
+        
+        faturaSelect.innerHTML = '<option value="">Fatura Seçiniz (Opsiyonel)...</option>';
+        if (!musteriId) return;
+        
+        try {
+            const response = await NbtApi.get(`/api/invoices?musteri_id=${musteriId}`);
+            const faturalar = (response.data || []).filter(f => f.MusteriId === musteriId);
+            faturalar.forEach(f => {
+                const kalan = parseFloat(f.Kalan) || 0;
+                const label = `FT${f.Id}/${NbtUtils.formatDate(f.Tarih)} [${NbtUtils.formatMoney(f.Tutar, f.DovizCinsi)}]${kalan > 0 ? ' ⚠️' : ''}`;
+                faturaSelect.innerHTML += `<option value="${f.Id}">${label}</option>`;
+            });
+        } catch (err) {
+            console.error('Fatura listesi alınamadı:', err);
+        }
+    },
+    
     openModal(id = null) {
         NbtModal.resetForm('paymentModal');
         document.getElementById('paymentModalTitle').textContent = id ? 'Ödeme Düzenle' : 'Yeni Ödeme';
@@ -1553,26 +1754,17 @@ const PaymentModule = {
         if (faturaSelect) {
             faturaSelect.innerHTML = '<option value="">Fatura Seçiniz (Opsiyonel)...</option>';
             
-            // Müşteri değiştiğinde faturaları filtrele
-            select.addEventListener('change', async () => {
+            // Önceki event listener'ı kaldır (memory leak önleme)
+            if (this._musteriChangeHandler) {
+                select.removeEventListener('change', this._musteriChangeHandler);
+            }
+            
+            // Yeni handler oluştur ve kaydet
+            this._musteriChangeHandler = async () => {
                 const musteriId = parseInt(select.value);
-                if (!musteriId) {
-                    faturaSelect.innerHTML = '<option value="">Fatura Seçiniz (Opsiyonel)...</option>';
-                    return;
-                }
-                try {
-                    const response = await NbtApi.get(`/api/invoices?musteri_id=${musteriId}`);
-                    const faturalar = (response.data || []).filter(f => f.MusteriId === musteriId);
-                    faturaSelect.innerHTML = '<option value="">Fatura Seçiniz (Opsiyonel)...</option>';
-                    faturalar.forEach(f => {
-                        const kalan = parseFloat(f.Kalan) || 0;
-                        const label = `FT${f.Id}/${NbtUtils.formatDate(f.Tarih)} [${NbtUtils.formatMoney(f.Tutar, f.DovizCinsi)}]${kalan > 0 ? ' ⚠️' : ''}`;
-                        faturaSelect.innerHTML += `<option value="${f.Id}">${label}</option>`;
-                    });
-                } catch (err) {
-                    console.error('Fatura listesi alınamadı:', err);
-                }
-            });
+                await this.loadInvoicesForCustomer(musteriId);
+            };
+            select.addEventListener('change', this._musteriChangeHandler);
         }
 
         if (id) {
@@ -1585,11 +1777,12 @@ const PaymentModule = {
                 document.getElementById('paymentAciklama').value = payment.Aciklama || '';
                 // Fatura seçimini doldur
                 if (faturaSelect && payment.FaturaId) {
-                    // Müşteri seçimi değişti event'ini tetikle
-                    select.dispatchEvent(new Event('change'));
-                    setTimeout(() => {
-                        faturaSelect.value = payment.FaturaId;
-                    }, 300);
+                    // Faturaları yükle ve seçimi yap
+                    this.loadInvoicesForCustomer(payment.MusteriId).then(() => {
+                        setTimeout(() => {
+                            faturaSelect.value = payment.FaturaId;
+                        }, 100);
+                    });
                 }
             }
         }
@@ -1600,19 +1793,40 @@ const PaymentModule = {
     async save() {
         const id = document.getElementById('paymentId').value;
         const faturaIdVal = document.getElementById('paymentFaturaId')?.value;
+        
+        // MusteriId'yi al - SELECT'ten veya CustomerDetailModule'den
+        let musteriId = parseInt(document.getElementById('paymentMusteriId').value);
+        if (!musteriId || isNaN(musteriId)) {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
         const data = {
-            MusteriId: parseInt(document.getElementById('paymentMusteriId').value),
+            MusteriId: musteriId,
             FaturaId: faturaIdVal ? parseInt(faturaIdVal) : null,
             Tarih: document.getElementById('paymentTarih').value,
             Tutar: parseFloat(document.getElementById('paymentTutar').value) || 0,
             Aciklama: document.getElementById('paymentAciklama').value.trim() || null
         };
 
-        if (!data.MusteriId) {
-            NbtModal.showError('paymentModal', 'Müşteri seçiniz');
+        // Frontend validasyon
+        NbtModal.clearError('paymentModal');
+        if (!data.MusteriId || isNaN(data.MusteriId)) {
+            NbtModal.showFieldError('paymentModal', 'paymentMusteriId', 'Müşteri seçiniz');
+            NbtModal.showError('paymentModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
+        if (!data.Tarih) {
+            NbtModal.showFieldError('paymentModal', 'paymentTarih', 'Tarih zorunludur');
+            NbtModal.showError('paymentModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
+        if (!data.Tutar || data.Tutar <= 0) {
+            NbtModal.showFieldError('paymentModal', 'paymentTutar', 'Tutar zorunludur');
+            NbtModal.showError('paymentModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
 
+        NbtModal.setLoading('paymentModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/payments/${id}`, data);
@@ -1632,6 +1846,8 @@ const PaymentModule = {
             }
         } catch (err) {
             NbtModal.showError('paymentModal', err.message);
+        } finally {
+            NbtModal.setLoading('paymentModal', false);
         }
     },
 
@@ -1646,6 +1862,8 @@ const PaymentModule = {
 // GÖRÜŞME MODÜLÜ (MEETING)
 // =============================================
 const MeetingModule = {
+    _eventsBound: false,
+    
     openModal(id = null) {
         NbtModal.resetForm('meetingModal');
         document.getElementById('meetingModalTitle').textContent = id ? 'Görüşme Düzenle' : 'Yeni Görüşme';
@@ -1667,23 +1885,40 @@ const MeetingModule = {
 
     async save() {
         const id = document.getElementById('meetingId').value;
+        
+        // MusteriId'yi al - hidden field'dan veya CustomerDetailModule'den
+        let musteriId = parseInt(document.getElementById('meetingMusteriId').value);
+        if (!musteriId || isNaN(musteriId)) {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
         const data = {
-            MusteriId: parseInt(document.getElementById('meetingMusteriId').value),
+            MusteriId: musteriId,
             Tarih: document.getElementById('meetingTarih').value,
             Konu: document.getElementById('meetingKonu').value.trim(),
             Kisi: document.getElementById('meetingKisi').value.trim() || null,
             Notlar: document.getElementById('meetingNotlar').value.trim() || null
         };
 
+        // Frontend validasyon
+        NbtModal.clearError('meetingModal');
+        
+        if (!data.MusteriId || isNaN(data.MusteriId)) {
+            NbtModal.showError('meetingModal', 'Müşteri bilgisi bulunamadı. Lütfen sayfayı yenileyin.');
+            return;
+        }
         if (!data.Tarih) {
-            NbtModal.showError('meetingModal', 'Tarih zorunludur');
+            NbtModal.showFieldError('meetingModal', 'meetingTarih', 'Tarih zorunludur');
+            NbtModal.showError('meetingModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
         if (!data.Konu) {
-            NbtModal.showError('meetingModal', 'Konu zorunludur');
+            NbtModal.showFieldError('meetingModal', 'meetingKonu', 'Konu zorunludur');
+            NbtModal.showError('meetingModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
 
+        NbtModal.setLoading('meetingModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/meetings/${id}`, data);
@@ -1694,13 +1929,24 @@ const MeetingModule = {
             }
             NbtModal.close('meetingModal');
             await CustomerDetailModule.loadRelatedData('meetings', '/api/meetings');
-            CustomerDetailModule.switchTab('gorusme');
+            
+            // Hangi tab'dan açıldıysa oraya dön (takvim veya görüşmeler)
+            const currentTab = CustomerDetailModule.activeTab;
+            if (currentTab === 'takvim') {
+                CustomerDetailModule.switchTab('takvim');
+            } else {
+                CustomerDetailModule.switchTab('gorusme');
+            }
         } catch (err) {
             NbtModal.showError('meetingModal', err.message);
+        } finally {
+            NbtModal.setLoading('meetingModal', false);
         }
     },
 
     bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
         document.getElementById('btnSaveMeeting')?.addEventListener('click', () => this.save());
     }
 };
@@ -1709,6 +1955,8 @@ const MeetingModule = {
 // KİŞİ MODÜLÜ (CONTACT)
 // =============================================
 const ContactModule = {
+    _eventsBound: false,
+    
     openModal(id = null) {
         NbtModal.resetForm('contactModal');
         document.getElementById('contactModalTitle').textContent = id ? 'Kişi Düzenle' : 'Yeni Kişi';
@@ -1731,8 +1979,15 @@ const ContactModule = {
 
     async save() {
         const id = document.getElementById('contactId').value;
+        
+        // MusteriId'yi al - hidden field'dan veya CustomerDetailModule'den
+        let musteriId = parseInt(document.getElementById('contactMusteriId').value);
+        if (!musteriId || isNaN(musteriId)) {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
         const data = {
-            MusteriId: parseInt(document.getElementById('contactMusteriId').value),
+            MusteriId: musteriId,
             AdSoyad: document.getElementById('contactAdSoyad').value.trim(),
             Unvan: document.getElementById('contactUnvan').value.trim() || null,
             Telefon: document.getElementById('contactTelefon').value.trim() || null,
@@ -1740,11 +1995,20 @@ const ContactModule = {
             Notlar: document.getElementById('contactNotlar').value.trim() || null
         };
 
+        // Frontend validasyon
+        NbtModal.clearError('contactModal');
+        
+        if (!data.MusteriId || isNaN(data.MusteriId)) {
+            NbtModal.showError('contactModal', 'Müşteri bilgisi bulunamadı. Lütfen sayfayı yenileyin.');
+            return;
+        }
         if (!data.AdSoyad) {
-            NbtModal.showError('contactModal', 'Ad Soyad zorunludur');
+            NbtModal.showFieldError('contactModal', 'contactAdSoyad', 'Ad Soyad zorunludur');
+            NbtModal.showError('contactModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
 
+        NbtModal.setLoading('contactModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/contacts/${id}`, data);
@@ -1758,10 +2022,14 @@ const ContactModule = {
             CustomerDetailModule.switchTab('kisiler');
         } catch (err) {
             NbtModal.showError('contactModal', err.message);
+        } finally {
+            NbtModal.setLoading('contactModal', false);
         }
     },
 
     bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
         document.getElementById('btnSaveContact')?.addEventListener('click', () => this.save());
     }
 };
@@ -1770,6 +2038,8 @@ const ContactModule = {
 // DAMGA VERGİSİ MODÜLÜ (STAMP TAX)
 // =============================================
 const StampTaxModule = {
+    _eventsBound: false,
+    
     openModal(id = null) {
         NbtModal.resetForm('stampTaxModal');
         document.getElementById('stampTaxModalTitle').textContent = id ? 'Damga Vergisi Düzenle' : 'Yeni Damga Vergisi';
@@ -1792,8 +2062,16 @@ const StampTaxModule = {
 
     async save() {
         const id = document.getElementById('stampTaxId').value;
+        const musteriIdElement = document.getElementById('stampTaxMusteriId');
+        
+        // MusteriId'yi al - eğer hidden field boşsa CustomerDetailModule'den al
+        let musteriId = parseInt(musteriIdElement?.value);
+        if (!musteriId || isNaN(musteriId)) {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
         const data = {
-            MusteriId: parseInt(document.getElementById('stampTaxMusteriId').value),
+            MusteriId: musteriId,
             Tarih: document.getElementById('stampTaxTarih').value,
             Tutar: parseFloat(document.getElementById('stampTaxTutar').value) || 0,
             DovizCinsi: document.getElementById('stampTaxDovizCinsi').value || 'TRY',
@@ -1801,15 +2079,25 @@ const StampTaxModule = {
             Aciklama: document.getElementById('stampTaxAciklama').value.trim() || null
         };
 
+        // Frontend validasyon
+        NbtModal.clearError('stampTaxModal');
+        if (!data.MusteriId || isNaN(data.MusteriId)) {
+            NbtModal.showFieldError('stampTaxModal', 'stampTaxMusteriId', 'Müşteri bilgisi bulunamadı');
+            NbtModal.showError('stampTaxModal', 'Müşteri bilgisi eksik. Lütfen sayfayı yenileyin.');
+            return;
+        }
         if (!data.Tarih) {
-            NbtModal.showError('stampTaxModal', 'Tarih zorunludur');
+            NbtModal.showFieldError('stampTaxModal', 'stampTaxTarih', 'Tarih zorunludur');
+            NbtModal.showError('stampTaxModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
         if (!data.Tutar || data.Tutar <= 0) {
-            NbtModal.showError('stampTaxModal', 'Tutar zorunludur');
+            NbtModal.showFieldError('stampTaxModal', 'stampTaxTutar', 'Tutar zorunludur');
+            NbtModal.showError('stampTaxModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
 
+        NbtModal.setLoading('stampTaxModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/stamp-taxes/${id}`, data);
@@ -1823,10 +2111,14 @@ const StampTaxModule = {
             CustomerDetailModule.switchTab('damgavergisi');
         } catch (err) {
             NbtModal.showError('stampTaxModal', err.message);
+        } finally {
+            NbtModal.setLoading('stampTaxModal', false);
         }
     },
 
     bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
         document.getElementById('btnSaveStampTax')?.addEventListener('click', () => this.save());
     }
 };
@@ -1835,6 +2127,8 @@ const StampTaxModule = {
 // DOSYA MODÜLÜ (FILE)
 // =============================================
 const FileModule = {
+    _eventsBound: false,
+    
     openModal() {
         NbtModal.resetForm('fileModal');
         document.getElementById('fileModalTitle').textContent = 'Dosya Yükle';
@@ -1843,12 +2137,57 @@ const FileModule = {
     },
 
     async save() {
-        const musteriId = document.getElementById('fileMusteriId').value;
+        let musteriId = document.getElementById('fileMusteriId').value;
+        
+        // MusteriId boşsa CustomerDetailModule'den al
+        if (!musteriId || musteriId === '' || musteriId === '0') {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
         const fileInput = document.getElementById('fileInput');
         const aciklama = document.getElementById('fileAciklama').value.trim();
 
+        // Frontend validasyon
+        NbtModal.clearError('fileModal');
+        
+        if (!musteriId || isNaN(parseInt(musteriId))) {
+            NbtModal.showError('fileModal', 'Müşteri bilgisi bulunamadı. Lütfen sayfayı yenileyin.');
+            return;
+        }
+        
         if (!fileInput.files || !fileInput.files[0]) {
-            NbtModal.showError('fileModal', 'Dosya seçiniz');
+            NbtModal.showFieldError('fileModal', 'fileInput', 'Dosya seçiniz');
+            NbtModal.showError('fileModal', 'Lütfen bir dosya seçin');
+            return;
+        }
+
+        // Dosya boyutu kontrolü (maksimum 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        const file = fileInput.files[0];
+        if (file.size > maxSize) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            NbtModal.showFieldError('fileModal', 'fileInput', `Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
+            NbtModal.showError('fileModal', 'Dosya boyutu 10MB\'ı aşamaz');
+            return;
+        }
+
+        // İzin verilen dosya türleri kontrolü
+        const allowedTypes = [
+            'application/pdf', 
+            'application/msword', 
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'image/jpeg', 
+            'image/png', 
+            'image/gif',
+            'text/plain',
+            'application/zip',
+            'application/x-rar-compressed'
+        ];
+        if (!allowedTypes.includes(file.type) && file.type !== '') {
+            NbtModal.showFieldError('fileModal', 'fileInput', 'Bu dosya türü desteklenmiyor.');
+            NbtModal.showError('fileModal', 'İzin verilen türler: PDF, Word, Excel, Resimler, TXT, ZIP, RAR');
             return;
         }
 
@@ -1857,16 +2196,27 @@ const FileModule = {
         formData.append('MusteriId', musteriId);
         if (aciklama) formData.append('Aciklama', aciklama);
 
+        NbtModal.setLoading('fileModal', true);
         try {
             const response = await fetch('/api/files', {
                 method: 'POST',
                 headers: {
-                    'Authorization': 'Bearer ' + NbtUtils.getToken()
+                    'Authorization': 'Bearer ' + NbtUtils.getToken(),
+                    'X-Tab-Id': NbtUtils.getTabId()
                 },
                 body: formData
             });
 
-            const result = await response.json();
+            // Önce text olarak al, sonra JSON parse et
+            const text = await response.text();
+            let result;
+            try {
+                result = JSON.parse(text);
+            } catch (parseErr) {
+                console.error('API Response (not JSON):', text);
+                throw new Error('Sunucu hatası: Geçersiz yanıt');
+            }
+            
             if (!response.ok) {
                 throw new Error(result.error || 'Dosya yüklenemedi');
             }
@@ -1877,10 +2227,14 @@ const FileModule = {
             CustomerDetailModule.switchTab('dosyalar');
         } catch (err) {
             NbtModal.showError('fileModal', err.message);
+        } finally {
+            NbtModal.setLoading('fileModal', false);
         }
     },
 
     bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
         document.getElementById('btnSaveFile')?.addEventListener('click', () => this.save());
     }
 };
@@ -1999,8 +2353,15 @@ const ProjectModule = {
 
     async save() {
         const id = document.getElementById('projectId').value;
+        
+        // MusteriId'yi al - SELECT'ten veya CustomerDetailModule'den
+        let musteriId = parseInt(document.getElementById('projectMusteriId').value);
+        if (!musteriId || isNaN(musteriId)) {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
         const data = {
-            MusteriId: parseInt(document.getElementById('projectMusteriId').value),
+            MusteriId: musteriId,
             ProjeAdi: document.getElementById('projectName').value.trim(),
             BaslangicTarihi: document.getElementById('projectStart').value || null,
             BitisTarihi: document.getElementById('projectEnd').value || null,
@@ -2008,15 +2369,20 @@ const ProjectModule = {
             Durum: parseInt(document.getElementById('projectStatus').value)
         };
 
-        if (!data.MusteriId) {
-            NbtModal.showError('projectModal', 'Müşteri seçiniz');
+        // Frontend validasyon
+        NbtModal.clearError('projectModal');
+        if (!data.MusteriId || isNaN(data.MusteriId)) {
+            NbtModal.showFieldError('projectModal', 'projectMusteriId', 'Müşteri seçiniz');
+            NbtModal.showError('projectModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
         if (!data.ProjeAdi) {
-            NbtModal.showError('projectModal', 'Proje adı zorunludur');
+            NbtModal.showFieldError('projectModal', 'projectName', 'Proje adı zorunludur');
+            NbtModal.showError('projectModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
 
+        NbtModal.setLoading('projectModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/projects/${id}`, data);
@@ -2027,8 +2393,16 @@ const ProjectModule = {
             }
             NbtModal.close('projectModal');
             await this.loadList();
+            
+            // Müşteri detay sayfasındaysa verileri yenile
+            if (CustomerDetailModule.customerId) {
+                await CustomerDetailModule.loadRelatedData('projects', '/api/projects');
+                CustomerDetailModule.switchTab(CustomerDetailModule.activeTab);
+            }
         } catch (err) {
             NbtModal.showError('projectModal', err.message);
+        } finally {
+            NbtModal.setLoading('projectModal', false);
         }
     },
 
@@ -2216,8 +2590,11 @@ const UserModule = {
             data.Sifre = sifre;
         }
 
+        // Frontend validasyon
+        NbtModal.clearError('userModal');
         if (!data.AdSoyad) {
-            NbtModal.showError('userModal', 'Ad Soyad zorunludur');
+            NbtModal.showFieldError('userModal', 'userAdSoyad', 'Ad Soyad zorunludur');
+            NbtModal.showError('userModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
 
@@ -2225,17 +2602,20 @@ const UserModule = {
         if (!id) {
             const username = document.getElementById('userKullaniciAdi').value.trim();
             if (!username) {
-                NbtModal.showError('userModal', 'Kullanıcı adı zorunludur');
+                NbtModal.showFieldError('userModal', 'userKullaniciAdi', 'Kullanıcı adı zorunludur');
+                NbtModal.showError('userModal', 'Lütfen zorunlu alanları doldurun');
                 return;
             }
             if (!sifre) {
-                NbtModal.showError('userModal', 'Şifre zorunludur');
+                NbtModal.showFieldError('userModal', 'userSifre', 'Şifre zorunludur');
+                NbtModal.showError('userModal', 'Lütfen zorunlu alanları doldurun');
                 return;
             }
             data.KullaniciAdi = username;
             data.Sifre = sifre;
         }
 
+        NbtModal.setLoading('userModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/users/${id}`, data);
@@ -2248,6 +2628,8 @@ const UserModule = {
             await this.loadList();
         } catch (err) {
             NbtModal.showError('userModal', err.message);
+        } finally {
+            NbtModal.setLoading('userModal', false);
         }
     },
 
@@ -2377,8 +2759,15 @@ const OfferModule = {
 
     async save() {
         const id = document.getElementById('offerId').value;
+        
+        // MusteriId'yi al - SELECT'ten veya CustomerDetailModule'den
+        let musteriId = parseInt(document.getElementById('offerMusteriId').value);
+        if (!musteriId || isNaN(musteriId)) {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
         const data = {
-            MusteriId: parseInt(document.getElementById('offerMusteriId').value),
+            MusteriId: musteriId,
             TeklifNo: document.getElementById('offerNo').value.trim(),
             Konu: document.getElementById('offerSubject').value.trim() || null,
             Tutar: parseFloat(document.getElementById('offerAmount').value) || 0,
@@ -2388,15 +2777,20 @@ const OfferModule = {
             Durum: parseInt(document.getElementById('offerStatus').value)
         };
 
-        if (!data.MusteriId) {
-            NbtModal.showError('offerModal', 'Müşteri seçiniz');
+        // Frontend validasyon
+        NbtModal.clearError('offerModal');
+        if (!data.MusteriId || isNaN(data.MusteriId)) {
+            NbtModal.showFieldError('offerModal', 'offerMusteriId', 'Müşteri seçiniz');
+            NbtModal.showError('offerModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
         if (!data.TeklifNo) {
-            NbtModal.showError('offerModal', 'Teklif No zorunludur');
+            NbtModal.showFieldError('offerModal', 'offerNo', 'Teklif No zorunludur');
+            NbtModal.showError('offerModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
 
+        NbtModal.setLoading('offerModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/offers/${id}`, data);
@@ -2407,8 +2801,16 @@ const OfferModule = {
             }
             NbtModal.close('offerModal');
             await this.loadList();
+            
+            // Müşteri detay sayfasındaysa verileri yenile
+            if (CustomerDetailModule.customerId) {
+                await CustomerDetailModule.loadRelatedData('offers', '/api/offers');
+                CustomerDetailModule.switchTab(CustomerDetailModule.activeTab);
+            }
         } catch (err) {
             NbtModal.showError('offerModal', err.message);
+        } finally {
+            NbtModal.setLoading('offerModal', false);
         }
     },
 
@@ -2536,8 +2938,15 @@ const ContractModule = {
 
     async save() {
         const id = document.getElementById('contractId').value;
+        
+        // MusteriId'yi al - SELECT'ten veya CustomerDetailModule'den
+        let musteriId = parseInt(document.getElementById('contractMusteriId').value);
+        if (!musteriId || isNaN(musteriId)) {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
         const data = {
-            MusteriId: parseInt(document.getElementById('contractMusteriId').value),
+            MusteriId: musteriId,
             SozlesmeNo: document.getElementById('contractNo').value.trim(),
             BaslangicTarihi: document.getElementById('contractStart').value || null,
             BitisTarihi: document.getElementById('contractEnd').value || null,
@@ -2546,15 +2955,20 @@ const ContractModule = {
             Durum: parseInt(document.getElementById('contractStatus').value)
         };
 
-        if (!data.MusteriId) {
-            NbtModal.showError('contractModal', 'Müşteri seçiniz');
+        // Frontend validasyon
+        NbtModal.clearError('contractModal');
+        if (!data.MusteriId || isNaN(data.MusteriId)) {
+            NbtModal.showFieldError('contractModal', 'contractMusteriId', 'Müşteri seçiniz');
+            NbtModal.showError('contractModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
         if (!data.SozlesmeNo) {
-            NbtModal.showError('contractModal', 'Sözleşme No zorunludur');
+            NbtModal.showFieldError('contractModal', 'contractNo', 'Sözleşme No zorunludur');
+            NbtModal.showError('contractModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
 
+        NbtModal.setLoading('contractModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/contracts/${id}`, data);
@@ -2565,8 +2979,16 @@ const ContractModule = {
             }
             NbtModal.close('contractModal');
             await this.loadList();
+            
+            // Müşteri detay sayfasındaysa verileri yenile
+            if (CustomerDetailModule.customerId) {
+                await CustomerDetailModule.loadRelatedData('contracts', '/api/contracts');
+                CustomerDetailModule.switchTab(CustomerDetailModule.activeTab);
+            }
         } catch (err) {
             NbtModal.showError('contractModal', err.message);
+        } finally {
+            NbtModal.setLoading('contractModal', false);
         }
     },
 
@@ -2698,8 +3120,15 @@ const GuaranteeModule = {
 
     async save() {
         const id = document.getElementById('guaranteeId').value;
+        
+        // MusteriId'yi al - SELECT'ten veya CustomerDetailModule'den
+        let musteriId = parseInt(document.getElementById('guaranteeMusteriId').value);
+        if (!musteriId || isNaN(musteriId)) {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
         const data = {
-            MusteriId: parseInt(document.getElementById('guaranteeMusteriId').value),
+            MusteriId: musteriId,
             BelgeNo: document.getElementById('guaranteeNo').value.trim() || null,
             Tur: document.getElementById('guaranteeType').value,
             BankaAdi: document.getElementById('guaranteeBank').value.trim() || null,
@@ -2709,15 +3138,20 @@ const GuaranteeModule = {
             Durum: parseInt(document.getElementById('guaranteeStatus').value)
         };
 
-        if (!data.MusteriId) {
-            NbtModal.showError('guaranteeModal', 'Müşteri seçiniz');
+        // Frontend validasyon
+        NbtModal.clearError('guaranteeModal');
+        if (!data.MusteriId || isNaN(data.MusteriId)) {
+            NbtModal.showFieldError('guaranteeModal', 'guaranteeMusteriId', 'Müşteri seçiniz');
+            NbtModal.showError('guaranteeModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
         if (!data.Tur) {
-            NbtModal.showError('guaranteeModal', 'Teminat türü zorunludur');
+            NbtModal.showFieldError('guaranteeModal', 'guaranteeType', 'Teminat türü zorunludur');
+            NbtModal.showError('guaranteeModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
 
+        NbtModal.setLoading('guaranteeModal', true);
         try {
             if (id) {
                 await NbtApi.put(`/api/guarantees/${id}`, data);
@@ -2728,8 +3162,16 @@ const GuaranteeModule = {
             }
             NbtModal.close('guaranteeModal');
             await this.loadList();
+            
+            // Müşteri detay sayfasındaysa verileri yenile
+            if (CustomerDetailModule.customerId) {
+                await CustomerDetailModule.loadRelatedData('guarantees', '/api/guarantees');
+                CustomerDetailModule.switchTab(CustomerDetailModule.activeTab);
+            }
         } catch (err) {
             NbtModal.showError('guaranteeModal', err.message);
+        } finally {
+            NbtModal.setLoading('guaranteeModal', false);
         }
     },
 
@@ -2753,19 +3195,35 @@ const PasswordModule = {
         const newPass = document.getElementById('newPassword').value;
         const confirm = document.getElementById('confirmPassword').value;
 
-        if (!current || !newPass || !confirm) {
-            NbtModal.showError('passwordModal', 'Tüm alanları doldurunuz');
+        // Frontend validasyon
+        NbtModal.clearError('passwordModal');
+        if (!current) {
+            NbtModal.showFieldError('passwordModal', 'currentPassword', 'Mevcut şifre zorunludur');
+            NbtModal.showError('passwordModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
+        if (!newPass) {
+            NbtModal.showFieldError('passwordModal', 'newPassword', 'Yeni şifre zorunludur');
+            NbtModal.showError('passwordModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
         if (newPass.length < 6) {
+            NbtModal.showFieldError('passwordModal', 'newPassword', 'Yeni şifre en az 6 karakter olmalıdır');
             NbtModal.showError('passwordModal', 'Yeni şifre en az 6 karakter olmalıdır');
             return;
         }
+        if (!confirm) {
+            NbtModal.showFieldError('passwordModal', 'confirmPassword', 'Şifre tekrarı zorunludur');
+            NbtModal.showError('passwordModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
         if (newPass !== confirm) {
+            NbtModal.showFieldError('passwordModal', 'confirmPassword', 'Yeni şifreler eşleşmiyor');
             NbtModal.showError('passwordModal', 'Yeni şifreler eşleşmiyor');
             return;
         }
 
+        NbtModal.setLoading('passwordModal', true);
         try {
             await NbtApi.post('/api/users/change-password', {
                 CurrentPassword: current,
@@ -2775,6 +3233,8 @@ const PasswordModule = {
             NbtModal.close('passwordModal');
         } catch (err) {
             NbtModal.showError('passwordModal', err.message);
+        } finally {
+            NbtModal.setLoading('passwordModal', false);
         }
     }
 };
@@ -2889,8 +3349,14 @@ function setupGlobalEvents() {
         document.getElementById('systemMenu')?.classList.add('d-none');
     }
 
-    // Yeni modül save butonları
+    // Tüm modül save butonları için event binding
     CustomerModule.bindEvents();
+    InvoiceModule.bindEvents();
+    PaymentModule.bindEvents();
+    ProjectModule.bindEvents();
+    OfferModule.bindEvents();
+    ContractModule.bindEvents();
+    GuaranteeModule.bindEvents();
     MeetingModule.bindEvents();
     ContactModule.bindEvents();
     StampTaxModule.bindEvents();

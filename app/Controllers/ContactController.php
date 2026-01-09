@@ -54,9 +54,7 @@ class ContactController
             'Notlar' => isset($Girdi['Notlar']) ? trim((string)$Girdi['Notlar']) : null
         ];
 
-        $Id = Transaction::wrap(function () use ($Repo, $YuklenecekVeri, $KullaniciId) {
-            return $Repo->ekle($YuklenecekVeri, $KullaniciId);
-        });
+        $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
 
         Response::json(['id' => $Id], 201);
     }
@@ -77,18 +75,16 @@ class ContactController
             return;
         }
 
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
-            $Guncellenecek = [];
-            if (isset($Girdi['AdSoyad'])) $Guncellenecek['AdSoyad'] = trim((string)$Girdi['AdSoyad']);
-            if (isset($Girdi['Unvan'])) $Guncellenecek['Unvan'] = trim((string)$Girdi['Unvan']);
-            if (isset($Girdi['Telefon'])) $Guncellenecek['Telefon'] = trim((string)$Girdi['Telefon']);
-            if (isset($Girdi['Email'])) $Guncellenecek['Email'] = trim((string)$Girdi['Email']);
-            if (isset($Girdi['Notlar'])) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
+        $Guncellenecek = [];
+        if (isset($Girdi['AdSoyad'])) $Guncellenecek['AdSoyad'] = trim((string)$Girdi['AdSoyad']);
+        if (isset($Girdi['Unvan'])) $Guncellenecek['Unvan'] = trim((string)$Girdi['Unvan']);
+        if (isset($Girdi['Telefon'])) $Guncellenecek['Telefon'] = trim((string)$Girdi['Telefon']);
+        if (isset($Girdi['Email'])) $Guncellenecek['Email'] = trim((string)$Girdi['Email']);
+        if (isset($Girdi['Notlar'])) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
 
-            if (!empty($Guncellenecek)) {
-                $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
-            }
-        });
+        if (!empty($Guncellenecek)) {
+            $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+        }
 
         Response::json(['status' => 'success']);
     }
@@ -108,9 +104,7 @@ class ContactController
             return;
         }
 
-        Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
-            $Repo->softSil($Id, $KullaniciId);
-        });
+        $Repo->softSil($Id, $KullaniciId);
 
         Response::json(['status' => 'success']);
     }
