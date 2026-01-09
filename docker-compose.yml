@@ -13,6 +13,8 @@ services:
       - ./routes:/var/www/html/routes
       - ./config:/var/www/html/config
       - ./storage:/var/www/html/storage
+      - ./database:/var/www/html/database
+      - ./sql:/var/www/html/sql
 
   nginx:
     image: nginx:1.27
@@ -41,3 +43,13 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: nbt-mssql
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: "i&V9WUPOj=27"
+    ports:
+      - "1433:1433"
+

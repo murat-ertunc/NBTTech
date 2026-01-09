@@ -1,18 +1,11 @@
--- Create DB if not exists
-IF DB_ID('NbtProject') IS NULL
-BEGIN
-    CREATE DATABASE NbtProject;
-END
-GO
 USE NbtProject;
 GO
 
-:r 001_log_action.sql
-:r 002_tnm_user.sql
-:r 003_tbl_musteri.sql
-:r 004_bck_tbl_musteri.sql
 :r 005_seed_superadmin.sql
-:r 006_bck_tnm_user.sql
+:r 007_tbl_fatura.sql
+:r 008_bck_tbl_fatura.sql
+:r 009_tbl_odeme.sql
+:r 010_bck_tbl_odeme.sql
 :r 011_tbl_proje.sql
 :r 012_bck_tbl_proje.sql
 :r 013_tbl_teklif.sql

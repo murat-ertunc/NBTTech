@@ -39,6 +39,11 @@ class UserRepository extends BaseRepository
         return $Kayit ?: null;
     }
 
+    public function kullaniciAdiylaAra(string $KullaniciAdi): ?array
+    {
+        return $this->kullaniciAdiIleBul($KullaniciAdi);
+    }
+
     public function bul(int $Id): ?array
     {
         $Stmt = $this->Db->prepare("SELECT TOP 1 * FROM {$this->Tablo} WHERE Id = :Id AND Sil = 0");

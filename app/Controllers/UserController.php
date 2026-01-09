@@ -86,4 +86,95 @@ class UserController
 
         Response::json(['status' => 'ok']);
     }
+
+    public static function store(): void
+    {
+        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        $AdSoyad = trim($Girdi['AdSoyad'] ?? '');
+        $KullaniciAdi = trim($Girdi['KullaniciAdi'] ?? '');
+        $Sifre = $Girdi['Sifre'] ?? '';
+        $Rol = $Girdi['Rol'] ?? 'user';
+
+        if (!$AdSoyad || !$KullaniciAdi || !$Sifre) {
+            Response::error('Tüm alanlar zorunludur.', 422);
+            return;
+        }
+        if (strlen($Sifre) < 6) {
+            Response::error('Şifre en az 6 karakter olmalıdır.', 422);
+            return;
+        }
+        if (!in_array($Rol, ['user', 'admin'])) {
+            $Rol = 'user';
+        }
+
+        $Repo = new UserRepository();
+        
+        // Kullanıcı adı benzersiz mi kontrol et
+        $Mevcut = $Repo->kullaniciAdiylaAra($KullaniciAdi);
+        if ($Mevcut) {
+            Response::error('Bu kullanıcı adı zaten kullanılıyor.', 422);
+            return;
+        }
+
+        $SifreHash = password_hash($Sifre, PASSWORD_BCRYPT);
+        
+        Transaction::wrap(function () use ($Repo, $AdSoyad, $KullaniciAdi, $SifreHash, $Rol) {
+            $YeniId = $Repo->ekle([
+                'AdSoyad' => $AdSoyad,
+                'KullaniciAdi' => $KullaniciAdi,
+                'Sifre' => $SifreHash,
+                'Rol' => $Rol,
+                'Aktif' => 1
+            ], Context::kullaniciId());
+            ActionLogger::create('tnm_user', ['Id' => $YeniId, 'KullaniciAdi' => $KullaniciAdi, 'Rol' => $Rol]);
+        });
+
+        Response::json(['status' => 'ok']);
+    }
+
+    public static function changePassword(): void
+    {
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum geçersiz.', 401);
+            return;
+        }
+
+        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        $MevcutSifre = $Girdi['CurrentPassword'] ?? '';
+        $YeniSifre = $Girdi['NewPassword'] ?? '';
+
+        if (!$MevcutSifre || !$YeniSifre) {
+            Response::error('Mevcut ve yeni şifre zorunludur.', 422);
+            return;
+        }
+        if (strlen($YeniSifre) < 6) {
+            Response::error('Yeni şifre en az 6 karakter olmalıdır.', 422);
+            return;
+        }
+
+        $Repo = new UserRepository();
+        $Kullanici = $Repo->bul($KullaniciId);
+        
+        if (!$Kullanici) {
+            Response::error('Kullanıcı bulunamadı.', 404);
+            return;
+        }
+
+        // Mevcut şifre kontrolü
+        if (!password_verify($MevcutSifre, $Kullanici['Sifre'])) {
+            Response::error('Mevcut şifre yanlış.', 422);
+            return;
+        }
+
+        $YeniHash = password_hash($YeniSifre, PASSWORD_BCRYPT);
+
+        Transaction::wrap(function () use ($Repo, $KullaniciId, $YeniHash) {
+            $Repo->yedekle($KullaniciId, 'bck_tnm_user', $KullaniciId);
+            $Repo->guncelle($KullaniciId, ['Sifre' => $YeniHash], $KullaniciId);
+            ActionLogger::logla('password_change', 'tnm_user', ['Id' => $KullaniciId], 'ok');
+        });
+
+        Response::json(['status' => 'ok', 'message' => 'Şifre değiştirildi.']);
+    }
 }

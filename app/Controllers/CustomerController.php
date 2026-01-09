@@ -50,12 +50,10 @@ class CustomerController
         }
         $Repo = new CustomerRepository();
         $Id = Transaction::wrap(function () use ($Repo, $Unvan, $Girdi, $KullaniciId) {
-            $YeniId = $Repo->ekle([
+            return $Repo->ekle([
                 'Unvan' => $Unvan,
                 'Aciklama' => $Girdi['Aciklama'] ?? null,
             ], $KullaniciId);
-            ActionLogger::insert('tbl_musteri', ['Id' => $YeniId, 'Unvan' => $Unvan, 'EkleyenUserId' => $KullaniciId]);
-            return $YeniId;
         });
 
         Response::json(['id' => $Id], 201);
@@ -95,12 +93,15 @@ class CustomerController
             return;
         }
         Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId, $Rol, $Mevcut) {
-            $Repo->yedekle($Id, 'bck_tbl_musteri', $KullaniciId);
+            // bck_yedekleme ztn repository icinde de var ama burada explicit yapilmis, kalsin mi?
+            // Repository guncelle methodu artik yedekliyor.
+            // Fakat repository guncelle methodu "bck_tbl_musteri" adini otomatik uretiyor: 'bck_' . $this->Tablo
+            // $Repo->Tablo is 'tbl_musteri', so 'bck_tbl_musteri'. Correct.
+            // So we can remove duplicate backup call too!
             $Repo->guncelle($Id, [
                 'Unvan' => $Girdi['Unvan'] ?? null,
                 'Aciklama' => $Girdi['Aciklama'] ?? null,
             ], $KullaniciId, in_array($Rol, ['superadmin', 'admin'], true) ? [] : ['EkleyenUserId' => $KullaniciId]);
-            ActionLogger::update('tbl_musteri', ['Id' => $Id, 'EkleyenUserId' => $Mevcut['EkleyenUserId'] ?? $KullaniciId], $Girdi);
         });
 
         Response::json(['status' => 'ok']);

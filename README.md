@@ -21,7 +21,7 @@ Konteynerler ayağa kalktıktan sonra aşağıdaki komut ile veritabanı şemas�
 
 ```bash
 # Veritabanı şeması ve tabloların oluşturulması
-docker exec nbt-php74 /bin/sh -c "cd /var/www/html/sql && sqlcmd -S host.docker.internal,1433 -U sa -P 'YourStrong\!Passw0rd' -i 000_init_all.sql"
+docker exec nbt-php74 /bin/sh -c "cd /var/www/html/sql && sqlcmd -S host.docker.internal,1433 -U sa -P 'i&V9WUPOj=27' -i 000_init_all.sql"
 
 # Varsayılan kullanıcıların eklenmesi
 docker exec nbt-php74 php /var/www/html/database/seeder.php

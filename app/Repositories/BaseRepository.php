@@ -80,10 +80,12 @@ class BaseRepository
             implode(', ', $Tutucular)
         );
 
-        return Transaction::wrap(function () use ($Sql, $Yukleme) {
+        return Transaction::wrap(function () use ($Sql, $Yukleme, $Veri) {
             $Stmt = $this->Db->prepare($Sql);
             $Stmt->execute($Yukleme);
-            return (int) $this->Db->lastInsertId();
+            $Id = (int) $this->Db->lastInsertId();
+            ActionLogger::insert($this->Tablo, ['Id' => $Id], $Veri);
+            return $Id;
         });
     }
 
@@ -102,9 +104,24 @@ class BaseRepository
         }
         $Sql = "UPDATE {$this->Tablo} SET {$SetSql} WHERE " . implode(' AND ', $WhereParcalari);
 
-        Transaction::wrap(function () use ($Sql, $Yukleme) {
+        // Backup Tablosu varsayimi: bck_ + TabloAdi
+        $BckTablo = 'bck_' . $this->Tablo;
+
+        Transaction::wrap(function () use ($Sql, $Yukleme, $Id, $BckTablo, $KullaniciId, $Veri, $EkKosul) {
+            // 1. Yedekle
+            try {
+                $this->yedekle($Id, $BckTablo, $KullaniciId);
+            } catch (\Throwable $Ignored) {
+                // Yedekleme tablosu yoksa islem kesilmesin diye catch
+                // (Strict modda bu catch kaldirilabilir)
+            }
+
+            // 2. Guncelle
             $Stmt = $this->Db->prepare($Sql);
             $Stmt->execute($Yukleme);
+
+            // 3. Logla
+            ActionLogger::update($this->Tablo, array_merge(['Id' => $Id], $EkKosul), $Veri);
         });
     }
 
@@ -125,9 +142,10 @@ class BaseRepository
         }
         $Sql = "UPDATE {$this->Tablo} SET " . implode(', ', $SetParcalari) . " WHERE " . implode(' AND ', $WhereParcalari);
 
-        Transaction::wrap(function () use ($Sql, $Yukleme) {
+        Transaction::wrap(function () use ($Sql, $Yukleme, $Id, $EkKosul) {
             $Stmt = $this->Db->prepare($Sql);
             $Stmt->execute($Yukleme);
+            ActionLogger::delete($this->Tablo, array_merge(['Id' => $Id], $EkKosul), 'Soft Delete');
         });
     }
 

@@ -4,39 +4,97 @@ namespace App\Services\Logger;
 
 use App\Core\Context;
 
+/**
+ * Islem Loglayici
+ * 
+ * Tum CRUD islemlerini log_action tablosuna kaydeder.
+ * NbtYazilimKurallari'na gore her islem loglanmalidir.
+ */
 class ActionLogger
 {
-    public static function insert(string $Varlik, array $Veri): void
+    /**
+     * INSERT islemi logla
+     * 
+     * @param string $Tablo Tablo adi
+     * @param array $Kimlik Kayit kimligi (Id, Guid vb.)
+     * @param array $Veri Eklenen veri
+     */
+    public static function insert(string $Tablo, array $Kimlik, array $Veri): void
     {
-        self::logla('insert', $Varlik, ['Veri' => $Veri]);
+        self::logla('CREATE', $Tablo, [
+            'Kimlik' => $Kimlik,
+            'Veri' => $Veri
+        ]);
     }
 
-    public static function update(string $Varlik, array $Filtreler, array $Degisiklikler): void
+    /**
+     * UPDATE islemi logla
+     * 
+     * @param string $Tablo Tablo adi
+     * @param array $Filtreler Guncellenen kayit filtreleri
+     * @param array $Degisiklikler Degisen alanlar
+     */
+    public static function update(string $Tablo, array $Filtreler, array $Degisiklikler): void
     {
-        self::logla('update', $Varlik, ['Filtreler' => $Filtreler, 'Degisiklikler' => $Degisiklikler]);
+        self::logla('UPDATE', $Tablo, [
+            'Filtreler' => $Filtreler,
+            'Degisiklikler' => $Degisiklikler
+        ]);
     }
 
-    public static function delete(string $Varlik, array $Filtreler): void
+    /**
+     * DELETE (soft delete) islemi logla
+     * 
+     * @param string $Tablo Tablo adi
+     * @param array $Filtreler Silinen kayit filtreleri
+     * @param string $Aciklama Ek aciklama
+     */
+    public static function delete(string $Tablo, array $Filtreler, string $Aciklama = ''): void
     {
-        self::logla('delete', $Varlik, ['Filtreler' => $Filtreler]);
+        self::logla('DELETE', $Tablo, [
+            'Filtreler' => $Filtreler,
+            'Aciklama' => $Aciklama
+        ]);
     }
 
-    public static function select(string $Varlik, array $Filtreler, int $Adet, array $VeriSeti = []): void
+    /**
+     * SELECT islemi logla
+     * 
+     * @param string $Tablo Tablo adi
+     * @param array $Filtreler Sorgu filtreleri
+     * @param int $Adet Donen kayit sayisi
+     * @param array $VeriSeti Donen veriler (opsiyonel)
+     */
+    public static function select(string $Tablo, array $Filtreler, int $Adet, array $VeriSeti = []): void
     {
-        self::logla('select', $Varlik, ['Filtreler' => $Filtreler, 'Adet' => $Adet, 'VeriSeti' => $VeriSeti]);
+        self::logla('SELECT', $Tablo, [
+            'Filtreler' => $Filtreler,
+            'Adet' => $Adet
+        ]);
     }
 
-    public static function logla(string $Islem, string $Varlik, array $Yukleme = [], string $Sonuc = 'ok'): void
+    /**
+     * Genel loglama metodu
+     * 
+     * @param string $Islem Islem tipi (CREATE, UPDATE, DELETE, SELECT)
+     * @param string $Tablo Tablo adi
+     * @param array $Yukleme Log verisi
+     * @param string $Sonuc Islem sonucu
+     */
+    public static function logla(string $Islem, string $Tablo, array $Yukleme = [], string $Sonuc = 'ok'): void
     {
         $Logger = logger();
-        $Logger->log(self::veriHazirla($Islem, $Varlik, $Yukleme, $Sonuc));
+        $Logger->log(self::veriHazirla($Islem, $Tablo, $Yukleme, $Sonuc));
     }
 
-    private static function veriHazirla(string $Islem, string $Varlik, array $Yukleme, string $Sonuc): array
+    /**
+     * Log verisini hazirla
+     */
+    private static function veriHazirla(string $Islem, string $Tablo, array $Yukleme, string $Sonuc): array
     {
         return [
             'Islem' => $Islem,
-            'Varlik' => $Varlik,
+            'Tablo' => $Tablo,
             'IpAdresi' => Context::ipAdresi(),
             'Veri' => json_encode([
                 'Yukleme' => $Yukleme,

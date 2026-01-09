@@ -11,7 +11,7 @@ use App\Core\Database;
 
 $Db = Database::connection();
 
-// Kullanici listesi
+// Kullanici listesi (Production: Sadece superadmin)
 $Kullanicilar = [
     [
         'KullaniciAdi' => 'superadmin',
@@ -19,13 +19,6 @@ $Kullanicilar = [
         'AdSoyad' => 'Sistem Yoneticisi',
         'Aktif' => 1,
         'Rol' => 'superadmin',
-    ],
-    [
-        'KullaniciAdi' => 'demo',
-        'Parola' => password_hash('Demo123!', PASSWORD_BCRYPT),
-        'AdSoyad' => 'Demo Kullanici',
-        'Aktif' => 1,
-        'Rol' => 'user',
     ],
 ];
 
@@ -79,7 +72,6 @@ foreach ($Kullanicilar as $Kullanici) {
     }
 }
 
-echo "\n=== Varsayılan Kullanıcılar ===";
-echo "\n  Süper Admin: superadmin / Super123!";
-echo "\n  Demo Kullanıcı: demo / Demo123!";
-echo "\n\nSeeder tamamlandı.\n";
+echo "\n=== Varsayilan Kullanicilar ===";
+echo "\n  Super Admin: superadmin / Super123!";
+echo "\n\nSeeder tamamlandi.\n";

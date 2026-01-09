@@ -1,4 +1,22 @@
--- log_action tablosu isimlendirme ve standart alan kurallarına uygun
+-- Migration: log_action tablosu yeniden yapilandirma
+-- Bu script mevcut log_action tablosunu yeni yapiya gunceller
+
+-- Eski tablo varsa yedekle ve sil
+IF OBJECT_ID('log_action', 'U') IS NOT NULL
+BEGIN
+    -- Varsa eski veriyi yedekle
+    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'log_action_backup_v1')
+    BEGIN
+        SELECT * INTO log_action_backup_v1 FROM log_action;
+        PRINT 'Eski log_action tablosu log_action_backup_v1 olarak yedeklendi.';
+    END
+    
+    -- Eski tabloyu sil
+    DROP TABLE log_action;
+    PRINT 'Eski log_action tablosu silindi.';
+END
+
+-- Yeni log_action tablosunu olustur
 CREATE TABLE log_action (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     Guid UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID(),
@@ -19,3 +37,5 @@ CREATE INDEX IX_log_action_Tablo ON log_action (Tablo);
 CREATE INDEX IX_log_action_Islem ON log_action (Islem);
 CREATE INDEX IX_log_action_EklemeZamani ON log_action (EklemeZamani);
 CREATE INDEX IX_log_action_KayitId ON log_action (KayitId);
+
+PRINT 'Yeni log_action tablosu olusturuldu.';

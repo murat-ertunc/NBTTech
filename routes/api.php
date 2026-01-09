@@ -2,6 +2,9 @@
 
 use App\Controllers\AuthController;
 use App\Controllers\CustomerController;
+use App\Controllers\DashboardController;
+use App\Controllers\InvoiceController;
+use App\Controllers\PaymentController;
 use App\Core\Response;
 use App\Middleware\Auth;
 use App\Middleware\Role;
@@ -43,6 +46,139 @@ $Router->add('DELETE', '/api/customers/{id}', function ($Parametreler) {
 	CustomerController::delete($Parametreler);
 });
 
+// Fatura Islemleri
+$Router->add('GET', '/api/invoices', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	InvoiceController::index();
+});
+$Router->add('POST', '/api/invoices', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	InvoiceController::store();
+});
+$Router->add('PUT', '/api/invoices/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	InvoiceController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/invoices/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	InvoiceController::delete($Parametreler);
+});
+
+// Odeme Islemleri
+$Router->add('GET', '/api/payments', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	PaymentController::index();
+});
+$Router->add('POST', '/api/payments', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	PaymentController::store();
+});
+$Router->add('PUT', '/api/payments/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	PaymentController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/payments/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	PaymentController::delete($Parametreler);
+});
+
+
+// Proje Islemleri
+$Router->add('GET', '/api/projects', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\ProjectController::index();
+});
+$Router->add('POST', '/api/projects', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\ProjectController::store();
+});
+$Router->add('PUT', '/api/projects/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\ProjectController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/projects/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\ProjectController::delete($Parametreler);
+});
+
+// Teklif Islemleri
+$Router->add('GET', '/api/offers', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\OfferController::index();
+});
+$Router->add('POST', '/api/offers', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\OfferController::store();
+});
+$Router->add('PUT', '/api/offers/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\OfferController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/offers/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\OfferController::delete($Parametreler);
+});
+
+// Sozlesme Islemleri
+$Router->add('GET', '/api/contracts', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\ContractController::index();
+});
+$Router->add('POST', '/api/contracts', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\ContractController::store();
+});
+$Router->add('PUT', '/api/contracts/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\ContractController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/contracts/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\ContractController::delete($Parametreler);
+});
+
+// Teminat Islemleri
+$Router->add('GET', '/api/guarantees', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\GuaranteeController::index();
+});
+$Router->add('POST', '/api/guarantees', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\GuaranteeController::store();
+});
+$Router->add('PUT', '/api/guarantees/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\GuaranteeController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/guarantees/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'admin', 'user'])) return;
+	App\Controllers\GuaranteeController::delete($Parametreler);
+});
+
 // Kullanici yonetimi (sadece superadmin)
 $Router->add('GET', '/api/users', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
@@ -60,4 +196,30 @@ $Router->add('DELETE', '/api/users/{id}', function ($Parametreler) {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin'])) return;
 	App\Controllers\UserController::delete($Parametreler);
+});
+
+// Kullanıcı ekleme (sadece superadmin)
+$Router->add('POST', '/api/users', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin'])) return;
+	App\Controllers\UserController::store();
+});
+
+// Şifre değiştirme (her kullanıcı kendi şifresini değiştirebilir)
+$Router->add('POST', '/api/users/change-password', function () {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	App\Controllers\UserController::changePassword();
+});
+
+// Dashboard
+$Router->add('GET', '/api/dashboard', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    DashboardController::index();
+});
+
+// Log Kayitlari (sadece superadmin ve admin)
+$Router->add('GET', '/api/logs', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'admin'])) return;
+    App\Controllers\LogController::index();
 });
