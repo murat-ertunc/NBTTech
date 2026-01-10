@@ -96,8 +96,9 @@ const DashboardModule = {
             this.renderAlarms(AppState.alarms);
             document.getElementById('alarmCount').textContent = AppState.alarms.length;
         } catch (err) {
-            // API henüz yoksa mock data
-            this.renderMockAlarms();
+            AppState.alarms = [];
+            this.renderAlarms([]);
+            document.getElementById('alarmCount').textContent = '0';
         }
     },
 
@@ -134,22 +135,11 @@ const DashboardModule = {
         container.innerHTML = html;
     },
 
-    renderMockAlarms() {
-        // Mock alarmlar (API hazır olana kadar)
-        const mockAlarms = [
-            { id: 1, type: 'invoice', title: 'Ödenmemiş Fatura', description: '3 adet fatura ödeme bekliyor' },
-            { id: 2, type: 'calendar', title: 'Yaklaşan İş', description: 'Bu hafta 2 görev var' }
-        ];
-        this.renderAlarms(mockAlarms);
-        document.getElementById('alarmCount').textContent = mockAlarms.length;
-    },
-
     async loadCalendar() {
         const container = document.getElementById('dashCalendar');
         try {
             await NbtCalendar.loadEvents();
         } catch (err) {
-            // Mock events
             NbtCalendar.events = [];
         }
         
@@ -1380,13 +1370,6 @@ const CustomerDetailModule = {
     },
 
     handleTableAction(action, id, tab) {
-        // Backend'i henüz hazır olmayan modüller
-        const comingSoonTabs = [];
-        if (comingSoonTabs.includes(tab)) {
-            NbtToast.info('Bu modül yakında aktif olacak');
-            return;
-        }
-
         const typeMap = {
             projeler: { type: 'project', detailType: 'project', endpoint: '/api/projects', key: 'projects' },
             teklifler: { type: 'offer', detailType: 'offer', endpoint: '/api/offers', key: 'offers' },
@@ -1430,15 +1413,6 @@ const CustomerDetailModule = {
 
     openAddModal(type) {
         const customerId = this.customerId;
-        console.log('=== openAddModal START ===', type, 'customerId:', customerId);
-        
-        // Backend'i henüz hazır olmayan modüller (şu an hepsi hazır)
-        const comingSoonTypes = [];
-        if (comingSoonTypes.includes(type)) {
-            NbtToast.info('Bu modül yakında aktif olacak');
-            return;
-        }
-
         const modalMap = {
             project: 'projectModal',
             invoice: 'invoiceModal',
@@ -1478,9 +1452,7 @@ const CustomerDetailModule = {
             const hiddenEl = document.getElementById(hiddenFieldId);
             if (hiddenEl) {
                 hiddenEl.value = customerId;
-                // Data attribute olarak da sakla
                 hiddenEl.setAttribute('data-preserve-value', customerId);
-                console.log(`PRE-SET ${hiddenFieldId} to ${customerId}`);
             }
         }
 
@@ -1491,13 +1463,7 @@ const CustomerDetailModule = {
             const hiddenEl = document.getElementById(hiddenFieldId);
             if (hiddenEl) {
                 const preservedValue = hiddenEl.getAttribute('data-preserve-value');
-                if (preservedValue) {
-                    hiddenEl.value = preservedValue;
-                    console.log(`POST-RESET ${hiddenFieldId} restored to ${preservedValue}`);
-                } else {
-                    hiddenEl.value = customerId;
-                    console.log(`POST-RESET ${hiddenFieldId} set to ${customerId}`);
-                }
+                hiddenEl.value = preservedValue || customerId;
             }
         }
         
@@ -1510,17 +1476,12 @@ const CustomerDetailModule = {
             selectEl.disabled = true;
         }
         
-        // Bir kez daha garantiye alıyoruz - modal açıldıktan 50ms sonra
+        // Modal açıldıktan 50ms sonra hidden field kontrolü
         setTimeout(() => {
             if (hiddenFieldId) {
                 const checkEl = document.getElementById(hiddenFieldId);
-                if (checkEl) {
-                    if (!checkEl.value || checkEl.value === '') {
-                        checkEl.value = customerId;
-                        console.warn(`TIMEOUT-FIX: Re-set ${hiddenFieldId} to ${customerId}`);
-                    } else {
-                        console.log(`TIMEOUT-CHECK: ${hiddenFieldId} is OK with value:`, checkEl.value);
-                    }
+                if (checkEl && (!checkEl.value || checkEl.value === '')) {
+                    checkEl.value = customerId;
                 }
             }
         }, 50);
@@ -1541,13 +1502,6 @@ const CustomerDetailModule = {
     },
 
     openEditModal(type, id) {
-        // Backend'i henüz hazır olmayan modüller
-        const comingSoonTypes = [];
-        if (comingSoonTypes.includes(type)) {
-            NbtToast.info('Bu modül yakında aktif olacak');
-            return;
-        }
-
         const dataMap = {
             project: 'projects',
             invoice: 'invoices',

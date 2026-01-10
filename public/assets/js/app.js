@@ -571,7 +571,7 @@ const NbtModal = {
         const modal = document.getElementById(modalId);
         if (!modal) return;
         
-        // MusteriId gibi önemli hidden field'ları sakla (data-preserve-value attribute'u olanlar veya musteri içerenler)
+        // MusteriId gibi önemli hidden field'ları sakla
         const preserveFields = {};
         modal.querySelectorAll('input[type="hidden"]').forEach(el => {
             const elIdLower = el.id.toLowerCase();
@@ -579,10 +579,8 @@ const NbtModal = {
             
             if (hasPreserveAttr) {
                 preserveFields[el.id] = el.getAttribute('data-preserve-value');
-                console.log(`resetForm: Will preserve ${el.id} from attr:`, preserveFields[el.id]);
             } else if (elIdLower.includes('musteri') && elIdLower.includes('id')) {
                 preserveFields[el.id] = el.value;
-                console.log(`resetForm: Will preserve ${el.id} from value:`, el.value);
             }
         });
         
@@ -616,7 +614,6 @@ const NbtModal = {
             const field = document.getElementById(fieldId);
             if (field && preserveFields[fieldId]) {
                 field.value = preserveFields[fieldId];
-                console.log(`resetForm: Restored ${fieldId} to ${preserveFields[fieldId]}`);
             }
         });
         
