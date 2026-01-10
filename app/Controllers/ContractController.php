@@ -14,7 +14,7 @@ class ContractController
         $Repo = new ContractRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
@@ -39,7 +39,7 @@ class ContractController
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 
@@ -75,7 +75,7 @@ class ContractController
         $Repo = new ContractRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 
@@ -109,7 +109,7 @@ class ContractController
         $Repo = new ContractRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 

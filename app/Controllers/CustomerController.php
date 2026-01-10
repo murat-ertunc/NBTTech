@@ -15,7 +15,7 @@ class CustomerController
         $Repo = new CustomerRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
         $Rol = Context::rol();
@@ -45,7 +45,7 @@ class CustomerController
         }
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
         $Repo = new CustomerRepository();
@@ -81,7 +81,7 @@ class CustomerController
         $Repo = new CustomerRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
         $Rol = Context::rol();
@@ -117,7 +117,7 @@ class CustomerController
         $Repo = new CustomerRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
         $Rol = Context::rol();

@@ -14,7 +14,7 @@ class ContactController
         $Repo = new ContactRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
         
@@ -40,7 +40,7 @@ class ContactController
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 
@@ -71,7 +71,7 @@ class ContactController
         $Repo = new ContactRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 
@@ -100,7 +100,7 @@ class ContactController
         $Repo = new ContactRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 

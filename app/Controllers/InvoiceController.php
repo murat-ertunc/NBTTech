@@ -15,7 +15,7 @@ class InvoiceController
         $Repo = new InvoiceRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 
@@ -52,7 +52,7 @@ class InvoiceController
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 
@@ -82,7 +82,7 @@ class InvoiceController
         $Repo = new InvoiceRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 
@@ -120,7 +120,7 @@ class InvoiceController
         $Repo = new InvoiceRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 

@@ -276,7 +276,15 @@ const CustomerModule = {
 
         NbtDataTable.bind(container, {
             onView: (id) => {
-                window.location.hash = `#customer/${id}`;
+                // Müşteri verisini AppState'ten bul
+                const customer = AppState.customers.find(c => parseInt(c.Id, 10) === parseInt(id, 10));
+                if (customer) {
+                    // Yerinde modal ile göster, detay sayfasına yönlendirme
+                    NbtDetailModal.show('customer', customer, (editId) => this.openModal(editId));
+                } else {
+                    // Müşteri listesinden erişildiğinde bu duruma düşmemeli
+                    window.location.hash = `#customer/${id}`;
+                }
             },
             onEdit: (id) => this.openModal(id),
             onDelete: async (id) => {
@@ -992,7 +1000,8 @@ const CustomerDetailModule = {
     },
 
     bindTabEvents(container, tab) {
-        // Panel header actions
+        // Panel header actions - bu her tab değişiminde yeniden bağlanmalı
+        // çünkü panel butonları DOM'da yeniden oluşturuluyor
         container.querySelectorAll('[data-panel-action]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const action = btn.dataset.panelAction;
@@ -1031,7 +1040,14 @@ const CustomerDetailModule = {
             }
         });
 
+        // Event delegation handler'ları sadece BİR KEZ ekle (duplicate listener bug fix)
+        // Container değişmiyor, sadece innerHTML değişiyor - bu yüzden guard kullanmalıyız
+        if (container._delegationBound) return;
+        container._delegationBound = true;
+
         // Tüm buton event'leri için tek event delegation handler
+        // NOT: 'tab' closure değişkeni yerine 'this.activeTab' kullanılmalı
+        // çünkü tab değiştiğinde closure eski değeri tutar
         container.addEventListener('click', (e) => {
             // Yeni kayıt butonları
             const addBtn = e.target.closest('[data-add]');
@@ -1056,7 +1072,8 @@ const CustomerDetailModule = {
                 e.preventDefault();
                 const action = actionEl.dataset.action;
                 const id = parseInt(actionEl.dataset.id);
-                this.handleTableAction(action, id, tab);
+                // BUG FIX: closure 'tab' yerine aktif tab kullan
+                this.handleTableAction(action, id, this.activeTab);
                 return;
             }
         });
@@ -1371,24 +1388,39 @@ const CustomerDetailModule = {
         }
 
         const typeMap = {
-            projeler: { type: 'project', endpoint: '/api/projects', key: 'projects' },
-            teklifler: { type: 'offer', endpoint: '/api/offers', key: 'offers' },
-            sozlesmeler: { type: 'contract', endpoint: '/api/contracts', key: 'contracts' },
-            teminatlar: { type: 'guarantee', endpoint: '/api/guarantees', key: 'guarantees' },
-            faturalar: { type: 'invoice', endpoint: '/api/invoices', key: 'invoices' },
-            odemeler: { type: 'payment', endpoint: '/api/payments', key: 'payments' },
-            gorusme: { type: 'meeting', endpoint: '/api/meetings', key: 'meetings' },
-            kisiler: { type: 'contact', endpoint: '/api/contacts', key: 'contacts' },
-            damgavergisi: { type: 'stamptax', endpoint: '/api/stamp-taxes', key: 'stampTaxes' },
-            dosyalar: { type: 'file', endpoint: '/api/files', key: 'files' }
+            projeler: { type: 'project', detailType: 'project', endpoint: '/api/projects', key: 'projects' },
+            teklifler: { type: 'offer', detailType: 'offer', endpoint: '/api/offers', key: 'offers' },
+            sozlesmeler: { type: 'contract', detailType: 'contract', endpoint: '/api/contracts', key: 'contracts' },
+            teminatlar: { type: 'guarantee', detailType: 'guarantee', endpoint: '/api/guarantees', key: 'guarantees' },
+            faturalar: { type: 'invoice', detailType: 'invoice', endpoint: '/api/invoices', key: 'invoices' },
+            odemeler: { type: 'payment', detailType: 'payment', endpoint: '/api/payments', key: 'payments' },
+            gorusme: { type: 'meeting', detailType: 'meeting', endpoint: '/api/meetings', key: 'meetings' },
+            kisiler: { type: 'contact', detailType: 'contact', endpoint: '/api/contacts', key: 'contacts' },
+            damgavergisi: { type: 'stamptax', detailType: 'stampTax', endpoint: '/api/stamp-taxes', key: 'stampTaxes' },
+            dosyalar: { type: 'file', detailType: 'file', endpoint: '/api/files', key: 'files' }
         };
 
         const config = typeMap[tab];
         if (!config) return;
 
         if (action === 'view') {
-            // TODO: Detay modalı açılabilir
-            this.openEditModal(config.type, id);
+            // READ-ONLY inspect modal - edit modal DEĞİL
+            const parsedId = parseInt(id, 10);
+            const dataArray = this.data[config.key];
+            
+            // Guard: Data yüklenmemiş veya boş ise
+            if (!dataArray || !Array.isArray(dataArray)) {
+                NbtToast.warning('Veriler yükleniyor, lütfen tekrar deneyin');
+                return;
+            }
+            
+            const item = dataArray.find(i => parseInt(i.Id, 10) === parsedId);
+            if (item) {
+                // NbtDetailModal.show(entityType, data, onEdit callback)
+                NbtDetailModal.show(config.detailType, item, (editId) => this.openEditModal(config.type, editId));
+            } else {
+                NbtToast.error('Kayıt bulunamadı');
+            }
         } else if (action === 'edit') {
             this.openEditModal(config.type, id);
         } else if (action === 'delete') {
@@ -1535,14 +1567,9 @@ const CustomerDetailModule = {
             return;
         }
 
-        const parsedId = parseInt(id, 10);
-        const item = this.data[dataKey]?.find(i => parseInt(i.Id, 10) === parsedId);
-        if (!item) {
-            NbtToast.error('Kayıt bulunamadı');
-            return;
-        }
-
         // Modal aç ve doldur (her module kendi edit modal'ını handle eder)
+        // NOT: Modüller kendi openModal'larında hem this.data hem CustomerDetailModule.data'dan arar
+        // Bu yüzden burada item kontrolü yapmıyoruz - modül handle edecek
         const moduleMap = {
             project: ProjectModule,
             invoice: InvoiceModule,
@@ -1662,9 +1689,15 @@ const InvoiceModule = {
 
         NbtDataTable.bind(container, {
             onView: (id) => {
+                if (!this.data || !Array.isArray(this.data)) {
+                    NbtToast.warning('Veriler yükleniyor, lütfen tekrar deneyin');
+                    return;
+                }
                 const invoice = this.data.find(i => parseInt(i.Id, 10) === id);
                 if (invoice) {
-                    window.location.hash = `#customer/${invoice.MusteriId}?tab=faturalar`;
+                    NbtDetailModal.show('invoice', invoice, (editId) => this.openModal(editId));
+                } else {
+                    NbtToast.error('Fatura kaydı bulunamadı');
                 }
             },
             onEdit: (id) => this.openModal(id),
@@ -1696,13 +1729,21 @@ const InvoiceModule = {
 
         if (id) {
             const parsedId = parseInt(id, 10);
-            const invoice = this.data.find(i => parseInt(i.Id, 10) === parsedId);
+            // Önce ana liste verisinden bak, yoksa müşteri detay verisinden bak
+            let invoice = this.data?.find(i => parseInt(i.Id, 10) === parsedId);
+            if (!invoice) {
+                invoice = CustomerDetailModule.data?.invoices?.find(i => parseInt(i.Id, 10) === parsedId);
+            }
             if (invoice) {
                 select.value = invoice.MusteriId;
                 document.getElementById('invoiceTarih').value = invoice.Tarih?.split('T')[0] || '';
                 document.getElementById('invoiceTutar').value = invoice.Tutar || '';
                 document.getElementById('invoiceDoviz').value = invoice.DovizCinsi || 'TRY';
                 document.getElementById('invoiceAciklama').value = invoice.Aciklama || '';
+            } else {
+                // Kayıt bulunamadı - gerçek 404 durumu
+                NbtToast.error('Fatura kaydı bulunamadı');
+                return;
             }
         }
 
@@ -1838,9 +1879,15 @@ const PaymentModule = {
 
         NbtDataTable.bind(container, {
             onView: (id) => {
+                if (!this.data || !Array.isArray(this.data)) {
+                    NbtToast.warning('Veriler yükleniyor, lütfen tekrar deneyin');
+                    return;
+                }
                 const payment = this.data.find(p => parseInt(p.Id, 10) === id);
                 if (payment) {
-                    window.location.hash = `#customer/${payment.MusteriId}?tab=odemeler`;
+                    NbtDetailModal.show('payment', payment, (editId) => this.openModal(editId));
+                } else {
+                    NbtToast.error('Ödeme kaydı bulunamadı');
                 }
             },
             onEdit: (id) => this.openModal(id),
@@ -1911,7 +1958,11 @@ const PaymentModule = {
 
         if (id) {
             const parsedId = parseInt(id, 10);
-            const payment = this.data.find(p => parseInt(p.Id, 10) === parsedId);
+            // Önce ana liste verisinden bak, yoksa müşteri detay verisinden bak
+            let payment = this.data?.find(p => parseInt(p.Id, 10) === parsedId);
+            if (!payment) {
+                payment = CustomerDetailModule.data?.payments?.find(p => parseInt(p.Id, 10) === parsedId);
+            }
             if (payment) {
                 select.value = payment.MusteriId;
                 document.getElementById('paymentTarih').value = payment.Tarih?.split('T')[0] || '';
@@ -1926,6 +1977,10 @@ const PaymentModule = {
                         }, 100);
                     });
                 }
+            } else {
+                // Kayıt bulunamadı - gerçek 404 durumu
+                NbtToast.error('Ödeme kaydı bulunamadı');
+                return;
             }
         }
 
@@ -2012,13 +2067,16 @@ const MeetingModule = {
         document.getElementById('meetingId').value = id || '';
 
         if (id) {
-            const meeting = CustomerDetailModule.data.meetings.find(m => parseInt(m.Id, 10) === parseInt(id, 10));
+            const meeting = CustomerDetailModule.data.meetings?.find(m => parseInt(m.Id, 10) === parseInt(id, 10));
             if (meeting) {
                 document.getElementById('meetingMusteriId').value = meeting.MusteriId;
                 document.getElementById('meetingTarih').value = meeting.Tarih?.split('T')[0] || '';
                 document.getElementById('meetingKonu').value = meeting.Konu || '';
                 document.getElementById('meetingKisi').value = meeting.Kisi || '';
                 document.getElementById('meetingNotlar').value = meeting.Notlar || '';
+            } else {
+                NbtToast.error('Görüşme kaydı bulunamadı');
+                return;
             }
         }
 
@@ -2046,7 +2104,7 @@ const MeetingModule = {
         NbtModal.clearError('meetingModal');
         
         if (!data.MusteriId || isNaN(data.MusteriId)) {
-            NbtModal.showError('meetingModal', 'Müşteri bilgisi bulunamadı. Lütfen sayfayı yenileyin.');
+            NbtModal.showError('meetingModal', 'Müşteri seçilmedi. Lütfen müşteri detay sayfasından işlem yapın.');
             return;
         }
         if (!data.Tarih) {
@@ -2105,7 +2163,7 @@ const ContactModule = {
         document.getElementById('contactId').value = id || '';
 
         if (id) {
-            const contact = CustomerDetailModule.data.contacts.find(c => parseInt(c.Id, 10) === parseInt(id, 10));
+            const contact = CustomerDetailModule.data.contacts?.find(c => parseInt(c.Id, 10) === parseInt(id, 10));
             if (contact) {
                 document.getElementById('contactMusteriId').value = contact.MusteriId;
                 document.getElementById('contactAdSoyad').value = contact.AdSoyad || '';
@@ -2113,6 +2171,9 @@ const ContactModule = {
                 document.getElementById('contactTelefon').value = contact.Telefon || '';
                 document.getElementById('contactEmail').value = contact.Email || '';
                 document.getElementById('contactNotlar').value = contact.Notlar || '';
+            } else {
+                NbtToast.error('Kişi kaydı bulunamadı');
+                return;
             }
         }
 
@@ -2141,7 +2202,7 @@ const ContactModule = {
         NbtModal.clearError('contactModal');
         
         if (!data.MusteriId || isNaN(data.MusteriId)) {
-            NbtModal.showError('contactModal', 'Müşteri bilgisi bulunamadı. Lütfen sayfayı yenileyin.');
+            NbtModal.showError('contactModal', 'Müşteri seçilmedi. Lütfen müşteri detay sayfasından işlem yapın.');
             return;
         }
         if (!data.AdSoyad) {
@@ -2188,7 +2249,7 @@ const StampTaxModule = {
         document.getElementById('stampTaxId').value = id || '';
 
         if (id) {
-            const item = CustomerDetailModule.data.stampTaxes.find(s => parseInt(s.Id, 10) === parseInt(id, 10));
+            const item = CustomerDetailModule.data.stampTaxes?.find(s => parseInt(s.Id, 10) === parseInt(id, 10));
             if (item) {
                 document.getElementById('stampTaxMusteriId').value = item.MusteriId;
                 document.getElementById('stampTaxTarih').value = item.Tarih?.split('T')[0] || '';
@@ -2196,6 +2257,9 @@ const StampTaxModule = {
                 document.getElementById('stampTaxDovizCinsi').value = item.DovizCinsi || 'TRY';
                 document.getElementById('stampTaxBelgeNo').value = item.BelgeNo || '';
                 document.getElementById('stampTaxAciklama').value = item.Aciklama || '';
+            } else {
+                NbtToast.error('Damga vergisi kaydı bulunamadı');
+                return;
             }
         }
 
@@ -2224,7 +2288,7 @@ const StampTaxModule = {
         // Frontend validasyon
         NbtModal.clearError('stampTaxModal');
         if (!data.MusteriId || isNaN(data.MusteriId)) {
-            NbtModal.showFieldError('stampTaxModal', 'stampTaxMusteriId', 'Müşteri bilgisi bulunamadı');
+            NbtModal.showFieldError('stampTaxModal', 'stampTaxMusteriId', 'Müşteri seçilmedi');
             NbtModal.showError('stampTaxModal', 'Müşteri bilgisi eksik. Lütfen sayfayı yenileyin.');
             return;
         }
@@ -2293,7 +2357,7 @@ const FileModule = {
         NbtModal.clearError('fileModal');
         
         if (!musteriId || isNaN(parseInt(musteriId))) {
-            NbtModal.showError('fileModal', 'Müşteri bilgisi bulunamadı. Lütfen sayfayı yenileyin.');
+            NbtModal.showError('fileModal', 'Müşteri seçilmedi. Lütfen müşteri detay sayfasından işlem yapın.');
             return;
         }
         
@@ -2450,9 +2514,15 @@ const ProjectModule = {
 
         NbtDataTable.bind(container, {
             onView: (id) => {
+                if (!this.data || !Array.isArray(this.data)) {
+                    NbtToast.warning('Veriler yükleniyor, lütfen tekrar deneyin');
+                    return;
+                }
                 const project = this.data.find(p => parseInt(p.Id, 10) === id);
                 if (project) {
-                    window.location.hash = `#customer/${project.MusteriId}?tab=projeler`;
+                    NbtDetailModal.show('project', project, (editId) => this.openModal(editId));
+                } else {
+                    NbtToast.error('Proje kaydı bulunamadı');
                 }
             },
             onEdit: (id) => this.openModal(id),
@@ -2483,7 +2553,11 @@ const ProjectModule = {
 
         if (id) {
             const parsedId = parseInt(id, 10);
-            const project = this.data.find(p => parseInt(p.Id, 10) === parsedId);
+            // Önce kendi data'mızda ara, bulamazsan CustomerDetailModule'den ara
+            let project = this.data?.find(p => parseInt(p.Id, 10) === parsedId);
+            if (!project) {
+                project = CustomerDetailModule.data?.projects?.find(p => parseInt(p.Id, 10) === parsedId);
+            }
             if (project) {
                 select.value = project.MusteriId;
                 document.getElementById('projectName').value = project.ProjeAdi || '';
@@ -2491,6 +2565,10 @@ const ProjectModule = {
                 document.getElementById('projectEnd').value = project.BitisTarihi?.split('T')[0] || '';
                 document.getElementById('projectBudget').value = project.Butce || '';
                 document.getElementById('projectStatus').value = project.Durum || 1;
+            } else {
+                // Kayıt bulunamadı - gerçek 404 durumu
+                NbtToast.error('Proje kaydı bulunamadı');
+                return;
             }
         }
 
@@ -2860,9 +2938,15 @@ const OfferModule = {
 
         NbtDataTable.bind(container, {
             onView: (id) => {
+                if (!this.data || !Array.isArray(this.data)) {
+                    NbtToast.warning('Veriler yükleniyor, lütfen tekrar deneyin');
+                    return;
+                }
                 const offer = this.data.find(o => parseInt(o.Id, 10) === id);
                 if (offer) {
-                    window.location.hash = `#customer/${offer.MusteriId}?tab=teklifler`;
+                    NbtDetailModal.show('offer', offer, (editId) => this.openModal(editId));
+                } else {
+                    NbtToast.error('Teklif kaydı bulunamadı');
                 }
             },
             onEdit: (id) => this.openModal(id),
@@ -2893,7 +2977,11 @@ const OfferModule = {
 
         if (id) {
             const parsedId = parseInt(id, 10);
-            const offer = this.data.find(o => parseInt(o.Id, 10) === parsedId);
+            // Önce kendi data'mızda ara, bulamazsan CustomerDetailModule'den ara
+            let offer = this.data?.find(o => parseInt(o.Id, 10) === parsedId);
+            if (!offer) {
+                offer = CustomerDetailModule.data?.offers?.find(o => parseInt(o.Id, 10) === parsedId);
+            }
             if (offer) {
                 select.value = offer.MusteriId;
                 document.getElementById('offerNo').value = offer.TeklifNo || '';
@@ -2903,6 +2991,10 @@ const OfferModule = {
                 document.getElementById('offerDate').value = offer.TeklifTarihi?.split('T')[0] || '';
                 document.getElementById('offerValidDate').value = offer.GecerlilikTarihi?.split('T')[0] || '';
                 document.getElementById('offerStatus').value = offer.Durum ?? 0;
+            } else {
+                // Kayıt bulunamadı - gerçek 404 durumu
+                NbtToast.error('Teklif kaydı bulunamadı');
+                return;
             }
         }
 
@@ -3042,9 +3134,15 @@ const ContractModule = {
 
         NbtDataTable.bind(container, {
             onView: (id) => {
+                if (!this.data || !Array.isArray(this.data)) {
+                    NbtToast.warning('Veriler yükleniyor, lütfen tekrar deneyin');
+                    return;
+                }
                 const contract = this.data.find(c => parseInt(c.Id, 10) === id);
                 if (contract) {
-                    window.location.hash = `#customer/${contract.MusteriId}?tab=sozlesmeler`;
+                    NbtDetailModal.show('contract', contract, (editId) => this.openModal(editId));
+                } else {
+                    NbtToast.error('Sözleşme kaydı bulunamadı');
                 }
             },
             onEdit: (id) => this.openModal(id),
@@ -3075,7 +3173,11 @@ const ContractModule = {
 
         if (id) {
             const parsedId = parseInt(id, 10);
-            const contract = this.data.find(c => parseInt(c.Id, 10) === parsedId);
+            // Önce kendi data'mızda ara, bulamazsan CustomerDetailModule'den ara
+            let contract = this.data?.find(c => parseInt(c.Id, 10) === parsedId);
+            if (!contract) {
+                contract = CustomerDetailModule.data?.contracts?.find(c => parseInt(c.Id, 10) === parsedId);
+            }
             if (contract) {
                 select.value = contract.MusteriId;
                 document.getElementById('contractNo').value = contract.SozlesmeNo || '';
@@ -3084,6 +3186,10 @@ const ContractModule = {
                 document.getElementById('contractAmount').value = contract.Tutar || '';
                 document.getElementById('contractCurrency').value = contract.ParaBirimi || 'TRY';
                 document.getElementById('contractStatus').value = contract.Durum ?? 1;
+            } else {
+                // Kayıt bulunamadı - gerçek 404 durumu
+                NbtToast.error('Sözleşme kaydı bulunamadı');
+                return;
             }
         }
 
@@ -3225,9 +3331,15 @@ const GuaranteeModule = {
 
         NbtDataTable.bind(container, {
             onView: (id) => {
+                if (!this.data || !Array.isArray(this.data)) {
+                    NbtToast.warning('Veriler yükleniyor, lütfen tekrar deneyin');
+                    return;
+                }
                 const guarantee = this.data.find(g => parseInt(g.Id, 10) === id);
                 if (guarantee) {
-                    window.location.hash = `#customer/${guarantee.MusteriId}?tab=teminatlar`;
+                    NbtDetailModal.show('guarantee', guarantee, (editId) => this.openModal(editId));
+                } else {
+                    NbtToast.error('Teminat kaydı bulunamadı');
                 }
             },
             onEdit: (id) => this.openModal(id),
@@ -3258,7 +3370,11 @@ const GuaranteeModule = {
 
         if (id) {
             const parsedId = parseInt(id, 10);
-            const guarantee = this.data.find(g => parseInt(g.Id, 10) === parsedId);
+            // Önce kendi data'mızda ara, bulamazsan CustomerDetailModule'den ara
+            let guarantee = this.data?.find(g => parseInt(g.Id, 10) === parsedId);
+            if (!guarantee) {
+                guarantee = CustomerDetailModule.data?.guarantees?.find(g => parseInt(g.Id, 10) === parsedId);
+            }
             if (guarantee) {
                 select.value = guarantee.MusteriId;
                 document.getElementById('guaranteeNo').value = guarantee.BelgeNo || '';
@@ -3268,6 +3384,10 @@ const GuaranteeModule = {
                 document.getElementById('guaranteeCurrency').value = guarantee.ParaBirimi || 'TRY';
                 document.getElementById('guaranteeDate').value = guarantee.VadeTarihi?.split('T')[0] || '';
                 document.getElementById('guaranteeStatus').value = guarantee.Durum ?? 1;
+            } else {
+                // Kayıt bulunamadı - gerçek 404 durumu
+                NbtToast.error('Teminat kaydı bulunamadı');
+                return;
             }
         }
 

@@ -14,7 +14,7 @@ class ProjectController
         $Repo = new ProjectRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
         // Istege bagli filtreleme
@@ -40,7 +40,7 @@ class ProjectController
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 
@@ -73,7 +73,7 @@ class ProjectController
         $Repo = new ProjectRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 
@@ -104,7 +104,7 @@ class ProjectController
         $Repo = new ProjectRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Kullanıcı bilgisi bulunamadı.', 401);
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
             return;
         }
 

@@ -150,10 +150,23 @@ const NbtApi = {
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
+            // HTTP Status Code'a göre özel hata mesajları
             if (response.status === 401) {
                 NbtUtils.clearSession();
                 window.location.href = '/login';
                 throw new Error('Oturum süresi doldu');
+            }
+            if (response.status === 403) {
+                throw new Error(data.error || 'Bu işlem için yetkiniz yok');
+            }
+            if (response.status === 404) {
+                throw new Error(data.error || 'Kayıt bulunamadı');
+            }
+            if (response.status === 422) {
+                throw new Error(data.error || 'Validasyon hatası');
+            }
+            if (response.status >= 500) {
+                throw new Error(data.error || 'Sunucu hatası');
             }
             throw new Error(data.error || 'Bir hata oluştu');
         }
@@ -435,7 +448,13 @@ const NbtDataTable = {
             if (!btn) return;
 
             const action = btn.dataset.action;
-            const id = parseInt(btn.dataset.id);
+            const rawId = btn.dataset.id;
+            const id = parseInt(rawId, 10);
+            
+            // Guard: Geçersiz ID kontrolü
+            if (isNaN(id) || id <= 0) {
+                return;
+            }
 
             if (action === 'view' && options.onView) {
                 options.onView(id);
@@ -623,6 +642,229 @@ const NbtModal = {
                 btn.innerHTML = btn._originalHtml;
             }
         }
+    }
+};
+
+// =============================================
+// DETAY MODAL KOMPONENTİ (Read-Only Görüntüleme)
+// =============================================
+const NbtDetailModal = {
+    _currentEntity: null,
+    _currentId: null,
+    _onEdit: null,
+
+    /**
+     * Entity detaylarını modal'da göster
+     * @param {string} entityType - Entity tipi (invoice, payment, project, vb.)
+     * @param {object} data - Gösterilecek veri
+     * @param {function} onEdit - Düzenle butonuna basılınca çağrılacak fonksiyon
+     */
+    show(entityType, data, onEdit = null) {
+        this._currentEntity = entityType;
+        this._currentId = data.Id;
+        this._onEdit = onEdit;
+
+        const titles = {
+            customer: 'Müşteri Detayı',
+            invoice: 'Fatura Detayı',
+            payment: 'Ödeme Detayı',
+            project: 'Proje Detayı',
+            offer: 'Teklif Detayı',
+            contract: 'Sözleşme Detayı',
+            guarantee: 'Teminat Detayı',
+            meeting: 'Görüşme Detayı',
+            contact: 'Kişi Detayı',
+            stampTax: 'Damga Vergisi Detayı',
+            file: 'Dosya Detayı'
+        };
+
+        const icons = {
+            customer: 'bi-building',
+            invoice: 'bi-receipt',
+            payment: 'bi-cash-stack',
+            project: 'bi-kanban',
+            offer: 'bi-file-earmark-text',
+            contract: 'bi-file-text',
+            guarantee: 'bi-shield-check',
+            meeting: 'bi-chat-dots',
+            contact: 'bi-person',
+            stampTax: 'bi-percent',
+            file: 'bi-folder'
+        };
+
+        // Modal başlığını ayarla
+        const titleEl = document.getElementById('entityDetailModalTitle');
+        if (titleEl) {
+            titleEl.innerHTML = `<i class="bi ${icons[entityType] || 'bi-eye'} me-2"></i>${titles[entityType] || 'Detay'}`;
+        }
+
+        // İçeriği oluştur
+        const bodyEl = document.getElementById('entityDetailModalBody');
+        if (bodyEl) {
+            bodyEl.innerHTML = this._buildContent(entityType, data);
+        }
+
+        // Düzenle butonunu yapılandır
+        const editBtn = document.getElementById('btnEntityDetailEdit');
+        if (editBtn) {
+            if (onEdit) {
+                editBtn.classList.remove('d-none');
+                editBtn.onclick = () => {
+                    NbtModal.close('entityDetailModal');
+                    onEdit(this._currentId);
+                };
+            } else {
+                editBtn.classList.add('d-none');
+            }
+        }
+
+        // Detay Sayfası butonu (sadece customer için)
+        const pageBtn = document.getElementById('btnEntityDetailPage');
+        if (pageBtn) {
+            if (entityType === 'customer') {
+                pageBtn.classList.remove('d-none');
+                pageBtn.onclick = () => {
+                    NbtModal.close('entityDetailModal');
+                    window.location.hash = `#customer/${this._currentId}`;
+                };
+            } else {
+                pageBtn.classList.add('d-none');
+            }
+        }
+
+        NbtModal.open('entityDetailModal');
+    },
+
+    /**
+     * Entity tipine göre içerik oluştur
+     */
+    _buildContent(entityType, data) {
+        const formatters = {
+            date: (v) => NbtUtils.formatDate(v),
+            money: (v, currency) => NbtUtils.formatMoney(v, currency || 'TRY'),
+            status: (v, statuses) => {
+                const s = statuses[v] || ['Bilinmiyor', 'secondary'];
+                return `<span class="badge bg-${s[1]}">${s[0]}</span>`;
+            }
+        };
+
+        const configs = {
+            customer: [
+                { label: 'Müşteri Kodu', field: 'Id', render: (v) => `MÜŞ-${String(v).padStart(5, '0')}` },
+                { label: 'Ünvan', field: 'Unvan' },
+                { label: 'Açıklama', field: 'Aciklama' },
+                { label: 'Kayıt Tarihi', field: 'EklemeZamani', format: 'date' }
+            ],
+            invoice: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Tarih', field: 'Tarih', format: 'date' },
+                { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'DovizCinsi' },
+                { label: 'Döviz', field: 'DovizCinsi' },
+                { label: 'Açıklama', field: 'Aciklama' }
+            ],
+            payment: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Tarih', field: 'Tarih', format: 'date' },
+                { label: 'Tutar', field: 'Tutar', format: 'money' },
+                { label: 'Fatura', field: 'FaturaId', render: (v) => v ? `FT${v}` : 'Bağımsız' },
+                { label: 'Açıklama', field: 'Aciklama' }
+            ],
+            project: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Proje Adı', field: 'ProjeAdi' },
+                { label: 'Başlangıç', field: 'BaslangicTarihi', format: 'date' },
+                { label: 'Bitiş', field: 'BitisTarihi', format: 'date' },
+                { label: 'Bütçe', field: 'Butce', format: 'money' },
+                { label: 'Durum', field: 'Durum', format: 'status', statuses: { 1: ['Aktif', 'success'], 2: ['Tamamlandı', 'info'], 3: ['İptal', 'danger'] } }
+            ],
+            offer: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Teklif No', field: 'TeklifNo' },
+                { label: 'Konu', field: 'Konu' },
+                { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
+                { label: 'Teklif Tarihi', field: 'TeklifTarihi', format: 'date' },
+                { label: 'Geçerlilik Tarihi', field: 'GecerlilikTarihi', format: 'date' },
+                { label: 'Durum', field: 'Durum', format: 'status', statuses: { 0: ['Taslak', 'secondary'], 1: ['Gönderildi', 'warning'], 2: ['Onaylandı', 'success'], 3: ['Reddedildi', 'danger'] } }
+            ],
+            contract: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Sözleşme No', field: 'SozlesmeNo' },
+                { label: 'Başlangıç', field: 'BaslangicTarihi', format: 'date' },
+                { label: 'Bitiş', field: 'BitisTarihi', format: 'date' },
+                { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
+                { label: 'Durum', field: 'Durum', format: 'status', statuses: { 1: ['Aktif', 'success'], 2: ['Pasif', 'secondary'], 3: ['İptal', 'danger'] } }
+            ],
+            guarantee: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Belge No', field: 'BelgeNo' },
+                { label: 'Tür', field: 'Tur' },
+                { label: 'Banka', field: 'BankaAdi' },
+                { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
+                { label: 'Vade Tarihi', field: 'VadeTarihi', format: 'date' },
+                { label: 'Durum', field: 'Durum', format: 'status', statuses: { 1: ['Bekliyor', 'warning'], 2: ['İade Edildi', 'info'], 3: ['Tahsil Edildi', 'success'], 4: ['Yandı', 'danger'] } }
+            ],
+            meeting: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Tarih', field: 'Tarih', format: 'date' },
+                { label: 'Konu', field: 'Konu' },
+                { label: 'Kişi', field: 'Kisi' },
+                { label: 'Notlar', field: 'Notlar' }
+            ],
+            contact: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Ad Soyad', field: 'AdSoyad' },
+                { label: 'Unvan', field: 'Unvan' },
+                { label: 'Telefon', field: 'Telefon' },
+                { label: 'E-posta', field: 'Email' },
+                { label: 'Notlar', field: 'Notlar' }
+            ],
+            stampTax: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Tarih', field: 'Tarih', format: 'date' },
+                { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'DovizCinsi' },
+                { label: 'Belge No', field: 'BelgeNo' },
+                { label: 'Açıklama', field: 'Aciklama' }
+            ],
+            file: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Dosya Adı', field: 'DosyaAdi' },
+                { label: 'Açıklama', field: 'Aciklama' },
+                { label: 'Yüklenme Tarihi', field: 'OlusturmaTarihi', format: 'date' }
+            ]
+        };
+
+        const config = configs[entityType] || [];
+        
+        let html = '<div class="row g-3">';
+        config.forEach(item => {
+            let value = data[item.field];
+            
+            // Format uygula
+            if (item.render) {
+                value = item.render(value, data);
+            } else if (item.format === 'date') {
+                value = formatters.date(value);
+            } else if (item.format === 'money') {
+                const currency = item.currencyField ? data[item.currencyField] : 'TRY';
+                value = formatters.money(value, currency);
+            } else if (item.format === 'status' && item.statuses) {
+                value = formatters.status(value, item.statuses);
+            }
+            
+            value = value || '<span class="text-muted">-</span>';
+            
+            html += `
+                <div class="col-md-6">
+                    <div class="border rounded p-2 h-100">
+                        <small class="text-muted d-block">${item.label}</small>
+                        <div class="fw-medium">${value}</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        return html;
     }
 };
 
@@ -1010,5 +1252,6 @@ window.NbtFullscreen = NbtFullscreen;
 window.NbtListToolbar = NbtListToolbar;
 window.NbtDataTable = NbtDataTable;
 window.NbtModal = NbtModal;
+window.NbtDetailModal = NbtDetailModal;
 window.NbtRouter = NbtRouter;
 window.NbtCalendar = NbtCalendar;

@@ -1062,6 +1062,30 @@ $Logo = config('app.logo', '/assets/logo.png');
     </div>
   </div>
 
+  <!-- Genel Detay Görüntüleme Modal (Read-Only) -->
+  <div class="modal fade" id="entityDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title" id="entityDetailModalTitle"><i class="bi bi-eye me-2"></i>Detay</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="entityDetailModalBody">
+          <!-- Dinamik içerik buraya gelecek -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary d-none" id="btnEntityDetailPage">
+            <i class="bi bi-arrow-up-right-square me-1"></i>Detay Sayfası
+          </button>
+          <button type="button" class="btn btn-outline-primary" id="btnEntityDetailEdit">
+            <i class="bi bi-pencil me-1"></i>Düzenle
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script src="/assets/bootstrap.bundle.min.js"></script>
   <script src="/assets/js/app.js"></script>
