@@ -26,7 +26,7 @@ class CalendarController
      */
     public function index(): void
     {
-        $userId = Context::userId();
+        $userId = Context::kullaniciId();
         if (!$userId) {
             Response::unauthorized('Oturum gerekli');
         }
@@ -77,7 +77,7 @@ class CalendarController
      */
     public function day(string $date): void
     {
-        $userId = Context::userId();
+        $userId = Context::kullaniciId();
         if (!$userId) {
             Response::unauthorized('Oturum gerekli');
         }
@@ -104,9 +104,9 @@ class CalendarController
     private function getProjectEvents(?int $customerId, int $month, int $year, bool $includeCompleted): array
     {
         try {
-            $db = Database::getInstance();
+            $db = Database::connection();
             
-            $conditions = "p.SilindiMi = 0";
+            $conditions = "p.Sil = 0";
             $params = ['month' => $month, 'year' => $year];
             
             if ($customerId) {
@@ -137,7 +137,7 @@ class CalendarController
                 ORDER BY p.BaslangicTarihi ASC
             ";
             
-            $stmt = $db->query($sql, $params);
+            $stmt = $db->prepare($sql); $stmt->execute($params);
             $projects = $stmt->fetchAll();
             
             $events = [];
@@ -197,9 +197,9 @@ class CalendarController
     private function getContractEvents(?int $customerId, int $month, int $year, bool $includeCompleted): array
     {
         try {
-            $db = Database::getInstance();
+            $db = Database::connection();
             
-            $conditions = "s.SilindiMi = 0";
+            $conditions = "s.Sil = 0";
             $params = ['month' => $month, 'year' => $year];
             
             if ($customerId) {
@@ -230,7 +230,7 @@ class CalendarController
                 ORDER BY s.BaslangicTarihi ASC
             ";
             
-            $stmt = $db->query($sql, $params);
+            $stmt = $db->prepare($sql); $stmt->execute($params);
             $contracts = $stmt->fetchAll();
             
             $events = [];
@@ -288,9 +288,9 @@ class CalendarController
     private function getGuaranteeEvents(?int $customerId, int $month, int $year, bool $includeCompleted): array
     {
         try {
-            $db = Database::getInstance();
+            $db = Database::connection();
             
-            $conditions = "t.SilindiMi = 0";
+            $conditions = "t.Sil = 0";
             $params = ['month' => $month, 'year' => $year];
             
             if ($customerId) {
@@ -321,7 +321,7 @@ class CalendarController
                 ORDER BY t.VadeTarihi ASC
             ";
             
-            $stmt = $db->query($sql, $params);
+            $stmt = $db->prepare($sql); $stmt->execute($params);
             $guarantees = $stmt->fetchAll();
             
             $events = [];
@@ -355,9 +355,9 @@ class CalendarController
     private function getInvoiceEvents(?int $customerId, int $month, int $year): array
     {
         try {
-            $db = Database::getInstance();
+            $db = Database::connection();
             
-            $conditions = "f.SilindiMi = 0";
+            $conditions = "f.Sil = 0";
             $params = ['month' => $month, 'year' => $year];
             
             if ($customerId) {
@@ -382,7 +382,7 @@ class CalendarController
                 ORDER BY f.Tarih ASC
             ";
             
-            $stmt = $db->query($sql, $params);
+            $stmt = $db->prepare($sql); $stmt->execute($params);
             $invoices = $stmt->fetchAll();
             
             $events = [];
@@ -416,7 +416,7 @@ class CalendarController
     private function getEventsForDay(string $date, ?int $customerId): array
     {
         try {
-            $db = Database::getInstance();
+            $db = Database::connection();
             $events = [];
             $params = ['date' => $date];
             
@@ -430,10 +430,10 @@ class CalendarController
                 SELECT Id, MusteriId, ProjeAdi, 
                        CASE WHEN CAST(BaslangicTarihi AS DATE) = :date THEN 'start' ELSE 'end' END as EventType
                 FROM tbl_proje 
-                WHERE SilindiMi = 0 {$customerCondition}
+                WHERE Sil = 0 {$customerCondition}
                   AND (CAST(BaslangicTarihi AS DATE) = :date OR CAST(BitisTarihi AS DATE) = :date)
             ";
-            $stmt = $db->query($sql, $params);
+            $stmt = $db->prepare($sql); $stmt->execute($params);
             $projects = $stmt->fetchAll();
             
             foreach ($projects as $p) {
@@ -451,10 +451,10 @@ class CalendarController
                 SELECT Id, MusteriId, SozlesmeNo,
                        CASE WHEN CAST(BaslangicTarihi AS DATE) = :date THEN 'start' ELSE 'end' END as EventType
                 FROM tbl_sozlesme 
-                WHERE SilindiMi = 0 {$customerCondition}
+                WHERE Sil = 0 {$customerCondition}
                   AND (CAST(BaslangicTarihi AS DATE) = :date OR CAST(BitisTarihi AS DATE) = :date)
             ";
-            $stmt = $db->query($sql, $params);
+            $stmt = $db->prepare($sql); $stmt->execute($params);
             $contracts = $stmt->fetchAll();
             
             foreach ($contracts as $c) {
@@ -471,10 +471,10 @@ class CalendarController
             $sql = "
                 SELECT Id, MusteriId, BelgeNo, Tur
                 FROM tbl_teminat 
-                WHERE SilindiMi = 0 {$customerCondition}
+                WHERE Sil = 0 {$customerCondition}
                   AND CAST(VadeTarihi AS DATE) = :date
             ";
-            $stmt = $db->query($sql, $params);
+            $stmt = $db->prepare($sql); $stmt->execute($params);
             $guarantees = $stmt->fetchAll();
             
             foreach ($guarantees as $g) {
@@ -491,10 +491,10 @@ class CalendarController
             $sql = "
                 SELECT Id, MusteriId, Aciklama
                 FROM tbl_fatura 
-                WHERE SilindiMi = 0 {$customerCondition}
+                WHERE Sil = 0 {$customerCondition}
                   AND CAST(Tarih AS DATE) = :date
             ";
-            $stmt = $db->query($sql, $params);
+            $stmt = $db->prepare($sql); $stmt->execute($params);
             $invoices = $stmt->fetchAll();
             
             foreach ($invoices as $inv) {

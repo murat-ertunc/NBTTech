@@ -236,6 +236,8 @@ const CustomerModule = {
 
     initToolbar() {
         const toolbarContainer = document.getElementById('customersToolbar');
+        if (toolbarContainer.children.length > 0) return; // Zaten oluşturulmuş
+        
         toolbarContainer.innerHTML = NbtListToolbar.create({
             placeholder: 'Müşteri ara...',
             onFilter: true,
@@ -369,8 +371,12 @@ const CustomerModule = {
         
         // Filter buttons
         document.getElementById('applyCustomerFilter')?.addEventListener('click', () => {
-            // Filtre uygula
-            NbtToast.info('Filtre uygulandı');
+            const dateFilter = document.getElementById('filterCustomerDate')?.value;
+            let filtered = AppState.customers;
+            if (dateFilter) {
+                filtered = filtered.filter(c => c.EklemeZamani && c.EklemeZamani.startsWith(dateFilter));
+            }
+            this.renderTable(filtered);
         });
         document.getElementById('clearCustomerFilter')?.addEventListener('click', () => {
             document.getElementById('filterCustomerDate').value = '';
@@ -1039,6 +1045,7 @@ const CustomerDetailModule = {
             const searchBtn = e.target.closest('[data-search]');
             if (searchBtn) {
                 e.preventDefault();
+                e.stopPropagation();
                 this.applyFilter(searchBtn.dataset.search);
                 return;
             }
@@ -1051,6 +1058,22 @@ const CustomerDetailModule = {
                 const id = parseInt(actionEl.dataset.id);
                 this.handleTableAction(action, id, tab);
                 return;
+            }
+        });
+        
+        // Enter tuşuyla arama (filtre inputları için)
+        container.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const input = e.target.closest('[id^="filter_"]');
+                if (input) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Panel ID'yi input ID'sinden çıkar (filter_kisiler_AdSoyad -> kisiler)
+                    const parts = input.id.split('_');
+                    if (parts.length >= 2) {
+                        this.applyFilter(parts[1]);
+                    }
+                }
             }
         });
 
@@ -1190,12 +1213,15 @@ const CustomerDetailModule = {
         const panel = document.getElementById(`panel_${panelId}`);
         if (!panel) return;
 
-        // Filtre değerlerini topla
+        // Filtre değerlerini topla ve state'e kaydet
         const filters = {};
         panel.querySelectorAll(`[id^="filter_${panelId}_"]`).forEach(input => {
             const field = input.id.replace(`filter_${panelId}_`, '');
             if (input.value) filters[field] = input.value.toLowerCase();
         });
+        
+        // Filtre state'ini sakla
+        this.filters[panelId] = filters;
 
         // Data key'i bul (tabConfig ile uyumlu)
         const keyMap = {
@@ -1222,11 +1248,118 @@ const CustomerDetailModule = {
                 return itemVal.includes(value);
             });
         }
-
-        NbtToast.info(`${filtered.length} kayıt bulundu`);
         
-        // Tabloyu yeniden render et
-        this.switchTab(this.activeTab);
+        // SADECE tablo body'sini güncelle (filtre satırını değil)
+        const tableBody = panel.querySelector(`#body_${panelId}`);
+        if (tableBody) {
+            // Column config'i al
+            const columnConfig = this.getColumnConfig(panelId);
+            tableBody.innerHTML = this.renderDataTable(panelId, columnConfig.columns, filtered, columnConfig.emptyMsg);
+        }
+    },
+    
+    // Panel kolon konfigürasyonlarını döndür
+    getColumnConfig(panelId) {
+        const configs = {
+            kisiler: {
+                columns: [
+                    { field: 'AdSoyad', label: 'Ad Soyad' },
+                    { field: 'Unvan', label: 'Ünvan' },
+                    { field: 'Telefon', label: 'Telefon' },
+                    { field: 'Email', label: 'E-posta' }
+                ],
+                emptyMsg: 'Kayıt bulunamadı'
+            },
+            gorusme: {
+                columns: [
+                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+                    { field: 'Konu', label: 'Konu' },
+                    { field: 'Notlar', label: 'Notlar' },
+                    { field: 'Kisi', label: 'Görüşülen Kişi' }
+                ],
+                emptyMsg: 'Kayıt bulunamadı'
+            },
+            projeler: {
+                columns: [
+                    { field: 'ProjeAdi', label: 'Proje Adı' },
+                    { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v) },
+                    { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v) },
+                    { field: 'Butce', label: 'Bütçe', render: v => NbtUtils.formatMoney(v) },
+                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'project') }
+                ],
+                emptyMsg: 'Kayıt bulunamadı'
+            },
+            teklifler: {
+                columns: [
+                    { field: 'TeklifNo', label: 'Teklif No' },
+                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+                    { field: 'Konu', label: 'Konu' },
+                    { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatMoney(v) },
+                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'offer') }
+                ],
+                emptyMsg: 'Kayıt bulunamadı'
+            },
+            sozlesmeler: {
+                columns: [
+                    { field: 'SozlesmeNo', label: 'Sözleşme No' },
+                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+                    { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatMoney(v) },
+                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'contract') }
+                ],
+                emptyMsg: 'Kayıt bulunamadı'
+            },
+            teminatlar: {
+                columns: [
+                    { field: 'BelgeNo', label: 'Belge No' },
+                    { field: 'Tur', label: 'Tür' },
+                    { field: 'BankaAdi', label: 'Banka' },
+                    { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
+                    { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v) },
+                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'guarantee') }
+                ],
+                emptyMsg: 'Kayıt bulunamadı'
+            },
+            faturalar: {
+                columns: [
+                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+                    { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.DovizCinsi) },
+                    { field: 'Kalan', label: 'Kalan', render: (v, row) => {
+                        const kalan = parseFloat(v) || 0;
+                        const cls = kalan > 0 ? 'text-danger fw-bold' : 'text-success';
+                        return `<span class="${cls}">${NbtUtils.formatMoney(kalan, row.DovizCinsi)}</span>`;
+                    }},
+                    { field: 'Aciklama', label: 'Açıklama' }
+                ],
+                emptyMsg: 'Kayıt bulunamadı'
+            },
+            odemeler: {
+                columns: [
+                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+                    { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.DovizCinsi) },
+                    { field: 'OdemeTuru', label: 'Ödeme Türü' },
+                    { field: 'Aciklama', label: 'Açıklama' }
+                ],
+                emptyMsg: 'Kayıt bulunamadı'
+            },
+            damgavergisi: {
+                columns: [
+                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+                    { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.DovizCinsi) },
+                    { field: 'Aciklama', label: 'Açıklama' }
+                ],
+                emptyMsg: 'Kayıt bulunamadı'
+            },
+            dosyalar: {
+                columns: [
+                    { field: 'DosyaAdi', label: 'Dosya Adı' },
+                    { field: 'DosyaTipi', label: 'Tür' },
+                    { field: 'Boyut', label: 'Boyut', render: v => NbtUtils.formatFileSize(v) },
+                    { field: 'EklemeZamani', label: 'Yüklenme', render: v => NbtUtils.formatDate(v) }
+                ],
+                emptyMsg: 'Kayıt bulunamadı'
+            }
+        };
+        return configs[panelId] || { columns: [], emptyMsg: 'Kayıt bulunamadı' };
     },
 
     handleTableAction(action, id, tab) {
@@ -1254,7 +1387,8 @@ const CustomerDetailModule = {
         if (!config) return;
 
         if (action === 'view') {
-            NbtToast.info(`Detay: ${config.type} #${id}`);
+            // TODO: Detay modalı açılabilir
+            this.openEditModal(config.type, id);
         } else if (action === 'edit') {
             this.openEditModal(config.type, id);
         } else if (action === 'delete') {
@@ -1485,6 +1619,8 @@ const InvoiceModule = {
 
     initToolbar() {
         const toolbarContainer = document.getElementById('invoicesToolbar');
+        if (toolbarContainer.children.length > 0) return; // Zaten oluşturulmuş
+        
         toolbarContainer.innerHTML = NbtListToolbar.create({
             placeholder: 'Fatura ara...',
             onAdd: true
@@ -1493,8 +1629,10 @@ const InvoiceModule = {
         const panel = document.getElementById('panelInvoices');
         NbtListToolbar.bind(toolbarContainer, {
             onSearch: (query) => {
+                const q = query.toLowerCase();
                 const filtered = this.data.filter(item => 
-                    (item.Aciklama || '').toLowerCase().includes(query.toLowerCase())
+                    (item.Aciklama || '').toLowerCase().includes(q) ||
+                    (item.MusteriUnvan || '').toLowerCase().includes(q)
                 );
                 this.renderTable(filtered);
             },
@@ -1662,6 +1800,8 @@ const PaymentModule = {
 
     initToolbar() {
         const toolbarContainer = document.getElementById('paymentsToolbar');
+        if (toolbarContainer.children.length > 0) return; // Zaten oluşturulmuş
+        
         toolbarContainer.innerHTML = NbtListToolbar.create({
             placeholder: 'Ödeme ara...',
             onAdd: true
@@ -1670,8 +1810,10 @@ const PaymentModule = {
         const panel = document.getElementById('panelPayments');
         NbtListToolbar.bind(toolbarContainer, {
             onSearch: (query) => {
+                const q = query.toLowerCase();
                 const filtered = this.data.filter(item => 
-                    (item.Aciklama || '').toLowerCase().includes(query.toLowerCase())
+                    (item.Aciklama || '').toLowerCase().includes(q) ||
+                    (item.MusteriUnvan || '').toLowerCase().includes(q)
                 );
                 this.renderTable(filtered);
             },
@@ -2264,6 +2406,8 @@ const ProjectModule = {
 
     initToolbar() {
         const toolbarContainer = document.getElementById('projectsToolbar');
+        if (toolbarContainer.children.length > 0) return; // Zaten oluşturulmuş
+        
         toolbarContainer.innerHTML = NbtListToolbar.create({
             placeholder: 'Proje ara...',
             onAdd: true
@@ -2272,8 +2416,10 @@ const ProjectModule = {
         const panel = document.getElementById('panelProjects');
         NbtListToolbar.bind(toolbarContainer, {
             onSearch: (query) => {
+                const q = query.toLowerCase();
                 const filtered = this.data.filter(item => 
-                    (item.ProjeAdi || '').toLowerCase().includes(query.toLowerCase())
+                    (item.ProjeAdi || '').toLowerCase().includes(q) ||
+                    (item.MusteriUnvan || '').toLowerCase().includes(q)
                 );
                 this.renderTable(filtered);
             },
@@ -2437,6 +2583,8 @@ const LogModule = {
 
     initToolbar() {
         const toolbarContainer = document.getElementById('logsToolbar');
+        if (toolbarContainer.children.length > 0) return; // Zaten oluşturulmuş
+        
         toolbarContainer.innerHTML = NbtListToolbar.create({
             placeholder: 'Log ara...',
             onAdd: false
@@ -2506,6 +2654,8 @@ const UserModule = {
 
     initToolbar() {
         const toolbarContainer = document.getElementById('usersToolbar');
+        if (toolbarContainer.children.length > 0) return; // Zaten oluşturulmuş
+        
         toolbarContainer.innerHTML = NbtListToolbar.create({
             placeholder: 'Kullanıcı ara...',
             onAdd: true
@@ -2666,6 +2816,8 @@ const OfferModule = {
 
     initToolbar() {
         const toolbarContainer = document.getElementById('offersToolbar');
+        if (toolbarContainer.children.length > 0) return; // Zaten oluşturulmuş
+        
         toolbarContainer.innerHTML = NbtListToolbar.create({
             placeholder: 'Teklif ara...',
             onAdd: true
@@ -2847,6 +2999,8 @@ const ContractModule = {
 
     initToolbar() {
         const toolbarContainer = document.getElementById('contractsToolbar');
+        if (toolbarContainer.children.length > 0) return; // Zaten oluşturulmuş
+        
         toolbarContainer.innerHTML = NbtListToolbar.create({
             placeholder: 'Sözleşme ara...',
             onAdd: true
@@ -3025,6 +3179,8 @@ const GuaranteeModule = {
 
     initToolbar() {
         const toolbarContainer = document.getElementById('guaranteesToolbar');
+        if (toolbarContainer.children.length > 0) return; // Zaten oluşturulmuş
+        
         toolbarContainer.innerHTML = NbtListToolbar.create({
             placeholder: 'Teminat ara...',
             onAdd: true

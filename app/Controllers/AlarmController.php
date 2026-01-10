@@ -22,7 +22,7 @@ class AlarmController
      */
     public function index(): void
     {
-        $userId = Context::userId();
+        $userId = Context::kullaniciId();
         if (!$userId) {
             Response::unauthorized('Oturum gerekli');
         }
@@ -99,7 +99,7 @@ class AlarmController
     private function getUnpaidInvoices(): array
     {
         try {
-            $db = Database::getInstance();
+            $db = Database::connection();
             
             // Fatura - Ödeme farkı ile ödenmemiş faturaları bul
             // Not: Bu sorgu fatura tutarı ile ilişkili ödemelerin toplamını karşılaştırır
@@ -113,13 +113,13 @@ class AlarmController
                     f.DovizCinsi,
                     f.Aciklama,
                     ISNULL(
-                        (SELECT SUM(Tutar) FROM tbl_odeme WHERE MusteriId = f.MusteriId AND SilindiMi = 0), 
+                        (SELECT SUM(Tutar) FROM tbl_odeme WHERE MusteriId = f.MusteriId AND Sil = 0), 
                         0
                     ) as ToplamOdeme
                 FROM tbl_fatura f
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
-                WHERE f.SilindiMi = 0 
-                  AND m.SilindiMi = 0
+                WHERE f.Sil = 0 
+                  AND m.Sil = 0
                 ORDER BY f.Tarih DESC
             ";
             
@@ -174,7 +174,7 @@ class AlarmController
     private function getUpcomingEvents(int $days = 7): array
     {
         try {
-            $db = Database::getInstance();
+            $db = Database::connection();
             
             // Proje bitiş tarihleri yaklaşan projeler
             $sql = "
@@ -187,14 +187,14 @@ class AlarmController
                     'project' as EventType
                 FROM tbl_proje p
                 LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id
-                WHERE p.SilindiMi = 0
+                WHERE p.Sil = 0
                   AND p.Durum = 1
                   AND p.BitisTarihi IS NOT NULL
                   AND p.BitisTarihi BETWEEN GETDATE() AND DATEADD(day, :days, GETDATE())
                 ORDER BY p.BitisTarihi ASC
             ";
             
-            $stmt = $db->query($sql, ['days' => $days]);
+            $stmt = $db->prepare($sql); $stmt->execute(['days' => $days]);
             $projects = $stmt->fetchAll();
             
             $items = [];
@@ -224,7 +224,7 @@ class AlarmController
     private function getExpiredGuarantees(): array
     {
         try {
-            $db = Database::getInstance();
+            $db = Database::connection();
             
             $sql = "
                 SELECT 
@@ -238,7 +238,7 @@ class AlarmController
                     t.VadeTarihi
                 FROM tbl_teminat t
                 LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
-                WHERE t.SilindiMi = 0
+                WHERE t.Sil = 0
                   AND t.Durum = 1
                   AND t.VadeTarihi < GETDATE()
                 ORDER BY t.VadeTarihi ASC
@@ -276,7 +276,7 @@ class AlarmController
     private function getExpiringContracts(int $days = 30): array
     {
         try {
-            $db = Database::getInstance();
+            $db = Database::connection();
             
             $sql = "
                 SELECT 
@@ -289,14 +289,14 @@ class AlarmController
                     s.DovizCinsi
                 FROM tbl_sozlesme s
                 LEFT JOIN tbl_musteri m ON s.MusteriId = m.Id
-                WHERE s.SilindiMi = 0
+                WHERE s.Sil = 0
                   AND s.Durum = 1
                   AND s.BitisTarihi IS NOT NULL
                   AND s.BitisTarihi BETWEEN GETDATE() AND DATEADD(day, :days, GETDATE())
                 ORDER BY s.BitisTarihi ASC
             ";
             
-            $stmt = $db->query($sql, ['days' => $days]);
+            $stmt = $db->prepare($sql); $stmt->execute(['days' => $days]);
             $contracts = $stmt->fetchAll();
             
             $items = [];

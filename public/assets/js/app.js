@@ -312,7 +312,14 @@ const NbtListToolbar = {
         `;
     },
 
+    // Store bound containers to prevent duplicate binding
+    _boundContainers: new WeakSet(),
+
     bind(container, options = {}) {
+        // Prevent duplicate binding
+        if (this._boundContainers.has(container)) return;
+        this._boundContainers.add(container);
+
         const searchInput = container.querySelector('[data-toolbar="search"]');
         const filterBtn = container.querySelector('[data-toolbar="filter"]');
         const addBtn = container.querySelector('[data-toolbar="add"]');
