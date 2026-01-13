@@ -4,9 +4,25 @@ namespace App\Core;
 
 class Token
 {
+    /**
+     * APP_KEY değerini güvenli şekilde al
+     */
+    private static function getKey(): string
+    {
+        $Anahtar = env('APP_KEY');
+        if (empty($Anahtar) || $Anahtar === 'devkey') {
+            if (env('APP_ENV', 'production') === 'production') {
+                throw new \RuntimeException('APP_KEY ortam degiskeni production ortaminda zorunludur');
+            }
+            // Development ortamında varsayılan key kullanılabilir
+            return 'development-only-key-not-secure';
+        }
+        return $Anahtar;
+    }
+
     public static function sign(array $Veri, ?int $GecerlilikSuresi = null): string
     {
-        $Anahtar = env('APP_KEY', 'devkey');
+        $Anahtar = self::getKey();
         $OlusturmaZamani = time();
         $VarsayilanSure = (int) env('APP_TOKEN_TTL', 7200);
         $SonGecerlilik = $OlusturmaZamani + ($GecerlilikSuresi ?? $VarsayilanSure);
@@ -22,7 +38,7 @@ class Token
 
     public static function verify(string $Token): ?array
     {
-        $Anahtar = env('APP_KEY', 'devkey');
+        $Anahtar = self::getKey();
         $Parcalar = explode('.', $Token);
         if (count($Parcalar) !== 2) {
             return null;

@@ -133,5 +133,16 @@ require __DIR__ . '/partials/header.php';
       </div>
     </div>
 
-<?php require __DIR__ . '/partials/modals.php'; ?>
+<?php require __DIR__ . '/partials/modals/customer.php'; ?>
+<?php require __DIR__ . '/partials/modals/project.php'; ?>
+<?php require __DIR__ . '/partials/modals/invoice.php'; ?>
+<?php require __DIR__ . '/partials/modals/payment.php'; ?>
+<?php require __DIR__ . '/partials/modals/offer.php'; ?>
+<?php require __DIR__ . '/partials/modals/contract.php'; ?>
+<?php require __DIR__ . '/partials/modals/guarantee.php'; ?>
+<?php require __DIR__ . '/partials/modals/meeting.php'; ?>
+<?php require __DIR__ . '/partials/modals/contact.php'; ?>
+<?php require __DIR__ . '/partials/modals/stamp-tax.php'; ?>
+<?php require __DIR__ . '/partials/modals/file.php'; ?>
+<?php require __DIR__ . '/partials/modals/entity-detail.php'; ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>

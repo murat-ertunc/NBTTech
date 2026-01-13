@@ -14,7 +14,7 @@ require __DIR__ . '/partials/header.php';
     <!-- ===== VIEW: HESABIM ===== -->
     <div id="view-my-account">
       <div class="row justify-content-center">
-        <div class="col-lg-6 col-md-8">
+        <div class="col-12">
           <div class="card shadow-sm">
             <div class="card-header bg-primary text-white py-3">
               <span class="fw-semibold"><i class="bi bi-person-circle me-2"></i>Kullanıcı Bilgileri</span>
@@ -35,8 +35,8 @@ require __DIR__ . '/partials/header.php';
                   <input type="text" class="form-control bg-light" id="accountUserName" readonly>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label fw-semibold">Email</label>
-                  <input type="text" class="form-control bg-light" id="accountUserEmail" readonly>
+                  <label class="form-label fw-semibold">Rol</label>
+                  <input type="text" class="form-control bg-light" id="accountUserRole" readonly>
                 </div>
 
                 <hr class="my-4">

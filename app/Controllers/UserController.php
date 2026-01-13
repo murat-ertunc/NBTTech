@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
+use App\Core\Rol;
 use App\Repositories\CustomerRepository;
 use App\Repositories\UserRepository;
 use App\Services\Logger\ActionLogger;
@@ -13,6 +14,13 @@ class UserController
 {
     public static function index(): void
     {
+        // Authentication check
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::unauthorized('Oturum gerekli');
+            return;
+        }
+        
         $Repo = new UserRepository();
         $Satirlar = $Repo->tumKullanicilar();
         Response::json(['data' => $Satirlar]);
@@ -20,6 +28,20 @@ class UserController
 
     public static function block(array $Parametreler): void
     {
+        // Authentication check
+        $AktifKullaniciId = Context::kullaniciId();
+        if (!$AktifKullaniciId) {
+            Response::unauthorized('Oturum gerekli');
+            return;
+        }
+        
+        // Admin or Superadmin role check
+        $Rol = Context::rol();
+        if ($Rol !== Rol::SUPERADMIN && $Rol !== Rol::ADMIN) {
+            Response::forbidden('Bu işlem için yetkiniz yok');
+            return;
+        }
+        
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
             Response::error('Geçersiz kullanıcı.', 422);
@@ -53,6 +75,20 @@ class UserController
 
     public static function delete(array $Parametreler): void
     {
+        // Authentication check
+        $AktifKullaniciId = Context::kullaniciId();
+        if (!$AktifKullaniciId) {
+            Response::unauthorized('Oturum gerekli');
+            return;
+        }
+        
+        // Admin or Superadmin role check
+        $Rol = Context::rol();
+        if ($Rol !== Rol::SUPERADMIN && $Rol !== Rol::ADMIN) {
+            Response::forbidden('Bu işlem için yetkiniz yok');
+            return;
+        }
+        
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
             Response::error('Geçersiz kullanıcı.', 422);
@@ -89,6 +125,20 @@ class UserController
 
     public static function store(): void
     {
+        // Authentication check
+        $AktifKullaniciId = Context::kullaniciId();
+        if (!$AktifKullaniciId) {
+            Response::unauthorized('Oturum gerekli');
+            return;
+        }
+        
+        // Admin or Superadmin role check
+        $AktifRol = Context::rol();
+        if ($AktifRol !== Rol::SUPERADMIN && $AktifRol !== Rol::ADMIN) {
+            Response::forbidden('Bu işlem için yetkiniz yok');
+            return;
+        }
+        
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         $AdSoyad = trim($Girdi['AdSoyad'] ?? '');
         $KullaniciAdi = trim($Girdi['KullaniciAdi'] ?? '');
@@ -103,7 +153,7 @@ class UserController
             Response::error('Şifre en az 6 karakter olmalıdır.', 422);
             return;
         }
-        if (!in_array($Rol, ['user', 'admin'])) {
+        if ($Rol !== 'user') {
             $Rol = 'user';
         }
 
@@ -163,8 +213,8 @@ class UserController
             if (isset($Girdi['AdSoyad']) && trim($Girdi['AdSoyad'])) {
                 $Guncellenecek['AdSoyad'] = trim($Girdi['AdSoyad']);
             }
-            if (isset($Girdi['Rol']) && in_array($Girdi['Rol'], ['user', 'admin'])) {
-                $Guncellenecek['Rol'] = $Girdi['Rol'];
+            if (isset($Girdi['Rol']) && $Girdi['Rol'] === 'user') {
+                $Guncellenecek['Rol'] = 'user';
             }
             if (isset($Girdi['Sifre']) && strlen($Girdi['Sifre']) >= 6) {
                 $Guncellenecek['Parola'] = password_hash($Girdi['Sifre'], PASSWORD_BCRYPT);

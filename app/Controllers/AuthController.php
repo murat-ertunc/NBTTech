@@ -93,7 +93,7 @@ class AuthController
         [$Id, $Kayit] = Transaction::wrap(function () use ($Repo, $KullaniciAdi, $Hash, $AdSoyad) {
             $YeniId = $Repo->olustur($KullaniciAdi, $Hash, $AdSoyad, 'user');
             $Kayit = $Repo->bul($YeniId);
-            ActionLogger::insert('tnm_user', ['Id' => $YeniId, 'KullaniciAdi' => $KullaniciAdi, 'AdSoyad' => $AdSoyad, 'Rol' => 'user']);
+            ActionLogger::insert('tnm_user', ['Id' => $YeniId], ['KullaniciAdi' => $KullaniciAdi, 'AdSoyad' => $AdSoyad, 'Rol' => 'user']);
             return [$YeniId, $Kayit];
         });
 

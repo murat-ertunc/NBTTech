@@ -26,47 +26,48 @@ class CalendarController
      */
     public function index(): void
     {
-        $userId = Context::kullaniciId();
-        if (!$userId) {
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
             Response::unauthorized('Oturum gerekli');
+            return;
         }
 
-        $customerId = isset($_GET['customerId']) ? (int)$_GET['customerId'] : null;
-        $month = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('n');
-        $year = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
-        $includeCompleted = isset($_GET['includeCompleted']) && $_GET['includeCompleted'] === '1';
+        $MusteriId = isset($_GET['customerId']) ? (int)$_GET['customerId'] : null;
+        $Ay = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('n');
+        $Yil = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
+        $TamamlananlarDahil = isset($_GET['includeCompleted']) && $_GET['includeCompleted'] === '1';
 
-        $events = [];
+        $Etkinlikler = [];
 
         // 1. Proje başlangıç ve bitiş tarihleri
-        $projectEvents = $this->getProjectEvents($customerId, $month, $year, $includeCompleted);
-        $events = array_merge($events, $projectEvents);
+        $ProjeEtkinlikleri = $this->getProjectEvents($MusteriId, $Ay, $Yil, $TamamlananlarDahil);
+        $Etkinlikler = array_merge($Etkinlikler, $ProjeEtkinlikleri);
 
         // 2. Sözleşme başlangıç ve bitiş tarihleri
-        $contractEvents = $this->getContractEvents($customerId, $month, $year, $includeCompleted);
-        $events = array_merge($events, $contractEvents);
+        $SozlesmeEtkinlikleri = $this->getContractEvents($MusteriId, $Ay, $Yil, $TamamlananlarDahil);
+        $Etkinlikler = array_merge($Etkinlikler, $SozlesmeEtkinlikleri);
 
         // 3. Teminat vade tarihleri
-        $guaranteeEvents = $this->getGuaranteeEvents($customerId, $month, $year, $includeCompleted);
-        $events = array_merge($events, $guaranteeEvents);
+        $TeminatEtkinlikleri = $this->getGuaranteeEvents($MusteriId, $Ay, $Yil, $TamamlananlarDahil);
+        $Etkinlikler = array_merge($Etkinlikler, $TeminatEtkinlikleri);
 
         // 4. Fatura tarihleri
-        $invoiceEvents = $this->getInvoiceEvents($customerId, $month, $year);
-        $events = array_merge($events, $invoiceEvents);
+        $FaturaEtkinlikleri = $this->getInvoiceEvents($MusteriId, $Ay, $Yil);
+        $Etkinlikler = array_merge($Etkinlikler, $FaturaEtkinlikleri);
 
         // Tarihe göre sırala
-        usort($events, function($a, $b) {
+        usort($Etkinlikler, function($a, $b) {
             return strtotime($a['date']) - strtotime($b['date']);
         });
 
         Response::json([
             'success' => true,
-            'data' => $events,
+            'data' => $Etkinlikler,
             'meta' => [
-                'month' => $month,
-                'year' => $year,
-                'customerId' => $customerId,
-                'totalCount' => count($events)
+                'month' => $Ay,
+                'year' => $Yil,
+                'customerId' => $MusteriId,
+                'totalCount' => count($Etkinlikler)
             ]
         ]);
     }
@@ -77,23 +78,25 @@ class CalendarController
      */
     public function day(string $date): void
     {
-        $userId = Context::kullaniciId();
-        if (!$userId) {
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
             Response::unauthorized('Oturum gerekli');
+            return;
         }
 
         // Date format: YYYY-MM-DD
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             Response::badRequest('Geçersiz tarih formatı. YYYY-MM-DD olmalı.');
+            return;
         }
 
-        $customerId = isset($_GET['customerId']) ? (int)$_GET['customerId'] : null;
+        $MusteriId = isset($_GET['customerId']) ? (int)$_GET['customerId'] : null;
         
-        $events = $this->getEventsForDay($date, $customerId);
+        $Etkinlikler = $this->getEventsForDay($date, $MusteriId);
 
         Response::json([
             'success' => true,
-            'data' => $events,
+            'data' => $Etkinlikler,
             'date' => $date
         ]);
     }
@@ -101,24 +104,24 @@ class CalendarController
     /**
      * Proje etkinliklerini getir
      */
-    private function getProjectEvents(?int $customerId, int $month, int $year, bool $includeCompleted): array
+    private function getProjectEvents(?int $MusteriId, int $Ay, int $Yil, bool $TamamlananlarDahil): array
     {
         try {
-            $db = Database::connection();
+            $Db = Database::connection();
             
-            $conditions = "p.Sil = 0";
-            $params = ['month' => $month, 'year' => $year];
+            $Kosullar = "p.Sil = 0";
+            $Parametreler = ['month' => $Ay, 'year' => $Yil];
             
-            if ($customerId) {
-                $conditions .= " AND p.MusteriId = :customerId";
-                $params['customerId'] = $customerId;
+            if ($MusteriId) {
+                $Kosullar .= " AND p.MusteriId = :customerId";
+                $Parametreler['customerId'] = $MusteriId;
             }
             
-            if (!$includeCompleted) {
-                $conditions .= " AND p.Durum = 1"; // Sadece aktif projeler
+            if (!$TamamlananlarDahil) {
+                $Kosullar .= " AND p.Durum = 1"; // Sadece aktif projeler
             }
             
-            $sql = "
+            $Sql = "
                 SELECT 
                     p.Id,
                     p.MusteriId,
@@ -129,7 +132,7 @@ class CalendarController
                     p.Durum
                 FROM tbl_proje p
                 LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id
-                WHERE {$conditions}
+                WHERE {$Kosullar}
                   AND (
                     (MONTH(p.BaslangicTarihi) = :month AND YEAR(p.BaslangicTarihi) = :year)
                     OR (MONTH(p.BitisTarihi) = :month AND YEAR(p.BitisTarihi) = :year)
@@ -137,55 +140,56 @@ class CalendarController
                 ORDER BY p.BaslangicTarihi ASC
             ";
             
-            $stmt = $db->prepare($sql); $stmt->execute($params);
-            $projects = $stmt->fetchAll();
+            $Stmt = $Db->prepare($Sql); 
+            $Stmt->execute($Parametreler);
+            $Projeler = $Stmt->fetchAll();
             
-            $events = [];
-            foreach ($projects as $p) {
+            $Etkinlikler = [];
+            foreach ($Projeler as $Proje) {
                 // Başlangıç tarihi
-                if ($p['BaslangicTarihi']) {
-                    $startMonth = (int)date('n', strtotime($p['BaslangicTarihi']));
-                    $startYear = (int)date('Y', strtotime($p['BaslangicTarihi']));
-                    if ($startMonth === $month && $startYear === $year) {
-                        $events[] = [
-                            'id' => 'project_start_' . $p['Id'],
+                if ($Proje['BaslangicTarihi']) {
+                    $BaslangicAy = (int)date('n', strtotime($Proje['BaslangicTarihi']));
+                    $BaslangicYil = (int)date('Y', strtotime($Proje['BaslangicTarihi']));
+                    if ($BaslangicAy === $Ay && $BaslangicYil === $Yil) {
+                        $Etkinlikler[] = [
+                            'id' => 'project_start_' . $Proje['Id'],
                             'type' => 'project_start',
                             'category' => 'project',
-                            'customerId' => $p['MusteriId'],
-                            'customer' => $p['MusteriUnvan'],
-                            'title' => 'Proje Başlangıç: ' . $p['ProjeAdi'],
-                            'date' => $p['BaslangicTarihi'],
+                            'customerId' => $Proje['MusteriId'],
+                            'customer' => $Proje['MusteriUnvan'],
+                            'title' => 'Proje Başlangıç: ' . $Proje['ProjeAdi'],
+                            'date' => $Proje['BaslangicTarihi'],
                             'color' => '#198754', // green
-                            'completed' => $p['Durum'] != 1,
-                            'relatedId' => $p['Id'],
+                            'completed' => $Proje['Durum'] != 1,
+                            'relatedId' => $Proje['Id'],
                             'relatedType' => 'project'
                         ];
                     }
                 }
                 
                 // Bitiş tarihi
-                if ($p['BitisTarihi']) {
-                    $endMonth = (int)date('n', strtotime($p['BitisTarihi']));
-                    $endYear = (int)date('Y', strtotime($p['BitisTarihi']));
-                    if ($endMonth === $month && $endYear === $year) {
-                        $events[] = [
-                            'id' => 'project_end_' . $p['Id'],
+                if ($Proje['BitisTarihi']) {
+                    $BitisAy = (int)date('n', strtotime($Proje['BitisTarihi']));
+                    $BitisYil = (int)date('Y', strtotime($Proje['BitisTarihi']));
+                    if ($BitisAy === $Ay && $BitisYil === $Yil) {
+                        $Etkinlikler[] = [
+                            'id' => 'project_end_' . $Proje['Id'],
                             'type' => 'project_end',
                             'category' => 'project',
-                            'customerId' => $p['MusteriId'],
-                            'customer' => $p['MusteriUnvan'],
-                            'title' => 'Proje Bitiş: ' . $p['ProjeAdi'],
-                            'date' => $p['BitisTarihi'],
+                            'customerId' => $Proje['MusteriId'],
+                            'customer' => $Proje['MusteriUnvan'],
+                            'title' => 'Proje Bitiş: ' . $Proje['ProjeAdi'],
+                            'date' => $Proje['BitisTarihi'],
                             'color' => '#dc3545', // red
-                            'completed' => $p['Durum'] != 1,
-                            'relatedId' => $p['Id'],
+                            'completed' => $Proje['Durum'] != 1,
+                            'relatedId' => $Proje['Id'],
                             'relatedType' => 'project'
                         ];
                     }
                 }
             }
             
-            return $events;
+            return $Etkinlikler;
         } catch (\Exception $e) {
             return [];
         }
@@ -194,24 +198,24 @@ class CalendarController
     /**
      * Sözleşme etkinliklerini getir
      */
-    private function getContractEvents(?int $customerId, int $month, int $year, bool $includeCompleted): array
+    private function getContractEvents(?int $MusteriId, int $Ay, int $Yil, bool $TamamlananlarDahil): array
     {
         try {
-            $db = Database::connection();
+            $Db = Database::connection();
             
-            $conditions = "s.Sil = 0";
-            $params = ['month' => $month, 'year' => $year];
+            $Kosullar = "s.Sil = 0";
+            $Parametreler = ['month' => $Ay, 'year' => $Yil];
             
-            if ($customerId) {
-                $conditions .= " AND s.MusteriId = :customerId";
-                $params['customerId'] = $customerId;
+            if ($MusteriId) {
+                $Kosullar .= " AND s.MusteriId = :customerId";
+                $Parametreler['customerId'] = $MusteriId;
             }
             
-            if (!$includeCompleted) {
-                $conditions .= " AND s.Durum = 1";
+            if (!$TamamlananlarDahil) {
+                $Kosullar .= " AND s.Durum = 1";
             }
             
-            $sql = "
+            $Sql = "
                 SELECT 
                     s.Id,
                     s.MusteriId,
@@ -222,7 +226,7 @@ class CalendarController
                     s.Durum
                 FROM tbl_sozlesme s
                 LEFT JOIN tbl_musteri m ON s.MusteriId = m.Id
-                WHERE {$conditions}
+                WHERE {$Kosullar}
                   AND (
                     (MONTH(s.BaslangicTarihi) = :month AND YEAR(s.BaslangicTarihi) = :year)
                     OR (MONTH(s.BitisTarihi) = :month AND YEAR(s.BitisTarihi) = :year)
@@ -230,53 +234,54 @@ class CalendarController
                 ORDER BY s.BaslangicTarihi ASC
             ";
             
-            $stmt = $db->prepare($sql); $stmt->execute($params);
-            $contracts = $stmt->fetchAll();
+            $Stmt = $Db->prepare($Sql); 
+            $Stmt->execute($Parametreler);
+            $Sozlesmeler = $Stmt->fetchAll();
             
-            $events = [];
-            foreach ($contracts as $c) {
-                if ($c['BaslangicTarihi']) {
-                    $startMonth = (int)date('n', strtotime($c['BaslangicTarihi']));
-                    $startYear = (int)date('Y', strtotime($c['BaslangicTarihi']));
-                    if ($startMonth === $month && $startYear === $year) {
-                        $events[] = [
-                            'id' => 'contract_start_' . $c['Id'],
+            $Etkinlikler = [];
+            foreach ($Sozlesmeler as $Sozlesme) {
+                if ($Sozlesme['BaslangicTarihi']) {
+                    $BaslangicAy = (int)date('n', strtotime($Sozlesme['BaslangicTarihi']));
+                    $BaslangicYil = (int)date('Y', strtotime($Sozlesme['BaslangicTarihi']));
+                    if ($BaslangicAy === $Ay && $BaslangicYil === $Yil) {
+                        $Etkinlikler[] = [
+                            'id' => 'contract_start_' . $Sozlesme['Id'],
                             'type' => 'contract_start',
                             'category' => 'contract',
-                            'customerId' => $c['MusteriId'],
-                            'customer' => $c['MusteriUnvan'],
-                            'title' => 'Sözleşme Başlangıç: ' . $c['SozlesmeNo'],
-                            'date' => $c['BaslangicTarihi'],
+                            'customerId' => $Sozlesme['MusteriId'],
+                            'customer' => $Sozlesme['MusteriUnvan'],
+                            'title' => 'Sözleşme Başlangıç: ' . $Sozlesme['SozlesmeNo'],
+                            'date' => $Sozlesme['BaslangicTarihi'],
                             'color' => '#0d6efd', // blue
-                            'completed' => $c['Durum'] != 1,
-                            'relatedId' => $c['Id'],
+                            'completed' => $Sozlesme['Durum'] != 1,
+                            'relatedId' => $Sozlesme['Id'],
                             'relatedType' => 'contract'
                         ];
                     }
                 }
                 
-                if ($c['BitisTarihi']) {
-                    $endMonth = (int)date('n', strtotime($c['BitisTarihi']));
-                    $endYear = (int)date('Y', strtotime($c['BitisTarihi']));
-                    if ($endMonth === $month && $endYear === $year) {
-                        $events[] = [
-                            'id' => 'contract_end_' . $c['Id'],
+                if ($Sozlesme['BitisTarihi']) {
+                    $BitisAy = (int)date('n', strtotime($Sozlesme['BitisTarihi']));
+                    $BitisYil = (int)date('Y', strtotime($Sozlesme['BitisTarihi']));
+                    if ($BitisAy === $Ay && $BitisYil === $Yil) {
+                        $Etkinlikler[] = [
+                            'id' => 'contract_end_' . $Sozlesme['Id'],
                             'type' => 'contract_end',
                             'category' => 'contract',
-                            'customerId' => $c['MusteriId'],
-                            'customer' => $c['MusteriUnvan'],
-                            'title' => 'Sözleşme Bitiş: ' . $c['SozlesmeNo'],
-                            'date' => $c['BitisTarihi'],
+                            'customerId' => $Sozlesme['MusteriId'],
+                            'customer' => $Sozlesme['MusteriUnvan'],
+                            'title' => 'Sözleşme Bitiş: ' . $Sozlesme['SozlesmeNo'],
+                            'date' => $Sozlesme['BitisTarihi'],
                             'color' => '#6f42c1', // purple
-                            'completed' => $c['Durum'] != 1,
-                            'relatedId' => $c['Id'],
+                            'completed' => $Sozlesme['Durum'] != 1,
+                            'relatedId' => $Sozlesme['Id'],
                             'relatedType' => 'contract'
                         ];
                     }
                 }
             }
             
-            return $events;
+            return $Etkinlikler;
         } catch (\Exception $e) {
             return [];
         }
@@ -285,24 +290,24 @@ class CalendarController
     /**
      * Teminat vade etkinliklerini getir
      */
-    private function getGuaranteeEvents(?int $customerId, int $month, int $year, bool $includeCompleted): array
+    private function getGuaranteeEvents(?int $MusteriId, int $Ay, int $Yil, bool $TamamlananlarDahil): array
     {
         try {
-            $db = Database::connection();
+            $Db = Database::connection();
             
-            $conditions = "t.Sil = 0";
-            $params = ['month' => $month, 'year' => $year];
+            $Kosullar = "t.Sil = 0";
+            $Parametreler = ['month' => $Ay, 'year' => $Yil];
             
-            if ($customerId) {
-                $conditions .= " AND t.MusteriId = :customerId";
-                $params['customerId'] = $customerId;
+            if ($MusteriId) {
+                $Kosullar .= " AND t.MusteriId = :customerId";
+                $Parametreler['customerId'] = $MusteriId;
             }
             
-            if (!$includeCompleted) {
-                $conditions .= " AND t.Durum = 1"; // Sadece bekleyen teminatlar
+            if (!$TamamlananlarDahil) {
+                $Kosullar .= " AND t.Durum = 1"; // Sadece bekleyen teminatlar
             }
             
-            $sql = "
+            $Sql = "
                 SELECT 
                     t.Id,
                     t.MusteriId,
@@ -315,35 +320,36 @@ class CalendarController
                     t.Durum
                 FROM tbl_teminat t
                 LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
-                WHERE {$conditions}
+                WHERE {$Kosullar}
                   AND MONTH(t.VadeTarihi) = :month 
                   AND YEAR(t.VadeTarihi) = :year
                 ORDER BY t.VadeTarihi ASC
             ";
             
-            $stmt = $db->prepare($sql); $stmt->execute($params);
-            $guarantees = $stmt->fetchAll();
+            $Stmt = $Db->prepare($Sql); 
+            $Stmt->execute($Parametreler);
+            $Teminatlar = $Stmt->fetchAll();
             
-            $events = [];
-            foreach ($guarantees as $g) {
-                $events[] = [
-                    'id' => 'guarantee_' . $g['Id'],
+            $Etkinlikler = [];
+            foreach ($Teminatlar as $Teminat) {
+                $Etkinlikler[] = [
+                    'id' => 'guarantee_' . $Teminat['Id'],
                     'type' => 'guarantee_due',
                     'category' => 'guarantee',
-                    'customerId' => $g['MusteriId'],
-                    'customer' => $g['MusteriUnvan'],
-                    'title' => 'Teminat Vadesi: ' . $g['BelgeNo'] . ' (' . $g['Tur'] . ')',
-                    'date' => $g['VadeTarihi'],
+                    'customerId' => $Teminat['MusteriId'],
+                    'customer' => $Teminat['MusteriUnvan'],
+                    'title' => 'Teminat Vadesi: ' . $Teminat['BelgeNo'] . ' (' . $Teminat['Tur'] . ')',
+                    'date' => $Teminat['VadeTarihi'],
                     'color' => '#fd7e14', // orange
-                    'completed' => $g['Durum'] != 1,
-                    'relatedId' => $g['Id'],
+                    'completed' => $Teminat['Durum'] != 1,
+                    'relatedId' => $Teminat['Id'],
                     'relatedType' => 'guarantee',
-                    'amount' => $g['Tutar'],
-                    'currency' => $g['DovizCinsi']
+                    'amount' => $Teminat['Tutar'],
+                    'currency' => $Teminat['DovizCinsi']
                 ];
             }
             
-            return $events;
+            return $Etkinlikler;
         } catch (\Exception $e) {
             return [];
         }
@@ -352,20 +358,20 @@ class CalendarController
     /**
      * Fatura tarihlerini getir
      */
-    private function getInvoiceEvents(?int $customerId, int $month, int $year): array
+    private function getInvoiceEvents(?int $MusteriId, int $Ay, int $Yil): array
     {
         try {
-            $db = Database::connection();
+            $Db = Database::connection();
             
-            $conditions = "f.Sil = 0";
-            $params = ['month' => $month, 'year' => $year];
+            $Kosullar = "f.Sil = 0";
+            $Parametreler = ['month' => $Ay, 'year' => $Yil];
             
-            if ($customerId) {
-                $conditions .= " AND f.MusteriId = :customerId";
-                $params['customerId'] = $customerId;
+            if ($MusteriId) {
+                $Kosullar .= " AND f.MusteriId = :customerId";
+                $Parametreler['customerId'] = $MusteriId;
             }
             
-            $sql = "
+            $Sql = "
                 SELECT 
                     f.Id,
                     f.MusteriId,
@@ -376,35 +382,36 @@ class CalendarController
                     f.Aciklama
                 FROM tbl_fatura f
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
-                WHERE {$conditions}
+                WHERE {$Kosullar}
                   AND MONTH(f.Tarih) = :month 
                   AND YEAR(f.Tarih) = :year
                 ORDER BY f.Tarih ASC
             ";
             
-            $stmt = $db->prepare($sql); $stmt->execute($params);
-            $invoices = $stmt->fetchAll();
+            $Stmt = $Db->prepare($Sql); 
+            $Stmt->execute($Parametreler);
+            $Faturalar = $Stmt->fetchAll();
             
-            $events = [];
-            foreach ($invoices as $inv) {
-                $events[] = [
-                    'id' => 'invoice_' . $inv['Id'],
+            $Etkinlikler = [];
+            foreach ($Faturalar as $Fatura) {
+                $Etkinlikler[] = [
+                    'id' => 'invoice_' . $Fatura['Id'],
                     'type' => 'invoice',
                     'category' => 'invoice',
-                    'customerId' => $inv['MusteriId'],
-                    'customer' => $inv['MusteriUnvan'],
-                    'title' => 'Fatura: ' . ($inv['Aciklama'] ?: 'Fatura #' . $inv['Id']),
-                    'date' => $inv['Tarih'],
+                    'customerId' => $Fatura['MusteriId'],
+                    'customer' => $Fatura['MusteriUnvan'],
+                    'title' => 'Fatura: ' . ($Fatura['Aciklama'] ?: 'Fatura #' . $Fatura['Id']),
+                    'date' => $Fatura['Tarih'],
                     'color' => '#20c997', // teal
                     'completed' => false,
-                    'relatedId' => $inv['Id'],
+                    'relatedId' => $Fatura['Id'],
                     'relatedType' => 'invoice',
-                    'amount' => $inv['Tutar'],
-                    'currency' => $inv['DovizCinsi']
+                    'amount' => $Fatura['Tutar'],
+                    'currency' => $Fatura['DovizCinsi']
                 ];
             }
             
-            return $events;
+            return $Etkinlikler;
         } catch (\Exception $e) {
             return [];
         }
@@ -413,101 +420,105 @@ class CalendarController
     /**
      * Belirli bir gündeki etkinlikleri getir
      */
-    private function getEventsForDay(string $date, ?int $customerId): array
+    private function getEventsForDay(string $Tarih, ?int $MusteriId): array
     {
         try {
-            $db = Database::connection();
-            $events = [];
-            $params = ['date' => $date];
+            $Db = Database::connection();
+            $Etkinlikler = [];
+            $Parametreler = ['date' => $Tarih];
             
-            $customerCondition = $customerId ? " AND MusteriId = :customerId" : "";
-            if ($customerId) {
-                $params['customerId'] = $customerId;
+            $MusteriKosulu = $MusteriId ? " AND MusteriId = :customerId" : "";
+            if ($MusteriId) {
+                $Parametreler['customerId'] = $MusteriId;
             }
             
             // Projeler
-            $sql = "
+            $Sql = "
                 SELECT Id, MusteriId, ProjeAdi, 
                        CASE WHEN CAST(BaslangicTarihi AS DATE) = :date THEN 'start' ELSE 'end' END as EventType
                 FROM tbl_proje 
-                WHERE Sil = 0 {$customerCondition}
+                WHERE Sil = 0 {$MusteriKosulu}
                   AND (CAST(BaslangicTarihi AS DATE) = :date OR CAST(BitisTarihi AS DATE) = :date)
             ";
-            $stmt = $db->prepare($sql); $stmt->execute($params);
-            $projects = $stmt->fetchAll();
+            $Stmt = $Db->prepare($Sql); 
+            $Stmt->execute($Parametreler);
+            $Projeler = $Stmt->fetchAll();
             
-            foreach ($projects as $p) {
-                $events[] = [
-                    'id' => $p['Id'],
+            foreach ($Projeler as $Proje) {
+                $Etkinlikler[] = [
+                    'id' => $Proje['Id'],
                     'type' => 'project',
-                    'eventType' => $p['EventType'],
-                    'title' => $p['ProjeAdi'],
-                    'customerId' => $p['MusteriId']
+                    'eventType' => $Proje['EventType'],
+                    'title' => $Proje['ProjeAdi'],
+                    'customerId' => $Proje['MusteriId']
                 ];
             }
             
             // Sözleşmeler
-            $sql = "
+            $Sql = "
                 SELECT Id, MusteriId, SozlesmeNo,
                        CASE WHEN CAST(BaslangicTarihi AS DATE) = :date THEN 'start' ELSE 'end' END as EventType
                 FROM tbl_sozlesme 
-                WHERE Sil = 0 {$customerCondition}
+                WHERE Sil = 0 {$MusteriKosulu}
                   AND (CAST(BaslangicTarihi AS DATE) = :date OR CAST(BitisTarihi AS DATE) = :date)
             ";
-            $stmt = $db->prepare($sql); $stmt->execute($params);
-            $contracts = $stmt->fetchAll();
+            $Stmt = $Db->prepare($Sql); 
+            $Stmt->execute($Parametreler);
+            $Sozlesmeler = $Stmt->fetchAll();
             
-            foreach ($contracts as $c) {
-                $events[] = [
-                    'id' => $c['Id'],
+            foreach ($Sozlesmeler as $Sozlesme) {
+                $Etkinlikler[] = [
+                    'id' => $Sozlesme['Id'],
                     'type' => 'contract',
-                    'eventType' => $c['EventType'],
-                    'title' => $c['SozlesmeNo'],
-                    'customerId' => $c['MusteriId']
+                    'eventType' => $Sozlesme['EventType'],
+                    'title' => $Sozlesme['SozlesmeNo'],
+                    'customerId' => $Sozlesme['MusteriId']
                 ];
             }
             
             // Teminatlar
-            $sql = "
+            $Sql = "
                 SELECT Id, MusteriId, BelgeNo, Tur
                 FROM tbl_teminat 
-                WHERE Sil = 0 {$customerCondition}
+                WHERE Sil = 0 {$MusteriKosulu}
                   AND CAST(VadeTarihi AS DATE) = :date
             ";
-            $stmt = $db->prepare($sql); $stmt->execute($params);
-            $guarantees = $stmt->fetchAll();
+            $Stmt = $Db->prepare($Sql); 
+            $Stmt->execute($Parametreler);
+            $Teminatlar = $Stmt->fetchAll();
             
-            foreach ($guarantees as $g) {
-                $events[] = [
-                    'id' => $g['Id'],
+            foreach ($Teminatlar as $Teminat) {
+                $Etkinlikler[] = [
+                    'id' => $Teminat['Id'],
                     'type' => 'guarantee',
                     'eventType' => 'due',
-                    'title' => $g['BelgeNo'] . ' (' . $g['Tur'] . ')',
-                    'customerId' => $g['MusteriId']
+                    'title' => $Teminat['BelgeNo'] . ' (' . $Teminat['Tur'] . ')',
+                    'customerId' => $Teminat['MusteriId']
                 ];
             }
             
             // Faturalar
-            $sql = "
+            $Sql = "
                 SELECT Id, MusteriId, Aciklama
                 FROM tbl_fatura 
-                WHERE Sil = 0 {$customerCondition}
+                WHERE Sil = 0 {$MusteriKosulu}
                   AND CAST(Tarih AS DATE) = :date
             ";
-            $stmt = $db->prepare($sql); $stmt->execute($params);
-            $invoices = $stmt->fetchAll();
+            $Stmt = $Db->prepare($Sql); 
+            $Stmt->execute($Parametreler);
+            $Faturalar = $Stmt->fetchAll();
             
-            foreach ($invoices as $inv) {
-                $events[] = [
-                    'id' => $inv['Id'],
+            foreach ($Faturalar as $Fatura) {
+                $Etkinlikler[] = [
+                    'id' => $Fatura['Id'],
                     'type' => 'invoice',
                     'eventType' => 'created',
-                    'title' => $inv['Aciklama'] ?: 'Fatura #' . $inv['Id'],
-                    'customerId' => $inv['MusteriId']
+                    'title' => $Fatura['Aciklama'] ?: 'Fatura #' . $Fatura['Id'],
+                    'customerId' => $Fatura['MusteriId']
                 ];
             }
             
-            return $events;
+            return $Etkinlikler;
         } catch (\Exception $e) {
             return [];
         }

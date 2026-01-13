@@ -90,6 +90,11 @@ $Router->add('GET', '/alarms', function () {
 	require __DIR__ . '/../public/pages/alarms.php';
 });
 
+// ===== PARAMETRELER =====
+$Router->add('GET', '/parameters', function () {
+	require __DIR__ . '/../public/pages/parameters.php';
+});
+
 // ===== AUTH =====
 $Router->add('GET', '/login', function () {
 	require __DIR__ . '/../public/login.php';

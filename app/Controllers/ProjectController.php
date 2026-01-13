@@ -123,8 +123,9 @@ class ProjectController
             return;
         }
 
+        // Cascade soft delete: Proje silindiğinde ilişkili kayıtlar da Sil=1 yapılır
         Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
-            $Repo->softSil($Id, $KullaniciId);
+            $Repo->cascadeSoftSil($Id, $KullaniciId);
         });
 
         Response::json(['status' => 'success']);

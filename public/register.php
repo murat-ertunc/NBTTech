@@ -92,7 +92,7 @@ $Logo = config('app.logo', '/assets/logo.png');
         const Veri = await Yanıt.json().catch(() => ({}));
         if (!Yanıt.ok) throw new Error(Veri.error || 'Kayıt oluşturulamadı.');
 
-        // Kayıt sonrası auth garantisi: login çağrısı ile taze token al
+        // Kayıt sonrası auth garantisi: login çağrısı ile taze token alma
         const GirisYaniti = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Tab-Id': SekmeIdAl() },

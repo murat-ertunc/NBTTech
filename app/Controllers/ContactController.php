@@ -39,7 +39,7 @@ class ContactController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        $Zorunlu = ['MusteriId', 'AdSoyad'];
+        $Zorunlu = ['MusteriId', 'ProjeId', 'AdSoyad'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
                 Response::error("$Alan alanı zorunludur.", 422);
@@ -56,6 +56,7 @@ class ContactController
         $Repo = new ContactRepository();
         $YuklenecekVeri = [
             'MusteriId' => (int)$Girdi['MusteriId'],
+            'ProjeId' => (int)$Girdi['ProjeId'],
             'AdSoyad' => trim((string)$Girdi['AdSoyad']),
             'Unvan' => isset($Girdi['Unvan']) ? trim((string)$Girdi['Unvan']) : null,
             'Telefon' => isset($Girdi['Telefon']) ? trim((string)$Girdi['Telefon']) : null,
@@ -85,6 +86,7 @@ class ContactController
         }
 
         $Guncellenecek = [];
+        if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = (int)$Girdi['ProjeId'];
         if (isset($Girdi['AdSoyad'])) $Guncellenecek['AdSoyad'] = trim((string)$Girdi['AdSoyad']);
         if (isset($Girdi['Unvan'])) $Guncellenecek['Unvan'] = trim((string)$Girdi['Unvan']);
         if (isset($Girdi['Telefon'])) $Guncellenecek['Telefon'] = trim((string)$Girdi['Telefon']);

@@ -78,4 +78,78 @@ class CustomerRepository extends BaseRepository
         
         return $Etkilenen;
     }
+
+    /**
+     * Sayfalama ile tüm aktif müşterileri getirir (superadmin/admin için)
+     */
+    public function tumAktiflerSiraliPaginated(int $Page = 1, int $Limit = 10): array
+    {
+        $Offset = ($Page - 1) * $Limit;
+        
+        // Total count
+        $CountStmt = $this->Db->query("SELECT COUNT(*) FROM {$this->Tablo} WHERE Sil = 0");
+        $Total = (int) $CountStmt->fetchColumn();
+        
+        // Data with user info
+        $Sql = "SELECT m.*, u.AdSoyad AS EkleyenAdSoyad, u.KullaniciAdi AS EkleyenKullaniciAdi 
+                FROM {$this->Tablo} m 
+                LEFT JOIN tnm_user u ON m.EkleyenUserId = u.Id 
+                WHERE m.Sil = 0 
+                ORDER BY m.Id DESC 
+                OFFSET :Offset ROWS FETCH NEXT :Limit ROWS ONLY";
+        $Stmt = $this->Db->prepare($Sql);
+        $Stmt->bindValue(':Offset', $Offset, \PDO::PARAM_INT);
+        $Stmt->bindValue(':Limit', $Limit, \PDO::PARAM_INT);
+        $Stmt->execute();
+        $Sonuclar = $Stmt->fetchAll();
+        
+        $this->logSelect(['Sil' => 0, 'page' => $Page, 'limit' => $Limit], $Sonuclar);
+        
+        return [
+            'data' => $Sonuclar,
+            'pagination' => [
+                'page' => $Page,
+                'limit' => $Limit,
+                'total' => $Total,
+                'totalPages' => (int) ceil($Total / $Limit)
+            ]
+        ];
+    }
+
+    /**
+     * Sayfalama ile kullanıcıya ait aktif müşterileri getirir
+     */
+    public function kullaniciyaGoreAktiflerPaginated(int $KullaniciId, int $Page = 1, int $Limit = 10): array
+    {
+        $Offset = ($Page - 1) * $Limit;
+        
+        // Total count
+        $CountStmt = $this->Db->prepare("SELECT COUNT(*) FROM {$this->Tablo} WHERE Sil = 0 AND EkleyenUserId = :Uid");
+        $CountStmt->execute(['Uid' => $KullaniciId]);
+        $Total = (int) $CountStmt->fetchColumn();
+        
+        // Data
+        $Sql = "SELECT * FROM {$this->Tablo} 
+                WHERE Sil = 0 AND EkleyenUserId = :Uid 
+                ORDER BY Id DESC 
+                OFFSET :Offset ROWS FETCH NEXT :Limit ROWS ONLY";
+        $Stmt = $this->Db->prepare($Sql);
+        $Stmt->bindValue(':Uid', $KullaniciId, \PDO::PARAM_INT);
+        $Stmt->bindValue(':Offset', $Offset, \PDO::PARAM_INT);
+        $Stmt->bindValue(':Limit', $Limit, \PDO::PARAM_INT);
+        $Stmt->execute();
+        $Sonuclar = $Stmt->fetchAll();
+        
+        $this->logSelect(['Sil' => 0, 'EkleyenUserId' => $KullaniciId, 'page' => $Page, 'limit' => $Limit], $Sonuclar);
+        
+        return [
+            'data' => $Sonuclar,
+            'pagination' => [
+                'page' => $Page,
+                'limit' => $Limit,
+                'total' => $Total,
+                'totalPages' => (int) ceil($Total / $Limit)
+            ]
+        ];
+    }
 }

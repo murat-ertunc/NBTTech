@@ -2,6 +2,8 @@
 
 namespace App\Repositories;
 
+use App\Services\Logger\ActionLogger;
+
 class ProjectRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_proje';
@@ -52,5 +54,50 @@ class ProjectRepository extends BaseRepository
         $result = $this->paginatedQuery($Sql, [], $page, $limit);
         $this->logSelect(['Sil' => 0, 'page' => $page], $result['data']);
         return $result;
+    }
+
+    /**
+     * Proje silme ile birlikte ilişkili kayıtları da soft delete yapar
+     * Kurallar.txt: Bağlı kayıtlar da Sil=1 yapılır
+     * 
+     * İlişkili tablolar: tbl_fatura, tbl_odeme, tbl_teklif, tbl_sozlesme, 
+     * tbl_teminat, tbl_gorusme, tbl_kisi, tbl_damgavergisi, tbl_dosya
+     */
+    public function cascadeSoftSil(int $Id, int $KullaniciId): void
+    {
+        // Önce projeyi soft delete
+        $this->softSil($Id, $KullaniciId);
+
+        // İlişkili tabloları soft delete (ProjeId foreign key ile bağlı)
+        $IliskiliTablolar = [
+            'tbl_fatura',
+            'tbl_odeme', 
+            'tbl_teklif',
+            'tbl_sozlesme',
+            'tbl_teminat',
+            'tbl_gorusme',
+            'tbl_kisi',
+            'tbl_damgavergisi',
+            'tbl_dosya'
+        ];
+
+        foreach ($IliskiliTablolar as $Tablo) {
+            $Sql = "UPDATE {$Tablo} SET 
+                    Sil = 1, 
+                    DegisiklikZamani = GETDATE(), 
+                    DegistirenUserId = :UserId 
+                    WHERE ProjeId = :ProjeId AND Sil = 0";
+            $Stmt = $this->Db->prepare($Sql);
+            $Stmt->execute(['ProjeId' => $Id, 'UserId' => $KullaniciId]);
+            
+            // Silinen kayıt sayısını logla
+            $SilinenSayisi = $Stmt->rowCount();
+            if ($SilinenSayisi > 0) {
+                ActionLogger::logla('CASCADE_DELETE', $Tablo, null, [
+                    'ProjeId' => $Id,
+                    'SilinenKayitSayisi' => $SilinenSayisi
+                ]);
+            }
+        }
     }
 }

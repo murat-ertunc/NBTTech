@@ -126,7 +126,8 @@ const NbtUtils = {
      */
     formatMoney(amount, currency = 'TRY') {
         const num = parseFloat(amount) || 0;
-        const symbols = { TRY: '₺', USD: '$', EUR: '€', TL: '₺' };
+        // NbtParams cache'den sembol al, yoksa default
+        const symbols = NbtParams.getCurrencySymbols();
         return num.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ' + (symbols[currency] || currency);
     },
 
@@ -139,6 +140,200 @@ const NbtUtils = {
             clearTimeout(timer);
             timer = setTimeout(() => fn(...args), delay);
         };
+    }
+};
+
+// =============================================
+// PARAMETRE YÖNETİCİSİ
+// =============================================
+const NbtParams = {
+    _cache: {
+        currencies: null,
+        statuses: {},
+        settings: null,
+        lastFetch: 0
+    },
+    
+    CACHE_TTL: 5 * 60 * 1000, // 5 dakika
+
+    /**
+     * Aktif döviz türlerini getir
+     */
+    async getCurrencies(forceRefresh = false) {
+        if (!forceRefresh && this._cache.currencies && Date.now() - this._cache.lastFetch < this.CACHE_TTL) {
+            return this._cache.currencies;
+        }
+        try {
+            const response = await NbtApi.get('/api/parameters/currencies');
+            this._cache.currencies = response.data || [];
+            this._cache.lastFetch = Date.now();
+            return this._cache.currencies;
+        } catch (err) {
+            NbtLogger.error('Döviz parametreleri alınamadı:', err);
+            // Fallback - varsayılan dövizler
+            return [
+                { Kod: 'TRY', Etiket: 'Türk Lirası', Deger: '₺', Varsayilan: true },
+                { Kod: 'USD', Etiket: 'Amerikan Doları', Deger: '$', Varsayilan: false },
+                { Kod: 'EUR', Etiket: 'Euro', Deger: '€', Varsayilan: false }
+            ];
+        }
+    },
+
+    /**
+     * Döviz sembollerini obje olarak getir (hızlı erişim için)
+     */
+    getCurrencySymbols() {
+        // Senkron erişim için cache'den al, yoksa default
+        if (this._cache.currencies) {
+            const symbols = {};
+            this._cache.currencies.forEach(c => symbols[c.Kod] = c.Deger);
+            return symbols;
+        }
+        return { TRY: '₺', USD: '$', EUR: '€', GBP: '£', TL: '₺' };
+    },
+
+    /**
+     * Varsayılan döviz kodunu getir
+     */
+    getDefaultCurrency() {
+        if (this._cache.currencies) {
+            const def = this._cache.currencies.find(c => c.Varsayilan);
+            return def ? def.Kod : 'TRY';
+        }
+        return 'TRY';
+    },
+
+    /**
+     * Durum parametrelerini getir
+     * @param entity proje|teklif|sozlesme|teminat
+     */
+    async getStatuses(entity, forceRefresh = false) {
+        const cacheKey = `durum_${entity}`;
+        if (!forceRefresh && this._cache.statuses[cacheKey]) {
+            return this._cache.statuses[cacheKey];
+        }
+        try {
+            const response = await NbtApi.get(`/api/parameters/statuses?entity=${entity}`);
+            this._cache.statuses[cacheKey] = response.data || [];
+            return this._cache.statuses[cacheKey];
+        } catch (err) {
+            NbtLogger.error(`Durum parametreleri alınamadı (${entity}):`, err);
+            return [];
+        }
+    },
+
+    /**
+     * Durum badge HTML'i oluştur
+     * @param entity proje|teklif|sozlesme|teminat
+     * @param kod Durum kodu (1, 2, 3 vb.)
+     */
+    getStatusBadge(entity, kod) {
+        const cacheKey = `durum_${entity}`;
+        const statuses = this._cache.statuses[cacheKey] || [];
+        const status = statuses.find(s => s.Kod == kod);
+        if (status) {
+            return `<span class="badge bg-${status.Deger}">${NbtUtils.escapeHtml(status.Etiket)}</span>`;
+        }
+        return `<span class="badge bg-secondary">${kod}</span>`;
+    },
+
+    /**
+     * Genel ayarları getir
+     */
+    async getSettings(forceRefresh = false) {
+        if (!forceRefresh && this._cache.settings && Date.now() - this._cache.lastFetch < this.CACHE_TTL) {
+            return this._cache.settings;
+        }
+        try {
+            const response = await NbtApi.get('/api/parameters/settings');
+            // Backend response root'da paginationDefault olarak gönderiyor
+            this._cache.settings = {
+                pagination_default: response.paginationDefault || 25,
+                default_currency: response.defaultCurrency || 'TRY',
+                active_currencies: response.activeCurrencies || ['TRY', 'USD', 'EUR']
+            };
+            return this._cache.settings;
+        } catch (err) {
+            NbtLogger.error('Genel ayarlar alınamadı:', err);
+            return { pagination_default: 25 };
+        }
+    },
+
+    /**
+     * Sayfalama varsayılan değerini getir
+     */
+    getPaginationDefault() {
+        if (this._cache.settings && this._cache.settings.pagination_default) {
+            return parseInt(this._cache.settings.pagination_default);
+        }
+        return window.APP_CONFIG?.PAGINATION_DEFAULT || 25;
+    },
+
+    /**
+     * Select element'ine döviz seçeneklerini doldur
+     */
+    async populateCurrencySelect(selectElement, selectedValue = null) {
+        if (!selectElement) return;
+        const currencies = await this.getCurrencies();
+        selectElement.innerHTML = '';
+        currencies.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.Kod;
+            option.textContent = `${c.Kod} (${c.Deger})`;
+            if (selectedValue ? c.Kod === selectedValue : c.Varsayilan) {
+                option.selected = true;
+            }
+            selectElement.appendChild(option);
+        });
+    },
+
+    /**
+     * Select element'ine durum seçeneklerini doldur
+     */
+    async populateStatusSelect(selectElement, entity, selectedValue = null) {
+        if (!selectElement) return;
+        // Her zaman cache'i yenile (forceRefresh=true)
+        const statuses = await this.getStatuses(entity, true);
+        selectElement.innerHTML = '';
+        if (!statuses || statuses.length === 0) {
+            selectElement.innerHTML = '<option value="">Durum bulunamadı</option>';
+            return;
+        }
+        statuses.forEach(s => {
+            const option = document.createElement('option');
+            option.value = s.Kod;
+            option.textContent = s.Etiket;
+            if (selectedValue !== null ? s.Kod == selectedValue : s.Varsayilan) {
+                option.selected = true;
+            }
+            selectElement.appendChild(option);
+        });
+    },
+
+    /**
+     * Tüm cache'i sıfırla
+     */
+    clearCache() {
+        this._cache = { currencies: null, statuses: {}, settings: null, lastFetch: 0 };
+    },
+
+    /**
+     * Başlangıçta parametreleri önyükle
+     */
+    async preload() {
+        try {
+            await Promise.all([
+                this.getCurrencies(),
+                this.getSettings(),
+                this.getStatuses('proje'),
+                this.getStatuses('teklif'),
+                this.getStatuses('sozlesme'),
+                this.getStatuses('teminat')
+            ]);
+            NbtLogger.log('Parametreler önyüklendi');
+        } catch (err) {
+            NbtLogger.error('Parametre önyükleme hatası:', err);
+        }
     }
 };
 
@@ -687,7 +882,7 @@ const NbtDetailModal = {
             titleEl.innerHTML = `<i class="bi ${icons[entityType] || 'bi-eye'} me-2"></i>${titles[entityType] || 'Detay'}`;
         }
 
-        // İçeriği oluştur
+        // İçerik oluşturma
         const bodyEl = document.getElementById('entityDetailModalBody');
         if (bodyEl) {
             bodyEl.innerHTML = this._buildContent(entityType, data);
@@ -914,7 +1109,7 @@ const NbtRouter = {
         // Tab parametresi KALDIRILDI - tab state artık URL'de değil
         // (params.tab artık URL'ye eklenmez)
         
-        // Gerçek sayfa yüklemesi yap (SPA değil)
+        // Gerçek sayfa yüklemesi yapılması (SPA değil)
         window.location.href = targetUrl;
     },
 

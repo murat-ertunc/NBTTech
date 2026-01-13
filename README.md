@@ -37,7 +37,7 @@ Varsayılan tanımlı kullanıcılar:
 | Rol | Kullanıcı Adı | Parola | Yetki |
 |-----|---------------|--------|-------|
 | Süper Admin | `superadmin` | `Super123!` | Tam yetki |
-| Demo Kullanıcı | `demo` | `Demo123!` | Sadece okuma/kendi verisi |
+| Demo Kullanıcı | `demo` | `Demo123!` | Sadece kendi verisi |
 
 ## Proje Yapısı
 

@@ -27,5 +27,6 @@ require __DIR__ . '/partials/header.php';
       </div>
     </div>
 
-<?php require __DIR__ . '/partials/modals.php'; ?>
+<?php require __DIR__ . '/partials/modals/guarantee.php'; ?>
+<?php require __DIR__ . '/partials/modals/entity-detail.php'; ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>

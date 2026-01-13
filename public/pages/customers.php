@@ -43,5 +43,5 @@ require __DIR__ . '/partials/header.php';
       </div>
     </div>
 
-<?php require __DIR__ . '/partials/modals.php'; ?>
+<?php require __DIR__ . '/partials/modals/customer.php'; ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>

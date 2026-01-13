@@ -108,6 +108,7 @@ $currentPage = $currentPage ?? $activeNav; // Varsayılan: activeNav ile aynı
             </a>
             <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-1" style="border-radius:10px;">
               <li><a class="dropdown-item py-2" href="/logs" data-nav-group="sistem"><i class="bi bi-journal-text me-2 text-info"></i>İşlem Kayıtları</a></li>
+              <li><a class="dropdown-item py-2" href="/parameters" data-nav-group="sistem"><i class="bi bi-sliders me-2 text-success"></i>Parametreler</a></li>
               <li><hr class="dropdown-divider border-secondary"></li>
               <li><a class="dropdown-item py-2" href="/users" data-nav-group="sistem"><i class="bi bi-person-gear me-2 text-warning"></i>Kullanıcılar</a></li>
             </ul>

@@ -13,23 +13,13 @@ class Rol
     /** Super yonetici - Tum yetkilere sahip */
     public const SUPERADMIN = 'superadmin';
     
-    /** Yonetici - Kullanici yonetimi haric tum yetkiler */
-    public const ADMIN = 'admin';
-    
     /** Normal kullanici - Sadece kendi kayitlarini yonetir */
     public const USER = 'user';
     
     /** Tum gecerli roller */
     public const TUMU = [
         self::SUPERADMIN,
-        self::ADMIN,
         self::USER,
-    ];
-    
-    /** Yonetici rolleri (superadmin ve admin) */
-    public const YONETICILER = [
-        self::SUPERADMIN,
-        self::ADMIN,
     ];
     
     /**
@@ -41,10 +31,10 @@ class Rol
     }
     
     /**
-     * Verilen rol yonetici mi kontrol et
+     * Verilen rol superadmin mi kontrol et
      */
-    public static function yoneticiMi(string $Rol): bool
+    public static function superadminMi(string $Rol): bool
     {
-        return in_array($Rol, self::YONETICILER, true);
+        return $Rol === self::SUPERADMIN;
     }
 }

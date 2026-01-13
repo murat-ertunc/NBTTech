@@ -46,7 +46,7 @@ class PaymentController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        $Zorunlu = ['MusteriId', 'Tarih', 'Tutar'];
+        $Zorunlu = ['MusteriId', 'ProjeId', 'Tarih', 'Tutar'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
                 Response::error("$Alan alanı zorunludur.", 422);
@@ -55,6 +55,7 @@ class PaymentController
         }
         
         $MusteriId = (int)$Girdi['MusteriId'];
+        $ProjeId = (int)$Girdi['ProjeId'];
         $FaturaId = !empty($Girdi['FaturaId']) ? (int)$Girdi['FaturaId'] : null;
         $Tutar = (float)$Girdi['Tutar'];
         $Tarih = trim((string)$Girdi['Tarih']); 
@@ -67,9 +68,10 @@ class PaymentController
         }
 
         $Repo = new PaymentRepository();
-        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $FaturaId, $Tarih, $Tutar, $Aciklama, $KullaniciId) {
+        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $FaturaId, $Tarih, $Tutar, $Aciklama, $KullaniciId) {
             return $Repo->ekle([
                 'MusteriId' => $MusteriId,
+                'ProjeId' => $ProjeId,
                 'FaturaId' => $FaturaId,
                 'Tarih' => $Tarih,
                 'Tutar' => $Tutar,
@@ -104,6 +106,7 @@ class PaymentController
 
         Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
             $Guncellenecek = [];
+            if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = (int)$Girdi['ProjeId'];
             if (isset($Girdi['Tarih'])) $Guncellenecek['Tarih'] = $Girdi['Tarih'];
             if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
             if (isset($Girdi['FaturaId'])) $Guncellenecek['FaturaId'] = !empty($Girdi['FaturaId']) ? (int)$Girdi['FaturaId'] : null;

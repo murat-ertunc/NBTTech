@@ -5,12 +5,13 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Database;
 use App\Core\Response;
+use App\Core\Rol;
 
 /**
  * Islem Loglari Kontrolcusu
  * 
  * log_action tablosundan loglari listeler.
- * Sadece superadmin ve admin erisebilir.
+ * Sadece superadmin erisebilir.
  */
 class LogController
 {
@@ -25,6 +26,20 @@ class LogController
      */
     public static function index(): void
     {
+        // Authentication check
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::unauthorized('Oturum gerekli');
+            return;
+        }
+        
+        // Superadmin role check
+        $Rol = Context::rol();
+        if ($Rol !== Rol::SUPERADMIN) {
+            Response::forbidden('Bu alana sadece superadmin erişebilir');
+            return;
+        }
+        
         $Db = Database::connection();
         $Tarih = $_GET['tarih'] ?? null;
         $Tablo = $_GET['tablo'] ?? null;
