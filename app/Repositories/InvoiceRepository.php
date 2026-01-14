@@ -6,13 +6,38 @@ class InvoiceRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_fatura';
 
+    /**
+     * Tek fatura getir (MusteriUnvan dahil)
+     */
+    public function bul(int $Id): ?array
+    {
+        $Sql = "
+            SELECT f.*, 
+                   m.Unvan as MusteriUnvan,
+                   p.ProjeAdi,
+                   (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as OdenenTutar,
+                   f.Tutar - (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as Kalan
+            FROM tbl_fatura f
+            LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
+            LEFT JOIN tbl_proje p ON f.ProjeId = p.Id
+            WHERE f.Id = :Id AND f.Sil = 0
+        ";
+        $Stmt = $this->Db->prepare($Sql);
+        $Stmt->execute(['Id' => $Id]);
+        $Sonuc = $Stmt->fetch();
+        $this->logSelect(['Id' => $Id, 'Sil' => 0], $Sonuc ? [$Sonuc] : []);
+        return $Sonuc ?: null;
+    }
+
     public function musteriyeGore(int $MusteriId): array
     {
         $Sql = "
             SELECT f.*, 
+                   m.Unvan as MusteriUnvan,
                    (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as OdenenTutar,
                    f.Tutar - (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as Kalan
             FROM tbl_fatura f
+            LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
             WHERE f.Sil = 0 AND f.MusteriId = :MId 
             ORDER BY f.Tarih DESC, f.Id DESC
         ";
@@ -27,9 +52,11 @@ class InvoiceRepository extends BaseRepository
     {
         $Sql = "
             SELECT f.*, 
+                   m.Unvan as MusteriUnvan,
                    (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as OdenenTutar,
                    f.Tutar - (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as Kalan
             FROM tbl_fatura f
+            LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
             WHERE f.Sil = 0 AND f.MusteriId = :MId 
             ORDER BY f.Tarih DESC, f.Id DESC
         ";
@@ -146,6 +173,17 @@ class InvoiceRepository extends BaseRepository
     }
 
     /**
+     * Fatura ile ilişkili dosyaları getir
+     */
+    public function getDosyalar(int $FaturaId): array
+    {
+        $Sql = "SELECT * FROM tbl_dosya WHERE FaturaId = :FaturaId AND Sil = 0 ORDER BY OlusturmaZamani DESC";
+        $Stmt = $this->Db->prepare($Sql);
+        $Stmt->execute(['FaturaId' => $FaturaId]);
+        return $Stmt->fetchAll();
+    }
+
+    /**
      * Fatura için takvim hatırlatması oluştur
      */
     public function takvimHatirlatmaOlustur(int $FaturaId, int $MusteriId, ?int $ProjeId, string $Tarih, int $Sure, string $SureTipi, int $KullaniciId): void
@@ -182,5 +220,40 @@ class InvoiceRepository extends BaseRepository
             'Ozet' => $Ozet,
             'UserId' => $KullaniciId
         ]);
+    }
+
+    /**
+     * Müşteriye ait yıl ve döviz bazlı cari özet
+     * Yıl bazlı fatura toplamlarını döviz cinsine göre gruplandırır
+     */
+    public function cariOzet(int $MusteriId): array
+    {
+        $Sql = "
+            WITH FaturaOdemeler AS (
+                SELECT 
+                    f.Id,
+                    f.Tarih,
+                    f.Tutar,
+                    ISNULL(f.DovizCinsi, 'TL') as DovizCinsi,
+                    ISNULL((SELECT COALESCE(SUM(o.Tutar), 0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil = 0), 0) as Odenen
+                FROM tbl_fatura f
+                WHERE f.Sil = 0 AND f.MusteriId = :MId
+            )
+            SELECT 
+                YEAR(Tarih) as Yil,
+                DovizCinsi,
+                SUM(Tutar) as ToplamTutar,
+                SUM(Odenen) as ToplamOdenen,
+                SUM(Tutar) - SUM(Odenen) as ToplamKalan,
+                COUNT(*) as FaturaAdedi
+            FROM FaturaOdemeler
+            GROUP BY YEAR(Tarih), DovizCinsi
+            ORDER BY YEAR(Tarih) DESC, DovizCinsi
+        ";
+        $Stmt = $this->Db->prepare($Sql);
+        $Stmt->execute(['MId' => $MusteriId]);
+        $Sonuclar = $Stmt->fetchAll();
+        $this->logSelect(['CariOzet' => true, 'MusteriId' => $MusteriId], $Sonuclar);
+        return $Sonuclar;
     }
 }

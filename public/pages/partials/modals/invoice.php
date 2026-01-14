@@ -55,9 +55,6 @@
                 <div class="input-group input-group-sm">
                   <input type="number" step="0.01" class="form-control" id="invoiceTutar">
                   <select class="form-select" id="invoiceDoviz" style="max-width: 120px;">
-                    <option value="TRY">TRY</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
                   </select>
                 </div>
               </div>
@@ -198,6 +195,37 @@
             <div id="invoiceItemsEmpty" class="text-center py-4 text-muted">
               <i class="bi bi-inbox fs-3 d-block mb-2"></i>
               <span>Henüz kalem eklenmedi. "Kalem Ekle" butonuna tıklayarak başlayın.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dosyalar Bölümü -->
+        <div class="card mt-3">
+          <div class="card-header py-2 bg-light d-flex justify-content-between align-items-center">
+            <span class="fw-semibold"><i class="bi bi-folder me-1"></i>Dosyalar</span>
+            <label class="btn btn-success btn-sm mb-0">
+              <i class="bi bi-upload me-1"></i>Dosya Ekle
+              <input type="file" id="invoiceFileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif" style="display:none;">
+            </label>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered mb-0" id="invoiceFilesTable" style="display:none;">
+                <thead class="table-light">
+                  <tr>
+                    <th>Dosya Adı</th>
+                    <th style="width: 100px;">Boyut</th>
+                    <th style="width: 150px;">Yüklenme</th>
+                    <th style="width: 100px;" class="text-center">İşlem</th>
+                  </tr>
+                </thead>
+                <tbody id="invoiceFilesBody">
+                </tbody>
+              </table>
+            </div>
+            <div id="invoiceFilesEmpty" class="text-center py-4 text-muted">
+              <i class="bi bi-folder-x fs-3 d-block mb-2"></i>
+              <span>Henüz dosya eklenmedi. "Dosya Ekle" butonuna tıklayarak yükleyin.</span>
             </div>
           </div>
         </div>

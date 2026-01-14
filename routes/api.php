@@ -46,6 +46,13 @@ $Router->add('DELETE', '/api/customers/{id}', function ($Parametreler) {
 	CustomerController::delete($Parametreler);
 });
 
+// Müşteri Cari Özet endpoint
+$Router->add('GET', '/api/customers/{id}/cari-ozet', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'user'])) return;
+	CustomerController::cariOzet($Parametreler);
+});
+
 // Fatura işlemleri endpointleri
 $Router->add('GET', '/api/invoices', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
@@ -182,6 +189,11 @@ $Router->add('DELETE', '/api/guarantees/{id}', function ($Parametreler) {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
 	App\Controllers\GuaranteeController::delete($Parametreler);
+});
+$Router->add('GET', '/api/guarantees/{id}/download', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'user'])) return;
+	App\Controllers\GuaranteeController::download($Parametreler);
 });
 
 // Kullanıcı yönetimi endpointleri (sadece superadmin)
@@ -341,6 +353,11 @@ $Router->add('DELETE', '/api/stamp-taxes/{id}', function ($Parametreler) {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
     App\Controllers\StampTaxController::delete($Parametreler);
+});
+$Router->add('GET', '/api/stamp-taxes/{id}/download', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'user'])) return;
+    App\Controllers\StampTaxController::download($Parametreler);
 });
 
 // Dosya işlemleri endpointleri

@@ -31,6 +31,12 @@
           </div>
         </div>
         <div class="row mb-3">
+          <label class="col-12 col-md-4 col-form-label">Sözleşme No <span class="text-danger">*</span></label>
+          <div class="col-12 col-md-8">
+            <input type="text" class="form-control" id="contractNo" required placeholder="Örn: SZL-2026-001">
+          </div>
+        </div>
+        <div class="row mb-3">
           <label class="col-12 col-md-4 col-form-label">Sözleşme Tarihi</label>
           <div class="col-12 col-md-8">
             <input type="date" class="form-control" id="contractStart">
@@ -48,9 +54,6 @@
             <div class="input-group">
               <input type="number" step="0.01" class="form-control" id="contractAmount" required>
               <select class="form-select" id="contractCurrency" style="max-width: 90px;">
-                <option value="TRY">TRY</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
               </select>
             </div>
           </div>

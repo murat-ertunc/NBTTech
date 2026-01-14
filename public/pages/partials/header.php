@@ -43,9 +43,8 @@ $currentPage = $currentPage ?? $activeNav; // Varsayılan: activeNav ile aynı
   <script src="/assets/vendor/sweetalert2/sweetalert2.all.min.js"></script>
   <script>
     window.APP_CONFIG = {
-      PAGINATION_DEFAULT: < ? = (int) $PaginationDefault ? > ,
-      CURRENT_PAGE: '<?= htmlspecialchars($currentPage, ENT_QUOTES, '
-      UTF - 8 ') ?>'
+      PAGINATION_DEFAULT: <?= (int) $PaginationDefault ?>,
+      CURRENT_PAGE: '<?= htmlspecialchars($currentPage, ENT_QUOTES, 'UTF-8') ?>'
     };
   </script>
   <link rel="stylesheet" href="/assets/app.css" />
@@ -80,17 +79,28 @@ $currentPage = $currentPage ?? $activeNav; // Varsayılan: activeNav ile aynı
             </a>
           </li>
 
-          <li class="nav-item">
-            <a class="nav-link text-white px-3 py-2 rounded-2 mx-1 nav-hover-effect <?= $activeNav === 'customers' ? 'active' : '' ?>"
-              href="/customers" data-nav-group="customers">
-              <i class="bi bi-people me-1"></i>Müşteriler
+          <li class="nav-item dropdown" id="systemMenu">
+            <a class="nav-link text-white px-3 py-2 rounded-2 mx-1 dropdown-toggle nav-hover-effect <?= $activeNav === 'sistem' ? 'active' : '' ?>"
+              href="#" data-bs-toggle="dropdown" data-nav-group="sistem" id="navSistem">
+              <i class="bi bi-gear me-1"></i>Sistem
             </a>
+            <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-1" style="border-radius:10px;">
+              <li><a class="dropdown-item py-2" href="/logs" data-nav-group="sistem"><i
+                    class="bi bi-journal-text me-2 text-info"></i>İşlem Kayıtları</a></li>
+              <li><a class="dropdown-item py-2" href="/parameters" data-nav-group="sistem"><i
+                    class="bi bi-sliders me-2 text-success"></i>Tanımlamalar</a></li>
+              <li>
+                <hr class="dropdown-divider border-secondary">
+              </li>
+              <li><a class="dropdown-item py-2" href="/users" data-nav-group="sistem"><i
+                    class="bi bi-person-gear me-2 text-warning"></i>Kullanıcılar</a></li>
+            </ul>
           </li>
 
           <li class="nav-item dropdown">
             <a class="nav-link text-white px-3 py-2 rounded-2 mx-1 dropdown-toggle nav-hover-effect <?= $activeNav === 'islemler' ? 'active' : '' ?>"
               href="#" data-bs-toggle="dropdown" data-nav-group="islemler" id="navIslemler">
-              <i class="bi bi-folder me-1"></i>İşlemler
+              <i class="bi bi-folder me-1"></i>Tüm Veriler
             </a>
             <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-1" style="border-radius:10px;">
               <li><a class="dropdown-item py-2" href="/invoices" data-nav-group="islemler"><i
@@ -108,24 +118,6 @@ $currentPage = $currentPage ?? $activeNav; // Varsayılan: activeNav ile aynı
                     class="bi bi-file-earmark-text me-2 text-secondary"></i>Sözleşmeler</a></li>
               <li><a class="dropdown-item py-2" href="/guarantees" data-nav-group="islemler"><i
                     class="bi bi-shield-check me-2 text-danger"></i>Teminatlar</a></li>
-            </ul>
-          </li>
-
-          <li class="nav-item dropdown" id="systemMenu">
-            <a class="nav-link text-white px-3 py-2 rounded-2 mx-1 dropdown-toggle nav-hover-effect <?= $activeNav === 'sistem' ? 'active' : '' ?>"
-              href="#" data-bs-toggle="dropdown" data-nav-group="sistem" id="navSistem">
-              <i class="bi bi-gear me-1"></i>Sistem
-            </a>
-            <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-1" style="border-radius:10px;">
-              <li><a class="dropdown-item py-2" href="/logs" data-nav-group="sistem"><i
-                    class="bi bi-journal-text me-2 text-info"></i>İşlem Kayıtları</a></li>
-              <li><a class="dropdown-item py-2" href="/parameters" data-nav-group="sistem"><i
-                    class="bi bi-sliders me-2 text-success"></i>Parametreler</a></li>
-              <li>
-                <hr class="dropdown-divider border-secondary">
-              </li>
-              <li><a class="dropdown-item py-2" href="/users" data-nav-group="sistem"><i
-                    class="bi bi-person-gear me-2 text-warning"></i>Kullanıcılar</a></li>
             </ul>
           </li>
 

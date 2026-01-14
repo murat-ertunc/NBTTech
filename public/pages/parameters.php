@@ -19,7 +19,7 @@ require __DIR__ . '/partials/header.php';
         <div class="col-lg-3 col-md-4">
           <div class="card shadow-sm h-100">
             <div class="card-header bg-success text-white py-2">
-              <span class="fw-semibold"><i class="bi bi-sliders me-2"></i>Parametre Grupları</span>
+              <span class="fw-semibold"><i class="bi bi-sliders me-2"></i>Tanımlama Grupları</span>
             </div>
             <div class="card-body p-0" id="parametersSidebar">
               <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-success"></div></div>

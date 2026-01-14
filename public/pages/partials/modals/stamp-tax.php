@@ -35,9 +35,6 @@
             <div class="input-group">
               <input type="number" step="0.01" class="form-control" id="stampTaxTutar" required>
               <select class="form-select" id="stampTaxDovizCinsi" style="max-width: 90px;">
-                <option value="TRY">TRY</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
               </select>
             </div>
           </div>

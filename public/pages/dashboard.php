@@ -20,9 +20,14 @@ require __DIR__ . '/partials/header.php';
           <div class="card h-100" id="panelCustomers">
             <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
               <span class="fw-semibold"><i class="bi bi-people-fill me-2"></i>Müşteriler</span>
-              <button type="button" class="btn btn-sm btn-light" data-action="add-customer" title="Yeni Müşteri">
-                <i class="bi bi-plus-lg"></i>
-              </button>
+              <span>
+                <a href="/customers" class="btn btn-sm btn-light" title="Müşteriler">
+                  <i class="bi bi-people-fill"></i>
+                </a>
+                <button type="button" class="btn btn-sm btn-light" data-action="add-customer" title="Yeni Müşteri">
+                  <i class="bi bi-plus-lg"></i>
+                </button>
+              </span>
             </div>
             <div class="bg-light border-bottom px-2 py-1">
               <input type="text" class="form-control form-control-sm" id="dashCustomerSearch" placeholder="Müşteri ara..." autocomplete="off">

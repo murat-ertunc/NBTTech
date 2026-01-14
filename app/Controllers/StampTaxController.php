@@ -38,7 +38,15 @@ class StampTaxController
 
     public static function store(): void
     {
-        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        // Hem JSON hem FormData desteği
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($contentType, 'application/json') !== false) {
+            $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } else {
+            // multipart/form-data
+            $Girdi = $_POST;
+        }
+        
         $Zorunlu = ['MusteriId', 'Tarih', 'Tutar'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan]) && $Girdi[$Alan] !== 0) {
@@ -53,6 +61,26 @@ class StampTaxController
             return;
         }
 
+        // Dosya yükleme işlemi
+        $DosyaAdi = null;
+        $DosyaYolu = null;
+        if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../../storage/uploads/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            
+            $OriginalName = $_FILES['dosya']['name'];
+            $Extension = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
+            $SafeName = uniqid() . '_' . time() . '.' . $Extension;
+            $DestPath = $uploadDir . $SafeName;
+            
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $DestPath)) {
+                $DosyaAdi = $OriginalName;
+                $DosyaYolu = 'storage/uploads/' . $SafeName;
+            }
+        }
+
         $Repo = new StampTaxRepository();
         $YuklenecekVeri = [
             'MusteriId' => (int)$Girdi['MusteriId'],
@@ -61,7 +89,9 @@ class StampTaxController
             'Tutar' => (float)$Girdi['Tutar'],
             'DovizCinsi' => isset($Girdi['DovizCinsi']) ? trim((string)$Girdi['DovizCinsi']) : 'TRY',
             'Aciklama' => isset($Girdi['Aciklama']) ? trim((string)$Girdi['Aciklama']) : null,
-            'BelgeNo' => isset($Girdi['BelgeNo']) ? trim((string)$Girdi['BelgeNo']) : null
+            'BelgeNo' => isset($Girdi['BelgeNo']) ? trim((string)$Girdi['BelgeNo']) : null,
+            'DosyaAdi' => $DosyaAdi,
+            'DosyaYolu' => $DosyaYolu
         ];
 
         $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
@@ -77,7 +107,15 @@ class StampTaxController
             return;
         }
 
-        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        // Hem JSON hem FormData desteği
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($contentType, 'application/json') !== false) {
+            $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } else {
+            // multipart/form-data
+            $Girdi = $_POST;
+        }
+        
         $Repo = new StampTaxRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -92,6 +130,47 @@ class StampTaxController
         if (isset($Girdi['Aciklama'])) $Guncellenecek['Aciklama'] = trim((string)$Girdi['Aciklama']);
         if (isset($Girdi['BelgeNo'])) $Guncellenecek['BelgeNo'] = trim((string)$Girdi['BelgeNo']);
         if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
+
+        // Dosya silme veya güncelleme işlemi
+        if (!empty($Girdi['removeFile'])) {
+            // Mevcut dosyayı sil
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
+                $EskiDosyaYolu = __DIR__ . '/../../' . $Mevcut['DosyaYolu'];
+                if (file_exists($EskiDosyaYolu)) {
+                    unlink($EskiDosyaYolu);
+                }
+            }
+            $Guncellenecek['DosyaAdi'] = null;
+            $Guncellenecek['DosyaYolu'] = null;
+        }
+
+        // Yeni dosya yüklendiyse
+        if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            // Eski dosyayı sil
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
+                $EskiDosyaYolu = __DIR__ . '/../../' . $Mevcut['DosyaYolu'];
+                if (file_exists($EskiDosyaYolu)) {
+                    unlink($EskiDosyaYolu);
+                }
+            }
+
+            $uploadDir = __DIR__ . '/../../storage/uploads/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            
+            $OriginalName = $_FILES['dosya']['name'];
+            $Extension = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
+            $SafeName = uniqid() . '_' . time() . '.' . $Extension;
+            $DestPath = $uploadDir . $SafeName;
+            
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $DestPath)) {
+                $Guncellenecek['DosyaAdi'] = $OriginalName;
+                $Guncellenecek['DosyaYolu'] = 'storage/uploads/' . $SafeName;
+            }
+        }
 
         if (!empty($Guncellenecek)) {
             $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
@@ -118,5 +197,43 @@ class StampTaxController
         $Repo->softSil($Id, $KullaniciId);
 
         Response::json(['status' => 'success']);
+    }
+
+    public static function download(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Geçersiz kayıt.', 422);
+            return;
+        }
+
+        $Repo = new StampTaxRepository();
+        $Kayit = $Repo->bul($Id);
+        
+        if (!$Kayit) {
+            Response::error('Kayıt bulunamadı.', 404);
+            return;
+        }
+
+        if (empty($Kayit['DosyaYolu'])) {
+            Response::error('Bu kayıta ait dosya bulunamadı.', 404);
+            return;
+        }
+
+        $FilePath = __DIR__ . '/../../' . $Kayit['DosyaYolu'];
+        
+        if (!file_exists($FilePath)) {
+            Response::error('Dosya bulunamadı.', 404);
+            return;
+        }
+
+        $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
+        $MimeType = mime_content_type($FilePath) ?: 'application/octet-stream';
+
+        header('Content-Type: ' . $MimeType);
+        header('Content-Disposition: attachment; filename="' . $DosyaAdi . '"');
+        header('Content-Length: ' . filesize($FilePath));
+        readfile($FilePath);
+        exit;
     }
 }

@@ -217,6 +217,29 @@ class CustomerController
         Response::json(['status' => 'ok']);
     }
 
+    /**
+     * Müşteri cari özeti - yıl ve döviz bazlı fatura toplamları
+     */
+    public static function cariOzet(array $Parametreler): void
+    {
+        $MusteriId = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($MusteriId <= 0) {
+            Response::error('Geçersiz müşteri ID.', 422);
+            return;
+        }
+        
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            return;
+        }
+        
+        $InvoiceRepo = new \App\Repositories\InvoiceRepository();
+        $Ozet = $InvoiceRepo->cariOzet($MusteriId);
+        
+        Response::json(['data' => $Ozet]);
+    }
+
     public static function delete(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;

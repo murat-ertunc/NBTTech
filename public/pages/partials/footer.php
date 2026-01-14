@@ -47,8 +47,8 @@
 
   <!-- Scripts -->
   <script src="/assets/bootstrap.bundle.min.js"></script>
-  <script src="/assets/js/app.js"></script>
-  <script src="/assets/js/pages.js"></script>
+  <script src="/assets/js/app.js?v=<?= time() ?>"></script>
+  <script src="/assets/js/pages.js?v=<?= time() ?>"></script>
 
 </body>
 </html>

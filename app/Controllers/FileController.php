@@ -46,7 +46,9 @@ class FileController
             return;
         }
 
-        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        // Hem 'file' hem 'dosya' adını kabul et
+        $fileKey = isset($_FILES['file']) ? 'file' : (isset($_FILES['dosya']) ? 'dosya' : null);
+        if (!$fileKey || $_FILES[$fileKey]['error'] !== UPLOAD_ERR_OK) {
             $errorMessages = [
                 UPLOAD_ERR_INI_SIZE => 'Dosya boyutu sunucu limitini aşıyor.',
                 UPLOAD_ERR_FORM_SIZE => 'Dosya boyutu form limitini aşıyor.',
@@ -56,19 +58,31 @@ class FileController
                 UPLOAD_ERR_CANT_WRITE => 'Dosya yazılamadı.',
                 UPLOAD_ERR_EXTENSION => 'Dosya uzantısı engellendi.'
             ];
-            $errorCode = $_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE;
+            $errorCode = $_FILES[$fileKey]['error'] ?? UPLOAD_ERR_NO_FILE;
             $errorMsg = $errorMessages[$errorCode] ?? 'Dosya yüklenemedi.';
             Response::error($errorMsg, 422);
             return;
         }
 
+        // FaturaId varsa MusteriId zorunlu değil (fatura üzerinden müşteri bulunur)
+        $FaturaId = isset($_POST['FaturaId']) ? (int)$_POST['FaturaId'] : null;
         $MusteriId = isset($_POST['MusteriId']) ? (int)$_POST['MusteriId'] : 0;
+        
+        // FaturaId varsa faturadan MusteriId al
+        if ($FaturaId && $MusteriId <= 0) {
+            $invoiceRepo = new \App\Repositories\InvoiceRepository();
+            $fatura = $invoiceRepo->bul($FaturaId);
+            if ($fatura) {
+                $MusteriId = (int)$fatura['MusteriId'];
+            }
+        }
+        
         if ($MusteriId <= 0) {
             Response::error('MusteriId alanı zorunludur.', 422);
             return;
         }
 
-        $File = $_FILES['file'];
+        $File = $_FILES[$fileKey];
         $OriginalName = $File['name'];
         $FileSize = $File['size'];
         $FileType = $File['type'];
@@ -121,6 +135,7 @@ class FileController
         $YuklenecekVeri = [
             'MusteriId' => $MusteriId,
             'ProjeId' => isset($_POST['ProjeId']) && $_POST['ProjeId'] ? (int)$_POST['ProjeId'] : null,
+            'FaturaId' => $FaturaId,
             'DosyaAdi' => $OriginalName,
             'DosyaYolu' => 'storage/uploads/' . $SafeName,
             'DosyaTipi' => $FileType,

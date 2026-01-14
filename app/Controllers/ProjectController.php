@@ -65,7 +65,6 @@ class ProjectController
             'ProjeAdi' => trim((string)$Girdi['ProjeAdi']),
             'BaslangicTarihi' => $Girdi['BaslangicTarihi'] ?? null,
             'BitisTarihi' => $Girdi['BitisTarihi'] ?? null,
-            'Butce' => isset($Girdi['Butce']) ? (float)$Girdi['Butce'] : 0.00,
             'Durum' => isset($Girdi['Durum']) ? (int)$Girdi['Durum'] : 1
         ];
 
@@ -97,7 +96,6 @@ class ProjectController
             if (isset($Girdi['ProjeAdi'])) $Guncellenecek['ProjeAdi'] = trim((string)$Girdi['ProjeAdi']);
             if (isset($Girdi['BaslangicTarihi'])) $Guncellenecek['BaslangicTarihi'] = $Girdi['BaslangicTarihi'];
             if (isset($Girdi['BitisTarihi'])) $Guncellenecek['BitisTarihi'] = $Girdi['BitisTarihi'];
-            if (isset($Girdi['Butce'])) $Guncellenecek['Butce'] = (float)$Girdi['Butce'];
             if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
 
             if (!empty($Guncellenecek)) {

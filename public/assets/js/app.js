@@ -2,7 +2,9 @@
  * NbtProject - Ana JavaScript Modülü
  * ===================================
  * Ortak fonksiyonlar, API yardımcıları, Toast, Fullscreen vb.
+ * Last updated: 2026-01-14 - Durum status fix v3
  */
+console.log('app.js loaded - version 2026-01-14 v3');
 
 // =============================================
 // GLOBAL SABITLER
@@ -184,6 +186,14 @@ const NbtUtils = {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    },
+
+    /**
+     * Sayı formatlama (para birimi olmadan)
+     */
+    formatNumber(amount) {
+        const num = parseFloat(amount) || 0;
+        return num.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 };
 
@@ -886,7 +896,18 @@ const NbtDetailModal = {
      * @param {function} onEdit - Düzenle butonuna basılınca çağrılacak fonksiyon
      * @param {function} onDelete - Sil butonuna basılınca çağrılacak fonksiyon
      */
-    show(entityType, data, onEdit = null, onDelete = null) {
+    async show(entityType, data, onEdit = null, onDelete = null) {
+        // Durum parametrelerini önceden yükle (proje, teklif, sözleşme, teminat için)
+        const statusEntityMap = {
+            project: 'proje',
+            offer: 'teklif',
+            contract: 'sozlesme',
+            guarantee: 'teminat'
+        };
+        if (statusEntityMap[entityType]) {
+            await NbtParams.getStatuses(statusEntityMap[entityType]);
+        }
+        
         this._currentEntity = entityType;
         this._currentId = data.Id;
         this._currentData = data;
@@ -904,7 +925,8 @@ const NbtDetailModal = {
             meeting: 'Görüşme Detayı',
             contact: 'Kişi Detayı',
             stampTax: 'Damga Vergisi Detayı',
-            file: 'Dosya Detayı'
+            file: 'Dosya Detayı',
+            calendar: 'Takvim Detayı'
         };
 
         const icons = {
@@ -918,7 +940,8 @@ const NbtDetailModal = {
             meeting: 'bi-chat-dots',
             contact: 'bi-person',
             stampTax: 'bi-percent',
-            file: 'bi-folder'
+            file: 'bi-folder',
+            calendar: 'bi-calendar3'
         };
 
         const titleEl = document.getElementById('entityDetailModalTitle');
@@ -980,11 +1003,7 @@ const NbtDetailModal = {
     _buildContent(entityType, data) {
         const formatters = {
             date: (v) => NbtUtils.formatDate(v),
-            money: (v, currency) => NbtUtils.formatMoney(v, currency || 'TRY'),
-            status: (v, statuses) => {
-                const s = statuses[v] || ['Bilinmiyor', 'secondary'];
-                return `<span class="badge bg-${s[1]}">${s[0]}</span>`;
-            }
+            money: (v, currency) => NbtUtils.formatMoney(v, currency || 'TRY')
         };
 
         const configs = {
@@ -1027,8 +1046,7 @@ const NbtDetailModal = {
                 { label: 'Proje Adı', field: 'ProjeAdi' },
                 { label: 'Başlangıç', field: 'BaslangicTarihi', format: 'date' },
                 { label: 'Bitiş', field: 'BitisTarihi', format: 'date' },
-                { label: 'Bütçe', field: 'Butce', format: 'money' },
-                { label: 'Durum', field: 'Durum', format: 'status', statuses: { 1: ['Aktif', 'success'], 2: ['Tamamlandı', 'info'], 3: ['İptal', 'danger'] } }
+                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'proje' }
             ],
             offer: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
@@ -1037,7 +1055,7 @@ const NbtDetailModal = {
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
                 { label: 'Teklif Tarihi', field: 'TeklifTarihi', format: 'date' },
                 { label: 'Geçerlilik Tarihi', field: 'GecerlilikTarihi', format: 'date' },
-                { label: 'Durum', field: 'Durum', format: 'status', statuses: { 0: ['Taslak', 'secondary'], 1: ['Gönderildi', 'warning'], 2: ['Onaylandı', 'success'], 3: ['Reddedildi', 'danger'] } }
+                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'teklif' }
             ],
             contract: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
@@ -1045,7 +1063,7 @@ const NbtDetailModal = {
                 { label: 'Başlangıç', field: 'BaslangicTarihi', format: 'date' },
                 { label: 'Bitiş', field: 'BitisTarihi', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
-                { label: 'Durum', field: 'Durum', format: 'status', statuses: { 1: ['Aktif', 'success'], 2: ['Pasif', 'secondary'], 3: ['İptal', 'danger'] } }
+                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'sozlesme' }
             ],
             guarantee: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
@@ -1054,7 +1072,7 @@ const NbtDetailModal = {
                 { label: 'Banka', field: 'BankaAdi' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
                 { label: 'Vade Tarihi', field: 'VadeTarihi', format: 'date' },
-                { label: 'Durum', field: 'Durum', format: 'status', statuses: { 1: ['Bekliyor', 'warning'], 2: ['İade Edildi', 'info'], 3: ['Tahsil Edildi', 'success'], 4: ['Yandı', 'danger'] } }
+                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'teminat' }
             ],
             meeting: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
@@ -1083,6 +1101,14 @@ const NbtDetailModal = {
                 { label: 'Dosya Adı', field: 'DosyaAdi' },
                 { label: 'Açıklama', field: 'Aciklama' },
                 { label: 'Yüklenme Tarihi', field: 'OlusturmaTarihi', format: 'date' }
+            ],
+            calendar: [
+                { label: 'Müşteri', field: 'MusteriUnvan' },
+                { label: 'Proje', field: 'ProjeAdi' },
+                { label: 'Özet', field: 'Ozet' },
+                { label: 'Başlangıç', field: 'BaslangicTarihi', format: 'date' },
+                { label: 'Bitiş', field: 'BitisTarihi', format: 'date' },
+                { label: 'Açıklama', field: 'Aciklama' }
             ]
         };
 
@@ -1099,8 +1125,9 @@ const NbtDetailModal = {
             } else if (item.format === 'money') {
                 const currency = item.currencyField ? data[item.currencyField] : 'TRY';
                 value = formatters.money(value, currency);
-            } else if (item.format === 'status' && item.statuses) {
-                value = formatters.status(value, item.statuses);
+            } else if (item.format === 'status' && item.statusEntity) {
+                // Dinamik durum parametrelerinden badge al
+                value = NbtParams.getStatusBadge(item.statusEntity, value);
             }
             
             value = value || '<span class="text-muted">-</span>';
@@ -1149,6 +1176,82 @@ const NbtDetailModal = {
                     </div>
                 </div>
             `;
+        }
+        
+        // Fatura dosyaları tablosu (invoice için)
+        if (entityType === 'invoice' && data.Dosyalar && Array.isArray(data.Dosyalar) && data.Dosyalar.length > 0) {
+            html += `
+                <div class="mt-3">
+                    <h6 class="border-bottom pb-2"><i class="bi bi-folder me-1"></i>Fatura Dosyaları</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Dosya Adı</th>
+                                    <th>Boyut</th>
+                                    <th>Yüklenme</th>
+                                    <th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.Dosyalar.map((d) => `
+                                    <tr>
+                                        <td>${NbtUtils.escapeHtml(d.DosyaAdi || '-')}</td>
+                                        <td>${d.DosyaBoyutu ? (d.DosyaBoyutu / 1024).toFixed(1) + ' KB' : '-'}</td>
+                                        <td>${NbtUtils.formatDate(d.OlusturmaZamani)}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-info btn-download-file" data-file-id="${d.Id}" data-file-name="${NbtUtils.escapeHtml(d.DosyaAdi || 'dosya')}" title="İndir">
+                                                <i class="bi bi-download"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            // Dosya indirme event'lerini bind et
+            setTimeout(() => {
+                document.querySelectorAll('.btn-download-file').forEach(btn => {
+                    btn.onclick = async () => {
+                        const fileId = btn.dataset.fileId;
+                        const fileName = btn.dataset.fileName || 'dosya';
+                        if (fileId) {
+                            try {
+                                NbtToast.info('Dosya hazırlanıyor...');
+                                const response = await fetch(`/api/files/${fileId}/download`, {
+                                    method: 'GET',
+                                    headers: {
+                                        'Authorization': 'Bearer ' + NbtUtils.getToken(),
+                                        'X-Tab-Id': NbtUtils.getTabId()
+                                    }
+                                });
+                                
+                                if (!response.ok) {
+                                    const errorData = await response.json().catch(() => ({}));
+                                    throw new Error(errorData.error || 'Dosya indirilemedi');
+                                }
+                                
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = fileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                window.URL.revokeObjectURL(url);
+                                
+                                NbtToast.success('Dosya indiriliyor...');
+                            } catch (err) {
+                                NbtToast.error(err.message || 'Dosya indirilemedi');
+                            }
+                        }
+                    };
+                });
+            }, 100);
         }
         
         return html;

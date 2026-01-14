@@ -103,25 +103,29 @@ class AlarmController
         try {
             $Db = Database::connection();
             
-            // Fatura - Odeme farki ile odenmemis faturalari bul
+            // Her fatura için ayrı ayrı kalan bakiyeyi hesapla
             $Sql = "
                 SELECT 
                     f.Id,
                     f.MusteriId,
                     m.Unvan as MusteriUnvan,
+                    f.ProjeId,
+                    p.ProjeAdi,
+                    f.FaturaNo,
                     f.Tarih,
                     f.Tutar,
                     f.DovizCinsi,
                     f.Aciklama,
                     ISNULL(
-                        (SELECT SUM(Tutar) FROM tbl_odeme WHERE MusteriId = f.MusteriId AND Sil = 0), 
+                        (SELECT SUM(o.Tutar) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil = 0), 
                         0
                     ) as ToplamOdeme
                 FROM tbl_fatura f
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
+                LEFT JOIN tbl_proje p ON f.ProjeId = p.Id
                 WHERE f.Sil = 0 
                   AND m.Sil = 0
-                ORDER BY f.Tarih DESC
+                ORDER BY f.Tarih ASC
             ";
             
             $Stmt = $Db->query($Sql);
@@ -130,39 +134,49 @@ class AlarmController
             $OdenmemisKalemler = [];
             $ToplamOdenmemis = 0;
             
-            // Musteri bazinda odenmemis faturalari hesapla
-            $MusteriToplamlari = [];
+            $Bugun = new \DateTime();
             
             foreach ($Faturalar as $Fatura) {
-                $MusteriId = $Fatura['MusteriId'];
-                if (!isset($MusteriToplamlari[$MusteriId])) {
-                    $MusteriToplamlari[$MusteriId] = [
-                        'FaturaToplami' => 0,
-                        'OdemeToplami' => (float)$Fatura['ToplamOdeme'],
-                        'Musteri' => $Fatura['MusteriUnvan'],
-                        'DovizCinsi' => $Fatura['DovizCinsi'] ?? 'TRY'
+                $FaturaTutari = (float)$Fatura['Tutar'];
+                $OdenenTutar = (float)$Fatura['ToplamOdeme'];
+                $Kalan = $FaturaTutari - $OdenenTutar;
+                
+                if ($Kalan > 0.01) { // Bakiye varsa
+                    $FaturaTarihi = new \DateTime($Fatura['Tarih']);
+                    $Fark = $Bugun->diff($FaturaTarihi);
+                    $GecikmeGun = $Fark->days;
+                    
+                    // Eğer fatura tarihi bugünden önceyse gecikme pozitif
+                    if ($FaturaTarihi > $Bugun) {
+                        $GecikmeGun = -$GecikmeGun; // Henüz vadesi gelmemiş
+                    }
+                    
+                    $OdenmemisKalemler[] = [
+                        'id' => $Fatura['Id'],
+                        'customerId' => $Fatura['MusteriId'],
+                        'customer' => $Fatura['MusteriUnvan'],
+                        'projectId' => $Fatura['ProjeId'],
+                        'project' => $Fatura['ProjeAdi'] ?? '-',
+                        'invoiceNo' => $Fatura['FaturaNo'] ?? '-',
+                        'invoiceDate' => $Fatura['Tarih'],
+                        'delayDays' => $GecikmeGun,
+                        'invoiceAmount' => $FaturaTutari,
+                        'balance' => $Kalan,
+                        'currency' => $Fatura['DovizCinsi'] ?? 'TRY'
                     ];
+                    $ToplamOdenmemis += $Kalan;
                 }
-                $MusteriToplamlari[$MusteriId]['FaturaToplami'] += (float)$Fatura['Tutar'];
             }
             
-            foreach ($MusteriToplamlari as $MusteriId => $Veri) {
-                $Odenmemis = $Veri['FaturaToplami'] - $Veri['OdemeToplami'];
-                if ($Odenmemis > 0) {
-                    $OdenmemisKalemler[] = [
-                        'customerId' => $MusteriId,
-                        'customer' => $Veri['Musteri'],
-                        'amount' => $Odenmemis,
-                        'currency' => $Veri['DovizCinsi']
-                    ];
-                    $ToplamOdenmemis += $Odenmemis;
-                }
-            }
+            // Gecikme gününe göre azalan sırala (en çok geciken en üstte)
+            usort($OdenmemisKalemler, function($a, $b) {
+                return $b['delayDays'] - $a['delayDays'];
+            });
             
             return [
                 'count' => count($OdenmemisKalemler),
                 'total' => $ToplamOdenmemis,
-                'items' => array_slice($OdenmemisKalemler, 0, 5)
+                'items' => $OdenmemisKalemler // Tüm faturalar
             ];
         } catch (\Exception $e) {
             return ['count' => 0, 'total' => 0, 'items' => []];

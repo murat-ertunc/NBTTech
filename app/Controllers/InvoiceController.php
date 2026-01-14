@@ -66,6 +66,9 @@ class InvoiceController
 
         // Fatura kalemlerini ekle
         $Fatura['Kalemler'] = $Repo->getKalemler($Id);
+        
+        // Fatura ile ilişkili dosyaları ekle
+        $Fatura['Dosyalar'] = $Repo->getDosyalar($Id);
 
         Response::json($Fatura);
     }

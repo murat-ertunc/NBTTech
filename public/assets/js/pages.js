@@ -752,12 +752,19 @@ const CustomerModule = {
             if (id) {
                 await NbtApi.put(`/api/customers/${id}`, data);
                 NbtToast.success('Müşteri güncellendi');
+                NbtModal.close('customerModal');
+                await this.loadList();
             } else {
-                await NbtApi.post('/api/customers', data);
+                const result = await NbtApi.post('/api/customers', data);
                 NbtToast.success('Müşteri eklendi');
+                NbtModal.close('customerModal');
+                // Yeni eklenen müşteri sayfasına yönlendir
+                if (result && result.id) {
+                    window.location.href = `/customer/${result.id}`;
+                    return;
+                }
+                await this.loadList();
             }
-            NbtModal.close('customerModal');
-            await this.loadList();
             // Dashboard sayfasındaysa müşteri listesini güncelleme
             const dashboardView = document.getElementById('view-dashboard');
             if (dashboardView && !dashboardView.classList.contains('d-none')) {
@@ -1000,11 +1007,18 @@ const CustomerDetailModule = {
             const limit = this.pageSize;
             const response = await NbtApi.get(`${endpoint}?musteri_id=${this.customerId}&page=${page}&limit=${limit}`);
             
+            // Müşteri ünvanını ekle (inspect modal için gerekli)
+            const musteriUnvan = this.data.customer?.Unvan || '';
+            const dataWithCustomer = (response.data || []).map(item => ({
+                ...item,
+                MusteriUnvan: item.MusteriUnvan || musteriUnvan
+            }));
+            
             if (response.pagination) {
-                this.data[key] = response.data || [];
+                this.data[key] = dataWithCustomer;
                 this.paginationInfo[key] = response.pagination;
             } else {
-                this.data[key] = response.data || [];
+                this.data[key] = dataWithCustomer;
                 this.paginationInfo[key] = {
                     page: 1,
                     limit: this.data[key].length,
@@ -1055,6 +1069,45 @@ const CustomerDetailModule = {
         const container = document.getElementById('customerTabContent');
         container.innerHTML = this.renderTabContent(tab);
         this.bindTabEvents(container, tab);
+        
+        // Filtre select'lerini doldur (status ve currency)
+        this.populateFilterSelects(container);
+    },
+    
+    // Filtre select'lerini parametrelerden ve sabit değerlerden doldur
+    async populateFilterSelects(container) {
+        // Status select'lerini doldur
+        for (const select of container.querySelectorAll('select[data-status-type]')) {
+            const statusType = select.dataset.statusType;
+            const tableId = select.dataset.tableId;
+            
+            // Parametreleri yükle (cache'de yoksa)
+            let statuses = await NbtParams.getStatuses(statusType);
+            
+            // Mevcut seçili değeri sakla
+            const currentValue = this.columnFilters[tableId]?.[select.dataset.columnFilter] || '';
+            
+            // Seçenekleri ekle
+            let options = '<option value="">Tümü</option>';
+            (statuses || []).forEach(s => {
+                const selected = String(currentValue) === String(s.Kod) ? 'selected' : '';
+                options += `<option value="${s.Kod}" ${selected}>${NbtUtils.escapeHtml(s.Etiket)}</option>`;
+            });
+            select.innerHTML = options;
+        }
+        
+        // Currency (döviz) select'lerini parametrelerden doldur
+        const currencies = await NbtParams.getCurrencies();
+        container.querySelectorAll('select[data-currency-select]').forEach(select => {
+            const currentValue = this.columnFilters[select.dataset.tableId]?.[select.dataset.columnFilter] || '';
+            
+            let options = '<option value="">Tümü</option>';
+            (currencies || []).forEach(c => {
+                const selected = currentValue === c.Kod ? 'selected' : '';
+                options += `<option value="${c.Kod}" ${selected}>${c.Kod}</option>`;
+            });
+            select.innerHTML = options;
+        });
     },
 
     renderTabContent(tab) {
@@ -1108,18 +1161,56 @@ const CustomerDetailModule = {
             </div>`;
     },
 
-    renderDataTable(id, columns, data, emptyMsg, isFiltered = false) {
-        const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + '<th class="bg-light text-center px-3" style="width:110px;">İşlem</th>';
+    renderDataTable(id, columns, data, emptyMsg, isFiltered = false, config = {}) {
+        const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + '<th class="bg-light text-center px-3" style="width:130px;">İşlem</th>';
 
-        // Filter row - her kolon için arama input'u
+        // Filter row - her kolon için gelişmiş filtreler
         const tableFilters = this.columnFilters[id] || {};
         const filterRow = columns.map(c => {
             const currentValue = tableFilters[c.field] || '';
-            // Tarih alanları için date input
-            const isDateField = c.field.toLowerCase().includes('tarih') || c.field === 'BaslangicTarihi' || c.field === 'BitisTarihi' || c.field === 'TeklifTarihi' || c.field === 'VadeTarihi';
+            const startValue = tableFilters[c.field + '_start'] || '';
+            const endValue = tableFilters[c.field + '_end'] || '';
+            
+            // Tarih alanları için çift date input (başlangıç-bitiş) - yan yana
+            const isDateField = c.isDate || c.field.toLowerCase().includes('tarih') || c.field === 'BaslangicTarihi' || c.field === 'BitisTarihi' || c.field === 'TeklifTarihi' || c.field === 'VadeTarihi' || c.field === 'OlusturmaZamani';
             if (isDateField) {
-                return `<th class="p-1"><input type="date" class="form-control form-control-sm" data-column-filter="${c.field}" data-table-id="${id}" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+                return `<th class="p-1" style="min-width:200px;">
+                    <div class="d-flex gap-1">
+                        <input type="date" class="form-control form-control-sm" data-column-filter="${c.field}_start" data-table-id="${id}" value="${NbtUtils.escapeHtml(startValue)}" title="Başlangıç">
+                        <input type="date" class="form-control form-control-sm" data-column-filter="${c.field}_end" data-table-id="${id}" value="${NbtUtils.escapeHtml(endValue)}" title="Bitiş">
+                    </div>
+                </th>`;
             }
+            
+            // Durum alanları için select (parametrelerden doldur)
+            if (c.field === 'Durum' && c.statusType) {
+                return `<th class="p-1">
+                    <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="${id}" data-status-type="${c.statusType}">
+                        <option value="">Tümü</option>
+                    </select>
+                </th>`;
+            }
+            
+            // Döviz alanları için select
+            if (c.field === 'ParaBirimi' || c.field === 'DovizCinsi') {
+                return `<th class="p-1">
+                    <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="${id}" data-currency-select="true">
+                        <option value="">Tümü</option>
+                    </select>
+                </th>`;
+            }
+            
+            // Tamamlandı alanı için select
+            if (c.field === 'Tamamlandi') {
+                return `<th class="p-1">
+                    <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="${id}">
+                        <option value="">Tümü</option>
+                        <option value="1" ${currentValue === '1' ? 'selected' : ''}>Tamamlandı</option>
+                        <option value="0" ${currentValue === '0' ? 'selected' : ''}>Tamamlanmadı</option>
+                    </select>
+                </th>`;
+            }
+            
             return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="${id}" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
         }).join('') + `<th class="p-1 text-center">
             <div class="btn-group btn-group-sm">
@@ -1171,11 +1262,19 @@ const CustomerDetailModule = {
                 return `<td data-field="${c.field}" class="px-3">${val ?? '-'}</td>`;
             }).join('');
             
+            // Dosya indirme butonu (DosyaYolu varsa göster)
+            const hasFile = row.DosyaYolu || row.DosyaId;
+            const downloadBtn = hasFile ? `
+                <button class="btn btn-outline-info btn-sm" type="button" data-action="download" data-id="${row.Id}" data-file="${row.DosyaYolu || ''}" title="İndir">
+                    <i class="bi bi-download"></i>
+                </button>` : '';
+            
             return `
                 <tr data-id="${row.Id}">
                     ${cells}
                     <td class="text-center px-3">
                         <div class="btn-group btn-group-sm">
+                            ${downloadBtn}
                             <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay">
                                 <i class="bi bi-eye"></i>
                             </button>
@@ -1328,6 +1427,9 @@ const CustomerDetailModule = {
                 const data = this.data[dataKey] || [];
                 panelBody.innerHTML = this.renderDataTable(tableId, config.columns, data, config.emptyMsg);
                 
+                // Filtre select'lerini doldur
+                await this.populateFilterSelects(panelBody);
+                
                 const container = document.getElementById('customerTabContent');
                 if (container) {
                     container.querySelectorAll(`[data-table-id="${tableId}"][data-page]`).forEach(link => {
@@ -1366,7 +1468,8 @@ const CustomerDetailModule = {
             'damgavergisi': 'stampTaxes',
             'files': 'files',
             'dosyalar': 'files',
-            'takvim': 'meetings'
+            'takvim': 'calendars',
+            'calendars': 'calendars'
         };
         return mapping[tableId] || null;
     },
@@ -1375,102 +1478,232 @@ const CustomerDetailModule = {
 
     renderBilgi() {
         const c = this.data.customer;
+        
+        // Cari özet verilerini async olarak yükle (DOM render sonrası)
+        setTimeout(() => this.loadCariOzet(), 50);
+        
         return `
-            <div class="card shadow-sm">
-                <div class="card-header py-2 bg-white">
-                    <span class="fw-semibold"><i class="bi bi-info-circle me-2"></i>Müşteri Bilgisi</span>
+            <div class="row">
+                <!-- Sol Kolon: Müşteri Bilgileri -->
+                <div class="col-lg-6 mb-3">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header py-2 bg-white">
+                            <span class="fw-semibold"><i class="bi bi-info-circle me-2"></i>Müşteri Bilgisi</span>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="text-muted border-bottom pb-2 mb-3"><i class="bi bi-building me-1"></i>Temel Bilgiler</h6>
+                            
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">ID</div>
+                                <div class="col-7">${c.Id || '-'}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">Müşteri Kodu</div>
+                                <div class="col-7">${NbtUtils.escapeHtml(c.MusteriKodu || '-')}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">Unvan</div>
+                                <div class="col-7">${NbtUtils.escapeHtml(c.Unvan || '-')}</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-5 fw-bold text-muted small">Kayıt Tarihi</div>
+                                <div class="col-7">${NbtUtils.formatDate(c.EklemeZamani) || '-'}</div>
+                            </div>
+                            
+                            <h6 class="text-muted border-bottom pb-2 mb-3 mt-3"><i class="bi bi-percent me-1"></i>Vergi Bilgileri</h6>
+                            
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">Vergi Dairesi</div>
+                                <div class="col-7">${NbtUtils.escapeHtml(c.VergiDairesi || '-')}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">Vergi Numarası</div>
+                                <div class="col-7">${NbtUtils.escapeHtml(c.VergiNo || '-')}</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-5 fw-bold text-muted small">Mersis No</div>
+                                <div class="col-7">${NbtUtils.escapeHtml(c.MersisNo || '-')}</div>
+                            </div>
+                            
+                            <h6 class="text-muted border-bottom pb-2 mb-3 mt-3"><i class="bi bi-telephone me-1"></i>İletişim</h6>
+                            
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">Telefon</div>
+                                <div class="col-7">${NbtUtils.escapeHtml(c.Telefon || '-')}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">Faks</div>
+                                <div class="col-7">${NbtUtils.escapeHtml(c.Faks || '-')}</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-5 fw-bold text-muted small">Web Sitesi</div>
+                                <div class="col-7">${c.Web ? `<a href="${NbtUtils.escapeHtml(c.Web)}" target="_blank" class="text-truncate d-block">${NbtUtils.escapeHtml(c.Web)}</a>` : '-'}</div>
+                            </div>
+                            
+                            <h6 class="text-muted border-bottom pb-2 mb-3 mt-3"><i class="bi bi-geo-alt me-1"></i>Adres</h6>
+                            
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">Adres</div>
+                                <div class="col-7 small">${NbtUtils.escapeHtml(c.Adres || '-')}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">Açıklama</div>
+                                <div class="col-7 small">${NbtUtils.escapeHtml(c.Aciklama || '-')}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <h6 class="text-muted border-bottom pb-2 mb-3"><i class="bi bi-building me-1"></i>Temel Bilgiler</h6>
-                    
-                    <div class="row mb-2">
-                        <div class="col-12 col-md-4 fw-bold text-muted">ID</div>
-                        <div class="col-12 col-md-8">${c.Id || '-'}</div>
-                    </div>
-                    
-                    <div class="row mb-2">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Müşteri Kodu</div>
-                        <div class="col-12 col-md-8">${NbtUtils.escapeHtml(c.MusteriKodu || '-')}</div>
-                    </div>
-                    
-                    <div class="row mb-2">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Unvan</div>
-                        <div class="col-12 col-md-8">${NbtUtils.escapeHtml(c.Unvan || '-')}</div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Kayıt Tarihi</div>
-                        <div class="col-12 col-md-8">${NbtUtils.formatDate(c.EklemeZamani) || '-'}</div>
-                    </div>
-                    
-                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-4"><i class="bi bi-percent me-1"></i>Vergi Bilgileri</h6>
-                    
-                    <div class="row mb-2">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Vergi Dairesi</div>
-                        <div class="col-12 col-md-8">${NbtUtils.escapeHtml(c.VergiDairesi || '-')}</div>
-                    </div>
-                    
-                    <div class="row mb-2">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Vergi Numarası</div>
-                        <div class="col-12 col-md-8">${NbtUtils.escapeHtml(c.VergiNo || '-')}</div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Mersis No</div>
-                        <div class="col-12 col-md-8">${NbtUtils.escapeHtml(c.MersisNo || '-')}</div>
-                    </div>
-                    
-                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-4"><i class="bi bi-telephone me-1"></i>İletişim Bilgileri</h6>
-                    
-                    <div class="row mb-2">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Telefon</div>
-                        <div class="col-12 col-md-8">${NbtUtils.escapeHtml(c.Telefon || '-')}</div>
-                    </div>
-                    
-                    <div class="row mb-2">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Faks</div>
-                        <div class="col-12 col-md-8">${NbtUtils.escapeHtml(c.Faks || '-')}</div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Web Sitesi</div>
-                        <div class="col-12 col-md-8">${c.Web ? `<a href="${NbtUtils.escapeHtml(c.Web)}" target="_blank">${NbtUtils.escapeHtml(c.Web)}</a>` : '-'}</div>
-                    </div>
-                    
-                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-4"><i class="bi bi-geo-alt me-1"></i>Adres ve Açıklama</h6>
-                    
-                    <div class="row mb-2">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Adres</div>
-                        <div class="col-12 col-md-8">${NbtUtils.escapeHtml(c.Adres || '-')}</div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-12 col-md-4 fw-bold text-muted">Açıklama</div>
-                        <div class="col-12 col-md-8">${NbtUtils.escapeHtml(c.Aciklama || '-')}</div>
+                
+                <!-- Sağ Kolon: Cari Özet -->
+                <div class="col-lg-6 mb-3">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header py-2 bg-white d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold"><i class="bi bi-calculator me-2"></i>Cari Özet</span>
+                            <span class="badge bg-primary" id="cariOzetToplamFatura">0 Fatura</span>
+                        </div>
+                        <div class="card-body p-0" id="cariOzetContainer">
+                            <div class="text-center py-5">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                <div class="small text-muted mt-2">Yükleniyor...</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="row mt-4 g-2">
+            <div class="row mt-3 g-2">
                 <div class="col-6 col-md-2">
-                    <div class="card text-center p-3"><div class="fs-4 fw-bold text-primary">${this.data.projects.length}</div><small class="text-muted">Proje</small></div>
+                    <div class="card text-center p-3 border-0 shadow-sm"><div class="fs-4 fw-bold text-primary">${this.data.projects.length}</div><small class="text-muted">Proje</small></div>
                 </div>
                 <div class="col-6 col-md-2">
-                    <div class="card text-center p-3"><div class="fs-4 fw-bold text-success">${this.data.offers.length}</div><small class="text-muted">Teklif</small></div>
+                    <div class="card text-center p-3 border-0 shadow-sm"><div class="fs-4 fw-bold text-success">${this.data.offers.length}</div><small class="text-muted">Teklif</small></div>
                 </div>
                 <div class="col-6 col-md-2">
-                    <div class="card text-center p-3"><div class="fs-4 fw-bold text-info">${this.data.contracts.length}</div><small class="text-muted">Sözleşme</small></div>
+                    <div class="card text-center p-3 border-0 shadow-sm"><div class="fs-4 fw-bold text-info">${this.data.contracts.length}</div><small class="text-muted">Sözleşme</small></div>
                 </div>
                 <div class="col-6 col-md-2">
-                    <div class="card text-center p-3"><div class="fs-4 fw-bold text-warning">${this.data.guarantees.length}</div><small class="text-muted">Teminat</small></div>
+                    <div class="card text-center p-3 border-0 shadow-sm"><div class="fs-4 fw-bold text-warning">${this.data.guarantees.length}</div><small class="text-muted">Teminat</small></div>
                 </div>
                 <div class="col-6 col-md-2">
-                    <div class="card text-center p-3"><div class="fs-4 fw-bold text-secondary">${this.data.invoices.length}</div><small class="text-muted">Fatura</small></div>
+                    <div class="card text-center p-3 border-0 shadow-sm"><div class="fs-4 fw-bold text-secondary">${this.data.invoices.length}</div><small class="text-muted">Fatura</small></div>
                 </div>
                 <div class="col-6 col-md-2">
-                    <div class="card text-center p-3"><div class="fs-4 fw-bold text-success">${this.data.payments.length}</div><small class="text-muted">Ödeme</small></div>
+                    <div class="card text-center p-3 border-0 shadow-sm"><div class="fs-4 fw-bold text-success">${this.data.payments.length}</div><small class="text-muted">Ödeme</small></div>
                 </div>
             </div>`;
+    },
+    
+    async loadCariOzet() {
+        const container = document.getElementById('cariOzetContainer');
+        const badge = document.getElementById('cariOzetToplamFatura');
+        if (!container) return;
+        
+        try {
+            const response = await NbtApi.get(`/api/customers/${this.customerId}/cari-ozet`);
+            const data = response.data || [];
+            
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
+                        <p class="mb-0">Henüz fatura kaydı bulunmuyor</p>
+                    </div>`;
+                if (badge) badge.textContent = '0 Fatura';
+                return;
+            }
+            
+            // Yıl bazlı grupla
+            const yilGruplari = {};
+            let toplamFatura = 0;
+            
+            data.forEach(item => {
+                const yil = item.Yil;
+                if (!yilGruplari[yil]) {
+                    yilGruplari[yil] = [];
+                }
+                yilGruplari[yil].push(item);
+                toplamFatura += parseInt(item.FaturaAdedi) || 0;
+            });
+            
+            if (badge) badge.textContent = `${toplamFatura} Fatura`;
+            
+            // Yılları azalan sırada sırala
+            const yillar = Object.keys(yilGruplari).sort((a, b) => b - a);
+            
+            let html = `
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="px-3">Yıl</th>
+                                <th class="text-end px-3">Fatura Tutarı</th>
+                                <th class="text-end px-3">Ödenen</th>
+                                <th class="text-end px-3">Kalan</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+            
+            yillar.forEach(yil => {
+                const items = yilGruplari[yil];
+                const faturaAdedi = items.reduce((sum, i) => sum + (parseInt(i.FaturaAdedi) || 0), 0);
+                
+                // Her döviz için ayrı satır
+                items.forEach((item, idx) => {
+                    const doviz = item.DovizCinsi || 'TL';
+                    const dovizSimge = this.getDovizSimge(doviz);
+                    const tutar = parseFloat(item.ToplamTutar) || 0;
+                    const odenen = parseFloat(item.ToplamOdenen) || 0;
+                    const kalan = parseFloat(item.ToplamKalan) || 0;
+                    
+                    html += `
+                        <tr>
+                            ${idx === 0 ? `<td class="px-3 fw-bold align-middle" rowspan="${items.length}">
+                                <span class="badge bg-secondary">${yil}</span>
+                                <small class="text-muted d-block">${faturaAdedi} fatura</small>
+                            </td>` : ''}
+                            <td class="text-end px-3">
+                                <span class="fw-semibold">${NbtUtils.formatNumber(tutar)}</span>
+                                <span class="text-muted ms-1">${dovizSimge}</span>
+                            </td>
+                            <td class="text-end px-3 text-success">
+                                <span>${NbtUtils.formatNumber(odenen)}</span>
+                                <span class="text-muted ms-1">${dovizSimge}</span>
+                            </td>
+                            <td class="text-end px-3 ${kalan > 0 ? 'text-danger fw-bold' : 'text-success'}">
+                                <span>${NbtUtils.formatNumber(kalan)}</span>
+                                <span class="text-muted ms-1">${dovizSimge}</span>
+                            </td>
+                        </tr>`;
+                });
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>`;
+            
+            container.innerHTML = html;
+            
+        } catch (err) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-danger">
+                    <i class="bi bi-exclamation-triangle fs-3 d-block mb-2"></i>
+                    <p class="mb-0 small">Veriler yüklenemedi</p>
+                </div>`;
+            NbtLogger.error('Cari özet yüklenemedi:', err);
+        }
+    },
+    
+    getDovizSimge(doviz) {
+        const simgeler = {
+            'TL': '₺',
+            'TRY': '₺',
+            'USD': '$',
+            'EUR': '€',
+            'GBP': '£',
+            'CHF': '₣'
+        };
+        return simgeler[doviz] || doviz;
     },
 
     renderKisiler() {
@@ -1508,7 +1741,8 @@ const CustomerDetailModule = {
                 { field: 'Konu', placeholder: 'Konu', width: 3 }
             ],
             columns: [
-                { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+                { field: 'ProjeAdi', label: 'Proje' },
+                { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Konu', label: 'Konu' },
                 { field: 'Notlar', label: 'Notlar' },
                 { field: 'Kisi', label: 'Görüşülen Kişi' }
@@ -1534,9 +1768,9 @@ const CustomerDetailModule = {
             ],
             columns: [
                 { field: 'ProjeAdi', label: 'Proje Adı' },
-                { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v) },
-                { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v) },
-                { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'project') }
+                { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'project'), statusType: 'proje' }
             ],
             data: this.data.projects
         });
@@ -1551,20 +1785,16 @@ const CustomerDetailModule = {
             emptyMsg: 'Henüz teklif eklenmemiş',
             filterFields: [
                 { field: 'TeklifNo', placeholder: 'Teklif No', width: 2 },
-                { field: 'Konu', placeholder: 'Konu', width: 3 },
-                { field: 'Durum', type: 'select', placeholder: 'Durum', width: 2, options: [
-                    { value: '0', label: 'Taslak' },
-                    { value: '1', label: 'Gönderildi' },
-                    { value: '2', label: 'Onaylandı' },
-                    { value: '3', label: 'Reddedildi' }
-                ]}
+                { field: 'Konu', placeholder: 'Konu', width: 3 }
             ],
             columns: [
+                { field: 'ProjeAdi', label: 'Proje' },
                 { field: 'TeklifNo', label: 'Teklif No' },
                 { field: 'Konu', label: 'Konu' },
-                { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
-                { field: 'TeklifTarihi', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
-                { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'offer') }
+                { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
+                { field: 'TeklifTarihi', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'offer'), statusType: 'teklif' }
             ],
             data: this.data.offers
         });
@@ -1578,26 +1808,30 @@ const CustomerDetailModule = {
             addType: 'contract',
             emptyMsg: 'Henüz sözleşme eklenmemiş',
             filterFields: [
-                { field: 'SozlesmeNo', placeholder: 'Sözleşme No', width: 2 },
-                { field: 'Durum', type: 'select', placeholder: 'Durum', width: 2, options: [
-                    { value: '1', label: 'Aktif' },
-                    { value: '2', label: 'Pasif' },
-                    { value: '3', label: 'İptal' }
-                ]}
+                { field: 'SozlesmeNo', placeholder: 'Sözleşme No', width: 2 }
             ],
             columns: [
+                { field: 'ProjeAdi', label: 'Proje' },
                 { field: 'SozlesmeNo', label: 'Sözleşme No' },
-                { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v) },
-                { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v) },
-                { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
-                { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'contract') }
+                { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
+                { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'contract'), statusType: 'sozlesme' }
             ],
             data: this.data.contracts
         });
     },
 
     renderTakvim() {
-        const calendars = this.data.calendars || [];
+        // Takvim verilerine tamamlandı durumu ekle
+        const calendars = (this.data.calendars || []).map(item => {
+            const bitisTarihi = item.BitisTarihi ? new Date(item.BitisTarihi) : null;
+            const bugun = new Date();
+            bugun.setHours(0, 0, 0, 0);
+            const tamamlandi = bitisTarihi && bitisTarihi < bugun ? 1 : 0;
+            return { ...item, Tamamlandi: tamamlandi };
+        });
         
         return this.renderPanel({
             id: 'takvim',
@@ -1607,9 +1841,13 @@ const CustomerDetailModule = {
             emptyMsg: 'Henüz takvim kaydı yok',
             columns: [
                 { field: 'ProjeAdi', label: 'Proje' },
-                { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v) },
-                { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v) },
-                { field: 'Ozet', label: 'Özet' }
+                { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'Ozet', label: 'Özet' },
+                { field: 'Tamamlandi', label: 'Durum', render: v => v === 1 
+                    ? '<span class="badge bg-success">Tamamlandı</span>' 
+                    : '<span class="badge bg-warning text-dark">Tamamlanmadı</span>' 
+                }
             ],
             data: calendars
         });
@@ -1627,9 +1865,11 @@ const CustomerDetailModule = {
                 { field: 'BelgeNo', placeholder: 'Belge No', width: 2 }
             ],
             columns: [
+                { field: 'ProjeAdi', label: 'Proje' },
                 { field: 'BelgeNo', label: 'Belge No' },
-                { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
-                { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.DovizCinsi) },
+                { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                { field: 'DovizCinsi', label: 'Döviz', render: v => v || 'TL' },
                 { field: 'Aciklama', label: 'Açıklama' }
             ],
             data: this.data.stampTaxes || []
@@ -1654,12 +1894,14 @@ const CustomerDetailModule = {
                 ]}
             ],
             columns: [
+                { field: 'ProjeAdi', label: 'Proje' },
                 { field: 'BelgeNo', label: 'Belge No' },
                 { field: 'Tur', label: 'Tür' },
-                { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
+                { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
                 { field: 'BankaAdi', label: 'Banka' },
-                { field: 'VadeTarihi', label: 'Vade', render: v => NbtUtils.formatDate(v) },
-                { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'guarantee') }
+                { field: 'VadeTarihi', label: 'Vade', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'guarantee'), statusType: 'teminat' }
             ],
             data: this.data.guarantees
         });
@@ -1687,13 +1929,15 @@ const CustomerDetailModule = {
                 ]}
             ],
             columns: [
-                { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
-                { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.DovizCinsi) },
-                { field: 'OdenenTutar', label: 'Ödenen', render: (v, row) => NbtUtils.formatMoney(v || 0, row.DovizCinsi) },
+                { field: 'ProjeAdi', label: 'Proje' },
+                { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                { field: 'DovizCinsi', label: 'Döviz', render: v => v || 'TRY' },
+                { field: 'OdenenTutar', label: 'Ödenen', render: v => NbtUtils.formatNumber(v || 0) },
                 { field: 'Kalan', label: 'Kalan', render: (v, row) => {
                     const kalan = parseFloat(v) || 0;
                     const cls = kalan > 0 ? 'text-danger fw-bold' : 'text-success';
-                    return `<span class="${cls}">${NbtUtils.formatMoney(kalan, row.DovizCinsi)}</span>`;
+                    return `<span class="${cls}">${NbtUtils.formatNumber(kalan)}</span>`;
                 }},
                 { field: 'Aciklama', label: 'Açıklama' }
             ],
@@ -1719,12 +1963,14 @@ const CustomerDetailModule = {
                 }
             ],
             columns: [
-                { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+                { field: 'ProjeAdi', label: 'Proje' },
+                { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'FaturaId', label: 'Fatura', render: (v, row) => {
                     if (!v) return '-';
                     return `FT${v}/${NbtUtils.formatDate(row.FaturaTarihi)} [${NbtUtils.formatMoney(row.FaturaTutari, row.FaturaDovizi)}]`;
                 }},
-                { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatMoney(v) },
+                { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TRY' },
                 { field: 'Aciklama', label: 'Açıklama' }
             ],
             data: this.data.payments
@@ -1740,18 +1986,13 @@ const CustomerDetailModule = {
             emptyMsg: 'Henüz dosya yüklenmemiş',
             filterFields: [
                 { field: 'DosyaAdi', placeholder: 'Dosya Adı', width: 3 },
-                { field: 'DosyaTipi', type: 'select', placeholder: 'Tür', width: 2, options: [
-                    { value: 'pdf', label: 'PDF' },
-                    { value: 'doc', label: 'Word' },
-                    { value: 'xls', label: 'Excel' },
-                    { value: 'image', label: 'Resim' }
-                ]}
+                { field: 'OlusturmaZamani', type: 'date', placeholder: 'Tarih', width: 2 }
             ],
             columns: [
+                { field: 'ProjeAdi', label: 'Proje' },
                 { field: 'DosyaAdi', label: 'Dosya Adı' },
-                { field: 'DosyaTipi', label: 'Tür' },
                 { field: 'DosyaBoyutu', label: 'Boyut', render: v => v ? `${(v/1024).toFixed(1)} KB` : '-' },
-                { field: 'OlusturmaZamani', label: 'Yüklenme', render: v => NbtUtils.formatDate(v) },
+                { field: 'OlusturmaZamani', label: 'Yüklenme', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Aciklama', label: 'Açıklama' }
             ],
             data: this.data.files || []
@@ -2029,7 +2270,7 @@ const CustomerDetailModule = {
         container.innerHTML = html;
     },
 
-    applyFilter(panelId) {
+    async applyFilter(panelId) {
         const panel = document.getElementById(`panel_${panelId}`);
         if (!panel) return;
 
@@ -2069,6 +2310,8 @@ const CustomerDetailModule = {
         if (tableBody) {
             const columnConfig = this.getColumnConfig(panelId);
             tableBody.innerHTML = this.renderDataTable(panelId, columnConfig.columns, filtered, columnConfig.emptyMsg);
+            // Filtre select'lerini doldur
+            await this.populateFilterSelects(tableBody);
         }
     },
     
@@ -2134,14 +2377,28 @@ const CustomerDetailModule = {
                 'meetings': '/api/meetings',
                 'contacts': '/api/contacts',
                 'stampTaxes': '/api/stamp-taxes',
-                'files': '/api/files'
+                'files': '/api/files',
+                'calendars': '/api/takvim'
             };
             
             const endpoint = endpointMap[dataKey];
             if (endpoint) {
                 try {
                     const response = await NbtApi.get(`${endpoint}?musteri_id=${this.customerId}&page=1&limit=10000`);
-                    this.allData[tableId] = response.data || [];
+                    let data = response.data || [];
+                    
+                    // Takvim için Tamamlandi alanını hesapla
+                    if (dataKey === 'calendars') {
+                        const bugun = new Date();
+                        bugun.setHours(0, 0, 0, 0);
+                        data = data.map(item => {
+                            const bitisTarihi = item.BitisTarihi ? new Date(item.BitisTarihi) : null;
+                            const tamamlandi = bitisTarihi && bitisTarihi < bugun ? 1 : 0;
+                            return { ...item, Tamamlandi: tamamlandi };
+                        });
+                    }
+                    
+                    this.allData[tableId] = data;
                 } catch (err) {
                     console.error('Tüm veriler yüklenemedi:', err);
                     this.allData[tableId] = this.data[dataKey] || [];
@@ -2163,21 +2420,66 @@ const CustomerDetailModule = {
         // Kolon filtreleri uygula
         Object.keys(filters).forEach(field => {
             const value = filters[field];
-            if (value) {
+            if (!value) return;
+            
+            // Tarih aralığı başlangıç filtresi (_start ile bitiyor)
+            if (field.endsWith('_start')) {
+                const baseField = field.replace('_start', '');
                 filtered = filtered.filter(item => {
-                    let cellValue = item[field];
-                    
-                    // Tarih alanı için özel karşılaştırma
-                    const isDateField = field.toLowerCase().includes('tarih') || field === 'BaslangicTarihi' || field === 'BitisTarihi' || field === 'TeklifTarihi' || field === 'VadeTarihi';
-                    if (isDateField) {
-                        const cellDate = NbtUtils.formatDateForCompare(cellValue);
-                        return cellDate === value;
-                    }
-                    
-                    // Diğer alanlar için normalize edilmiş karşılaştırma
-                    return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
+                    let cellValue = item[baseField];
+                    if (!cellValue) return false;
+                    const cellDate = NbtUtils.formatDateForCompare(cellValue);
+                    return cellDate >= value;
                 });
+                return;
             }
+            
+            // Tarih aralığı bitiş filtresi (_end ile bitiyor)
+            if (field.endsWith('_end')) {
+                const baseField = field.replace('_end', '');
+                filtered = filtered.filter(item => {
+                    let cellValue = item[baseField];
+                    if (!cellValue) return false;
+                    const cellDate = NbtUtils.formatDateForCompare(cellValue);
+                    return cellDate <= value;
+                });
+                return;
+            }
+            
+            // Tamamlandı filtresi
+            if (field === 'Tamamlandi') {
+                filtered = filtered.filter(item => {
+                    const bitisTarihi = item.BitisTarihi;
+                    const tamamlandi = bitisTarihi ? (new Date(bitisTarihi) <= new Date() ? '1' : '0') : '0';
+                    return tamamlandi === value;
+                });
+                return;
+            }
+            
+            // Select alanları için exact match (Durum, DovizCinsi, ParaBirimi vb.)
+            const selectFields = ['Durum', 'DovizCinsi', 'ParaBirimi', 'Tur'];
+            if (selectFields.includes(field)) {
+                filtered = filtered.filter(item => {
+                    const cellValue = String(item[field] ?? '');
+                    return cellValue === value;
+                });
+                return;
+            }
+            
+            // Normal alanlar için filtre
+            filtered = filtered.filter(item => {
+                let cellValue = item[field];
+                
+                // Tarih alanı için özel karşılaştırma
+                const isDateField = field.toLowerCase().includes('tarih') || field === 'BaslangicTarihi' || field === 'BitisTarihi' || field === 'TeklifTarihi' || field === 'VadeTarihi';
+                if (isDateField) {
+                    const cellDate = NbtUtils.formatDateForCompare(cellValue);
+                    return cellDate === value;
+                }
+                
+                // Diğer alanlar için normalize edilmiş karşılaştırma
+                return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
+            });
         });
         
         // Pagination hesapla
@@ -2199,6 +2501,8 @@ const CustomerDetailModule = {
         if (config && panelBody) {
             panelBody.innerHTML = this.renderDataTable(tableId, config.columns, pageData, config.emptyMsg, true);
             this.bindFilteredPaginationEvents(panelBody, tableId);
+            // Filtre select'lerini yeniden doldur
+            await this.populateFilterSelects(panelBody);
         }
     },
     
@@ -2246,7 +2550,8 @@ const CustomerDetailModule = {
             },
             gorusme: {
                 columns: [
-                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+                    { field: 'ProjeAdi', label: 'Proje' },
+                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
                     { field: 'Konu', label: 'Konu' },
                     { field: 'Notlar', label: 'Notlar' },
                     { field: 'Kisi', label: 'Görüşülen Kişi' }
@@ -2256,50 +2561,60 @@ const CustomerDetailModule = {
             projeler: {
                 columns: [
                     { field: 'ProjeAdi', label: 'Proje Adı' },
-                    { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v) },
-                    { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v) },
-                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'project') }
+                    { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'project'), statusType: 'proje' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
             teklifler: {
                 columns: [
+                    { field: 'ProjeAdi', label: 'Proje' },
                     { field: 'TeklifNo', label: 'Teklif No' },
-                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
                     { field: 'Konu', label: 'Konu' },
-                    { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatMoney(v) },
-                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'offer') }
+                    { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                    { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
+                    { field: 'TeklifTarihi', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'offer'), statusType: 'teklif' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
             sozlesmeler: {
                 columns: [
+                    { field: 'ProjeAdi', label: 'Proje' },
                     { field: 'SozlesmeNo', label: 'Sözleşme No' },
-                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
-                    { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatMoney(v) },
-                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'contract') }
+                    { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                    { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
+                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'contract'), statusType: 'sozlesme' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
             teminatlar: {
                 columns: [
+                    { field: 'ProjeAdi', label: 'Proje' },
                     { field: 'BelgeNo', label: 'Belge No' },
                     { field: 'Tur', label: 'Tür' },
+                    { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                    { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
                     { field: 'BankaAdi', label: 'Banka' },
-                    { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
-                    { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v) },
-                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'guarantee') }
+                    { field: 'VadeTarihi', label: 'Vade', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'guarantee'), statusType: 'teminat' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
             faturalar: {
                 columns: [
-                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
-                    { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.DovizCinsi) },
+                    { field: 'ProjeAdi', label: 'Proje' },
+                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                    { field: 'DovizCinsi', label: 'Döviz', render: v => v || 'TRY' },
+                    { field: 'OdenenTutar', label: 'Ödenen', render: v => NbtUtils.formatNumber(v || 0) },
                     { field: 'Kalan', label: 'Kalan', render: (v, row) => {
                         const kalan = parseFloat(v) || 0;
                         const cls = kalan > 0 ? 'text-danger fw-bold' : 'text-success';
-                        return `<span class="${cls}">${NbtUtils.formatMoney(kalan, row.DovizCinsi)}</span>`;
+                        return `<span class="${cls}">${NbtUtils.formatNumber(kalan)}</span>`;
                     }},
                     { field: 'Aciklama', label: 'Açıklama' }
                 ],
@@ -2307,37 +2622,49 @@ const CustomerDetailModule = {
             },
             odemeler: {
                 columns: [
-                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
-                    { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.DovizCinsi) },
-                    { field: 'OdemeTuru', label: 'Ödeme Türü' },
+                    { field: 'ProjeAdi', label: 'Proje' },
+                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'FaturaId', label: 'Fatura', render: (v, row) => {
+                        if (!v) return '-';
+                        return `FT${v}/${NbtUtils.formatDate(row.FaturaTarihi)} [${NbtUtils.formatMoney(row.FaturaTutari, row.FaturaDovizi)}]`;
+                    }},
+                    { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                    { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TRY' },
                     { field: 'Aciklama', label: 'Açıklama' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
             damgavergisi: {
                 columns: [
-                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
-                    { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.DovizCinsi) },
+                    { field: 'ProjeAdi', label: 'Proje' },
+                    { field: 'BelgeNo', label: 'Belge No' },
+                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
+                    { field: 'DovizCinsi', label: 'Döviz', render: v => v || 'TL' },
                     { field: 'Aciklama', label: 'Açıklama' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
             dosyalar: {
                 columns: [
+                    { field: 'ProjeAdi', label: 'Proje' },
                     { field: 'DosyaAdi', label: 'Dosya Adı' },
-                    { field: 'DosyaTipi', label: 'Tür' },
-                    { field: 'Boyut', label: 'Boyut', render: v => NbtUtils.formatFileSize(v) },
-                    { field: 'EklemeZamani', label: 'Yüklenme', render: v => NbtUtils.formatDate(v) }
+                    { field: 'DosyaBoyutu', label: 'Boyut', render: v => v ? `${(v/1024).toFixed(1)} KB` : '-' },
+                    { field: 'OlusturmaZamani', label: 'Yüklenme', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'Aciklama', label: 'Açıklama' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
             takvim: {
                 columns: [
-                    { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
-                    { field: 'Tarih', label: 'Saat', render: v => v ? new Date(v).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '-' },
-                    { field: 'Konu', label: 'Konu' },
-                    { field: 'Kisi', label: 'Görüşülen Kişi' },
-                    { field: 'Notlar', label: 'Notlar' }
+                    { field: 'ProjeAdi', label: 'Proje' },
+                    { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'Ozet', label: 'Özet' },
+                    { field: 'Tamamlandi', label: 'Durum', render: v => v === 1 
+                        ? '<span class="badge bg-success">Tamamlandı</span>' 
+                        : '<span class="badge bg-warning text-dark">Devam Ediyor</span>' 
+                    }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             }
@@ -2354,7 +2681,7 @@ const CustomerDetailModule = {
             faturalar: { type: 'invoice', detailType: 'invoice', endpoint: '/api/invoices', key: 'invoices' },
             odemeler: { type: 'payment', detailType: 'payment', endpoint: '/api/payments', key: 'payments' },
             gorusme: { type: 'meeting', detailType: 'meeting', endpoint: '/api/meetings', key: 'meetings' },
-            takvim: { type: 'meeting', detailType: 'meeting', endpoint: '/api/meetings', key: 'meetings' },
+            takvim: { type: 'calendar', detailType: 'calendar', endpoint: '/api/takvim', key: 'calendars' },
             kisiler: { type: 'contact', detailType: 'contact', endpoint: '/api/contacts', key: 'contacts' },
             damgavergisi: { type: 'stamptax', detailType: 'stampTax', endpoint: '/api/stamp-taxes', key: 'stampTaxes' },
             dosyalar: { type: 'file', detailType: 'file', endpoint: '/api/files', key: 'files' }
@@ -2362,6 +2689,68 @@ const CustomerDetailModule = {
 
         const config = typeMap[tab];
         if (!config) return;
+
+        // Dosya indirme
+        if (action === 'download') {
+            try {
+                const dataArray = this.data[config.key];
+                const item = dataArray?.find(i => parseInt(i.Id, 10) === parseInt(id, 10));
+                const dosyaAdi = item?.DosyaAdi || item?.DosyaYolu?.split('/').pop() || 'dosya';
+                
+                // Tab'a göre doğru endpoint belirle
+                let downloadUrl;
+                if (tab === 'damgavergisi') {
+                    // Damga vergisi için doğrudan kendi endpoint'ini kullan
+                    downloadUrl = `/api/stamp-taxes/${id}/download`;
+                } else if (tab === 'teminatlar') {
+                    // Teminat için doğrudan kendi endpoint'ini kullan
+                    downloadUrl = `/api/guarantees/${id}/download`;
+                } else if (tab === 'dosyalar') {
+                    // Dosyalar tab'ı - files endpoint kullan
+                    downloadUrl = `/api/files/${id}/download`;
+                } else {
+                    // Diğer tablar için DosyaId varsa files, yoksa kendi endpoint'i
+                    const dosyaId = item?.DosyaId;
+                    if (dosyaId) {
+                        downloadUrl = `/api/files/${dosyaId}/download`;
+                    } else {
+                        NbtToast.warning('İndirilecek dosya bulunamadı');
+                        return;
+                    }
+                }
+                
+                // Auth header ile fetch kullanarak indir
+                NbtToast.info('Dosya hazırlanıyor...');
+                const response = await fetch(downloadUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + NbtUtils.getToken(),
+                        'X-Tab-Id': NbtUtils.getTabId()
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Dosya indirilemedi');
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = dosyaAdi;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                
+                NbtToast.success('Dosya indiriliyor...');
+            } catch (err) {
+                NbtToast.error(err.message || 'Dosya indirilemedi');
+                NbtLogger.error('Dosya indirme hatası:', err);
+            }
+            return;
+        }
 
         if (action === 'view') {
             const parsedId = parseInt(id, 10);
@@ -2371,7 +2760,7 @@ const CustomerDetailModule = {
                 try {
                     const invoice = await NbtApi.get(`/api/invoices/${parsedId}`);
                     if (invoice) {
-                        NbtDetailModal.show(
+                        await NbtDetailModal.show(
                             config.detailType, 
                             invoice, 
                             (editId) => this.openEditModal(config.type, editId),
@@ -2395,7 +2784,7 @@ const CustomerDetailModule = {
             
             const item = dataArray.find(i => parseInt(i.Id, 10) === parsedId);
             if (item) {
-                NbtDetailModal.show(
+                await NbtDetailModal.show(
                     config.detailType, 
                     item, 
                     (editId) => this.openEditModal(config.type, editId),
@@ -2571,9 +2960,15 @@ const CustomerDetailModule = {
 
     populateCustomerSelect(selectEl) {
         selectEl.innerHTML = '<option value="">Seçiniz...</option>';
-        AppState.customers.forEach(c => {
+        // AppState.customers boşsa ve CustomerDetailModule.customerId varsa, aktif müşteriyi ekle
+        if (AppState.customers && AppState.customers.length > 0) {
+            AppState.customers.forEach(c => {
+                selectEl.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Unvan)}</option>`;
+            });
+        } else if (CustomerDetailModule.customerId && CustomerDetailModule.data?.customer) {
+            const c = CustomerDetailModule.data.customer;
             selectEl.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Unvan)}</option>`;
-        });
+        }
     }
 };
 
@@ -2790,7 +3185,7 @@ const InvoiceModule = {
                     // API'den fatura detayını kalemlerle birlikte al
                     const invoice = await NbtApi.get(`/api/invoices/${id}`);
                     if (invoice) {
-                        NbtDetailModal.show('invoice', invoice, null, null);
+                        await NbtDetailModal.show('invoice', invoice, null, null);
                     } else {
                         NbtToast.error('Fatura kaydı bulunamadı');
                     }
@@ -2798,7 +3193,7 @@ const InvoiceModule = {
                     // Fallback: local data
                     const invoice = (this.allData || this.data).find(i => parseInt(i.Id, 10) === id);
                     if (invoice) {
-                        NbtDetailModal.show('invoice', invoice, null, null);
+                        await NbtDetailModal.show('invoice', invoice, null, null);
                     } else {
                         NbtToast.error('Fatura kaydı bulunamadı');
                     }
@@ -2923,11 +3318,8 @@ const InvoiceModule = {
         document.getElementById('invoiceId').value = id || '';
 
         const select = document.getElementById('invoiceMusteriId');
-        select.innerHTML = '<option value="">Seçiniz...</option>';
+        CustomerDetailModule.populateCustomerSelect(select);
         select.disabled = false;
-        AppState.customers.forEach(c => {
-            select.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Unvan)}</option>`;
-        });
 
         const projeSelect = document.getElementById('invoiceProjeId');
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
@@ -3007,14 +3399,15 @@ const InvoiceModule = {
                 
                 // Yeni alanları doldur
                 if (faturaNoEl && invoice.FaturaNo) faturaNoEl.value = invoice.FaturaNo;
-                if (supheliEl) supheliEl.checked = !!invoice.SupheliAlacak;
-                if (invoice.TevkifatAktif) {
+                // Checkbox'lar için parseInt ile sayısal karşılaştırma yap (string "0" veya "1" gelebilir)
+                if (supheliEl) supheliEl.checked = parseInt(invoice.SupheliAlacak, 10) === 1;
+                if (parseInt(invoice.TevkifatAktif, 10) === 1) {
                     if (tevkifatAktifEl) tevkifatAktifEl.checked = true;
                     if (tevkifatAlani) tevkifatAlani.style.display = 'block';
                     if (tevkifatOran1El) tevkifatOran1El.value = NbtUtils.formatDecimal(invoice.TevkifatOran1) || '';
                     if (tevkifatOran2El) tevkifatOran2El.value = NbtUtils.formatDecimal(invoice.TevkifatOran2) || '';
                 }
-                if (invoice.TakvimAktif) {
+                if (parseInt(invoice.TakvimAktif, 10) === 1) {
                     if (takvimAktifEl) takvimAktifEl.checked = true;
                     if (takvimAlani) takvimAlani.style.display = 'block';
                     if (takvimSureEl) takvimSureEl.value = invoice.TakvimSure || '';
@@ -3027,16 +3420,26 @@ const InvoiceModule = {
                     if (detailResponse && detailResponse.Kalemler && Array.isArray(detailResponse.Kalemler)) {
                         this.loadInvoiceItems(detailResponse.Kalemler);
                     }
+                    // Fatura dosyalarını yükle
+                    if (detailResponse && detailResponse.Dosyalar && Array.isArray(detailResponse.Dosyalar)) {
+                        this.loadInvoiceFiles(detailResponse.Dosyalar);
+                    } else {
+                        this.resetInvoiceFiles();
+                    }
                 } catch (err) {
                     // API hatası durumunda local data'dan yükle
                     if (invoice.Kalemler && Array.isArray(invoice.Kalemler)) {
                         this.loadInvoiceItems(invoice.Kalemler);
                     }
+                    this.resetInvoiceFiles();
                 }
             } else {
                 NbtToast.error('Fatura kaydı bulunamadı');
                 return;
             }
+        } else {
+            // Yeni fatura - dosyaları sıfırla
+            this.resetInvoiceFiles();
         }
 
         NbtModal.open('invoiceModal');
@@ -3100,13 +3503,23 @@ const InvoiceModule = {
 
         NbtModal.setLoading('invoiceModal', true);
         try {
+            let faturaId;
             if (id) {
                 await NbtApi.put(`/api/invoices/${id}`, data);
+                faturaId = id;
                 NbtToast.success('Fatura güncellendi');
             } else {
-                await NbtApi.post('/api/invoices', data);
+                const response = await NbtApi.post('/api/invoices', data);
+                faturaId = response.data?.Id || response.Id;
                 NbtToast.success('Fatura eklendi');
             }
+            
+            // Dosya işlemleri
+            if (faturaId) {
+                await this.deleteMarkedFiles();
+                await this.uploadPendingFiles(faturaId);
+            }
+            
             NbtModal.close('invoiceModal');
             await this.loadList();
             
@@ -3161,10 +3574,196 @@ const InvoiceModule = {
         return kalemler;
     },
 
+    // Dosya yönetimi - yeni dosyalar ve mevcut dosyalar
+    pendingFiles: [],
+    existingFiles: [],
+    filesToDelete: [],
+
+    resetInvoiceFiles() {
+        this.pendingFiles = [];
+        this.existingFiles = [];
+        this.filesToDelete = [];
+        this.renderInvoiceFiles();
+    },
+
+    loadInvoiceFiles(files) {
+        this.existingFiles = files || [];
+        this.pendingFiles = [];
+        this.filesToDelete = [];
+        this.renderInvoiceFiles();
+    },
+
+    renderInvoiceFiles() {
+        const tbody = document.getElementById('invoiceFilesBody');
+        const table = document.getElementById('invoiceFilesTable');
+        const emptyDiv = document.getElementById('invoiceFilesEmpty');
+        
+        if (!tbody) return;
+
+        const allFiles = [
+            ...this.existingFiles.map(f => ({ ...f, isExisting: true })),
+            ...this.pendingFiles.map((f, i) => ({ 
+                Id: `pending_${i}`, 
+                DosyaAdi: f.name, 
+                DosyaBoyutu: f.size,
+                OlusturmaZamani: new Date().toISOString(),
+                isExisting: false,
+                file: f
+            }))
+        ];
+
+        if (allFiles.length === 0) {
+            if (table) table.style.display = 'none';
+            if (emptyDiv) emptyDiv.style.display = 'block';
+            tbody.innerHTML = '';
+            return;
+        }
+
+        if (table) table.style.display = 'table';
+        if (emptyDiv) emptyDiv.style.display = 'none';
+
+        tbody.innerHTML = allFiles.map(f => {
+            const boyut = f.DosyaBoyutu ? `${(f.DosyaBoyutu / 1024).toFixed(1)} KB` : '-';
+            const tarih = f.OlusturmaZamani ? NbtUtils.formatDate(f.OlusturmaZamani) : '-';
+            const isExisting = f.isExisting;
+            const downloadBtn = isExisting ? `<button type="button" class="btn btn-outline-info btn-sm" data-action="download-file" data-file-id="${f.Id}" title="İndir"><i class="bi bi-download"></i></button>` : '';
+            
+            return `
+                <tr data-file-id="${f.Id}">
+                    <td>${NbtUtils.escapeHtml(f.DosyaAdi)}</td>
+                    <td>${boyut}</td>
+                    <td>${tarih}</td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm">
+                            ${downloadBtn}
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-action="remove-file" data-file-id="${f.Id}" data-is-existing="${isExisting}" title="Kaldır"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>`;
+        }).join('');
+
+        this.bindFileEvents(tbody);
+    },
+
+    bindFileEvents(tbody) {
+        tbody.querySelectorAll('[data-action="download-file"]').forEach(btn => {
+            btn.onclick = async () => {
+                const fileId = btn.dataset.fileId;
+                if (fileId) {
+                    try {
+                        NbtToast.info('Dosya hazırlanıyor...');
+                        const downloadUrl = `/api/files/${fileId}/download`;
+                        const response = await fetch(downloadUrl, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': 'Bearer ' + NbtUtils.getToken(),
+                                'X-Tab-Id': NbtUtils.getTabId()
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.error || 'Dosya indirilemedi');
+                        }
+                        
+                        const blob = await response.blob();
+                        const contentDisposition = response.headers.get('Content-Disposition');
+                        let filename = 'dosya';
+                        if (contentDisposition) {
+                            const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
+                            if (match) filename = match[1];
+                        }
+                        
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = filename;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                        
+                        NbtToast.success('Dosya indiriliyor...');
+                    } catch (err) {
+                        NbtToast.error(err.message || 'Dosya indirilemedi');
+                    }
+                }
+            };
+        });
+
+        tbody.querySelectorAll('[data-action="remove-file"]').forEach(btn => {
+            btn.onclick = () => {
+                const fileId = btn.dataset.fileId;
+                const isExisting = btn.dataset.isExisting === 'true';
+
+                if (isExisting) {
+                    // Mevcut dosyayı silme listesine ekle
+                    const file = this.existingFiles.find(f => f.Id == fileId);
+                    if (file) {
+                        this.filesToDelete.push(file.Id);
+                        this.existingFiles = this.existingFiles.filter(f => f.Id != fileId);
+                    }
+                } else {
+                    // Pending dosyayı kaldır
+                    const idx = parseInt(fileId.replace('pending_', ''));
+                    this.pendingFiles.splice(idx, 1);
+                }
+                this.renderInvoiceFiles();
+            };
+        });
+    },
+
+    handleFileSelect(input) {
+        if (!input.files || input.files.length === 0) return;
+        
+        for (let i = 0; i < input.files.length; i++) {
+            this.pendingFiles.push(input.files[i]);
+        }
+        this.renderInvoiceFiles();
+        input.value = ''; // Input'u sıfırla
+    },
+
+    async uploadPendingFiles(faturaId) {
+        if (this.pendingFiles.length === 0) return;
+
+        for (const file of this.pendingFiles) {
+            const formData = new FormData();
+            formData.append('dosya', file);
+            formData.append('FaturaId', faturaId);
+            formData.append('Aciklama', `Fatura #${faturaId} dosyası`);
+
+            try {
+                await NbtApi.request('/api/files', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {} // FormData için Content-Type header'ı otomatik
+                });
+            } catch (err) {
+                NbtLogger.error('Dosya yükleme hatası:', err);
+            }
+        }
+    },
+
+    async deleteMarkedFiles() {
+        for (const fileId of this.filesToDelete) {
+            try {
+                await NbtApi.delete(`/api/files/${fileId}`);
+            } catch (err) {
+                NbtLogger.error('Dosya silme hatası:', err);
+            }
+        }
+    },
+
     bindEvents() {
         if (this._eventsBound) return;
         this._eventsBound = true;
         document.getElementById('btnSaveInvoice')?.addEventListener('click', () => this.save());
+        
+        // Dosya input event
+        const fileInput = document.getElementById('invoiceFileInput');
+        if (fileInput) {
+            fileInput.addEventListener('change', () => this.handleFileSelect(fileInput));
+        }
     }
 };
 
@@ -3360,11 +3959,11 @@ const PaymentModule = {
 
     bindTableEvents(container) {
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const id = parseInt(btn.dataset.id);
                 const payment = (this.allData || this.data).find(p => parseInt(p.Id, 10) === id);
                 if (payment) {
-                    NbtDetailModal.show('payment', payment, null, null);
+                    await NbtDetailModal.show('payment', payment, null, null);
                 } else {
                     NbtToast.error('Ödeme kaydı bulunamadı');
                 }
@@ -3539,11 +4138,8 @@ const PaymentModule = {
         document.getElementById('paymentId').value = id || '';
 
         const select = document.getElementById('paymentMusteriId');
-        select.innerHTML = '<option value="">Seçiniz...</option>';
+        CustomerDetailModule.populateCustomerSelect(select);
         select.disabled = false;
-        AppState.customers.forEach(c => {
-            select.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Unvan)}</option>`;
-        });
 
         const faturaSelect = document.getElementById('paymentFaturaId');
         if (faturaSelect) {
@@ -4170,7 +4766,7 @@ const StampTaxModule = {
                 formData.append('DovizCinsi', data.DovizCinsi);
                 if (data.BelgeNo) formData.append('BelgeNo', data.BelgeNo);
                 if (data.Aciklama) formData.append('Aciklama', data.Aciklama);
-                if (file) formData.append('file', file);
+                if (file) formData.append('dosya', file);
                 if (this.removeExistingFile) formData.append('removeFile', '1');
                 
                 const url = id ? `/api/stamp-taxes/${id}` : '/api/stamp-taxes';
@@ -4532,10 +5128,10 @@ const ProjectModule = {
             { field: 'ProjeAdi', label: 'Proje Adı' },
             { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
             { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
-            { field: 'Butce', label: 'Bütçe', render: v => NbtUtils.formatMoney(v) },
             { field: 'Durum', label: 'Durum', render: v => {
+                const key = v !== null && v !== undefined ? parseInt(v, 10) : null;
                 const statuses = { 1: ['Aktif', 'success'], 2: ['Tamamlandı', 'info'], 3: ['İptal', 'danger'] };
-                const s = statuses[v] || ['Bilinmiyor', 'secondary'];
+                const s = statuses[key] || statuses[v] || ['Bilinmiyor', 'secondary'];
                 return `<span class="badge bg-${s[1]}">${s[0]}</span>`;
             }}
         ];
@@ -4611,11 +5207,11 @@ const ProjectModule = {
 
     bindTableEvents(container) {
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const id = parseInt(btn.dataset.id);
                 const project = (this.allData || this.data).find(p => parseInt(p.Id, 10) === id);
                 if (project) {
-                    NbtDetailModal.show('project', project, null, null);
+                    await NbtDetailModal.show('project', project, null, null);
                 } else {
                     NbtToast.error('Proje kaydı bulunamadı');
                 }
@@ -4734,11 +5330,8 @@ const ProjectModule = {
         document.getElementById('projectId').value = id || '';
 
         const select = document.getElementById('projectMusteriId');
-        select.innerHTML = '<option value="">Seçiniz...</option>';
+        CustomerDetailModule.populateCustomerSelect(select);
         select.disabled = false;
-        AppState.customers.forEach(c => {
-            select.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Unvan)}</option>`;
-        });
 
         // Durum select'ini parametrelerden doldur
         const statusSelect = document.getElementById('projectStatus');
@@ -5966,7 +6559,7 @@ const AlarmsModule = {
         let html = '<div class="table-responsive"><table class="table table-bordered table-hover table-sm mb-0"><thead class="table-light"><tr>';
         
         if (this.selectedType === 'invoice') {
-            html += '<th>Müşteri</th><th>Tutar</th><th>Para Birimi</th>';
+            html += '<th>Müşteri</th><th>Proje</th><th>Fatura No</th><th>Fatura Tarihi</th><th class="text-center">Gecikme (gün)</th><th class="text-end">Fatura Tutarı</th><th class="text-end">Bakiye</th>';
         } else if (this.selectedType === 'calendar') {
             html += '<th>Başlık</th><th>Açıklama</th><th>Tarih</th>';
         } else if (this.selectedType === 'guarantee') {
@@ -5980,10 +6573,15 @@ const AlarmsModule = {
         items.forEach(item => {
             html += '<tr>';
             if (this.selectedType === 'invoice') {
+                const gecikmeClass = item.delayDays > 30 ? 'text-danger fw-bold' : (item.delayDays > 0 ? 'text-warning' : 'text-muted');
                 html += `
                     <td>${NbtUtils.escapeHtml(item.customer || '')}</td>
-                    <td class="text-danger fw-bold">${NbtUtils.formatMoney(item.amount, item.currency)}</td>
-                    <td>${item.currency || 'TRY'}</td>`;
+                    <td>${NbtUtils.escapeHtml(item.project || '-')}</td>
+                    <td>${NbtUtils.escapeHtml(item.invoiceNo || '-')}</td>
+                    <td>${NbtUtils.formatDate(item.invoiceDate)}</td>
+                    <td class="text-center ${gecikmeClass}">${item.delayDays > 0 ? item.delayDays : '-'}</td>
+                    <td class="text-end">${NbtUtils.formatMoney(item.invoiceAmount, item.currency)}</td>
+                    <td class="text-end text-danger fw-bold">${NbtUtils.formatMoney(item.balance, item.currency)}</td>`;
             } else if (this.selectedType === 'calendar') {
                 html += `
                     <td>${NbtUtils.escapeHtml(item.title || '')}</td>
@@ -6224,11 +6822,11 @@ const OfferModule = {
 
     bindTableEvents(container) {
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const id = parseInt(btn.dataset.id);
                 const offer = (this.allData || this.data).find(o => parseInt(o.Id, 10) === id);
                 if (offer) {
-                    NbtDetailModal.show('offer', offer, null, null);
+                    await NbtDetailModal.show('offer', offer, null, null);
                 } else {
                     NbtToast.error('Teklif kaydı bulunamadı');
                 }
@@ -6347,11 +6945,8 @@ const OfferModule = {
         document.getElementById('offerId').value = id || '';
 
         const select = document.getElementById('offerMusteriId');
-        select.innerHTML = '<option value="">Seçiniz...</option>';
+        CustomerDetailModule.populateCustomerSelect(select);
         select.disabled = false;
-        AppState.customers.forEach(c => {
-            select.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Unvan)}</option>`;
-        });
 
         const projeSelect = document.getElementById('offerProjeId');
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
@@ -6697,11 +7292,11 @@ const ContractModule = {
 
     bindTableEvents(container) {
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const id = parseInt(btn.dataset.id);
                 const contract = (this.allData || this.data).find(c => parseInt(c.Id, 10) === id);
                 if (contract) {
-                    NbtDetailModal.show('contract', contract, null, null);
+                    await NbtDetailModal.show('contract', contract, null, null);
                 } else {
                     NbtToast.error('Sözleşme kaydı bulunamadı');
                 }
@@ -6820,11 +7415,8 @@ const ContractModule = {
         document.getElementById('contractId').value = id || '';
 
         const select = document.getElementById('contractMusteriId');
-        select.innerHTML = '<option value="">Seçiniz...</option>';
+        CustomerDetailModule.populateCustomerSelect(select);
         select.disabled = false;
-        AppState.customers.forEach(c => {
-            select.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Unvan)}</option>`;
-        });
 
         const projeSelect = document.getElementById('contractProjeId');
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
@@ -6869,6 +7461,7 @@ const ContractModule = {
                 // Projeleri yükleme ve seçili projeyi ayarlama
                 await select.onchange();
                 document.getElementById('contractProjeId').value = contract.ProjeId || '';
+                document.getElementById('contractNo').value = contract.SozlesmeNo || '';
                 document.getElementById('contractStart').value = contract.BaslangicTarihi?.split('T')[0] || '';
                 document.getElementById('contractEnd').value = contract.BitisTarihi?.split('T')[0] || '';
                 document.getElementById('contractAmount').value = NbtUtils.formatDecimal(contract.Tutar) || '';
@@ -6892,9 +7485,11 @@ const ContractModule = {
         }
         
         const projeIdVal = document.getElementById('contractProjeId').value;
+        const sozlesmeNo = document.getElementById('contractNo')?.value?.trim() || '';
         const data = {
             MusteriId: musteriId,
             ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
+            SozlesmeNo: sozlesmeNo,
             BaslangicTarihi: document.getElementById('contractStart').value || null,
             BitisTarihi: document.getElementById('contractEnd').value || null,
             Tutar: parseFloat(document.getElementById('contractAmount').value) || 0,
@@ -6911,6 +7506,11 @@ const ContractModule = {
         if (!data.ProjeId) {
             NbtModal.showFieldError('contractModal', 'contractProjeId', 'Proje seçiniz');
             NbtModal.showError('contractModal', 'Proje seçimi zorunludur');
+            return;
+        }
+        if (!data.SozlesmeNo) {
+            NbtModal.showFieldError('contractModal', 'contractNo', 'Sözleşme No zorunludur');
+            NbtModal.showError('contractModal', 'Lütfen sözleşme numarasını girin');
             return;
         }
         if (!data.Tutar || data.Tutar <= 0) {
@@ -7155,11 +7755,11 @@ const GuaranteeModule = {
 
     bindTableEvents(container) {
         container.querySelectorAll('.btn-view').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const id = parseInt(btn.dataset.id, 10);
                 const guarantee = (this.allData || this.data).find(g => parseInt(g.Id, 10) === id);
                 if (guarantee) {
-                    NbtDetailModal.show('guarantee', guarantee, null, null);
+                    await NbtDetailModal.show('guarantee', guarantee, null, null);
                 } else {
                     NbtToast.error('Teminat kaydı bulunamadı');
                 }
@@ -7286,9 +7886,16 @@ const GuaranteeModule = {
         const select = document.getElementById('guaranteeMusteriId');
         select.innerHTML = '<option value="">Seçiniz...</option>';
         select.disabled = false;
-        AppState.customers.forEach(c => {
+        
+        // AppState.customers boşsa ve CustomerDetailModule.customerId varsa, aktif müşteriyi ekle
+        if (AppState.customers && AppState.customers.length > 0) {
+            AppState.customers.forEach(c => {
+                select.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Unvan)}</option>`;
+            });
+        } else if (CustomerDetailModule.customerId && CustomerDetailModule.data?.customer) {
+            const c = CustomerDetailModule.data.customer;
             select.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Unvan)}</option>`;
-        });
+        }
 
         const projeSelect = document.getElementById('guaranteeProjeId');
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
@@ -7441,7 +8048,7 @@ const GuaranteeModule = {
                 formData.append('ParaBirimi', data.ParaBirimi);
                 if (data.VadeTarihi) formData.append('VadeTarihi', data.VadeTarihi);
                 formData.append('Durum', data.Durum);
-                if (file) formData.append('file', file);
+                if (file) formData.append('dosya', file);
                 if (this.removeExistingFile) formData.append('removeFile', '1');
                 
                 const url = id ? `/api/guarantees/${id}` : '/api/guarantees';
