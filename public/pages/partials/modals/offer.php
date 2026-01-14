@@ -43,10 +43,10 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Tutar</label>
+          <label class="col-12 col-md-4 col-form-label">Tutar <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
             <div class="input-group">
-              <input type="number" step="0.01" class="form-control" id="offerAmount">
+              <input type="number" step="0.01" class="form-control" id="offerAmount" required>
               <select class="form-select" id="offerCurrency" style="max-width: 90px;">
                 <option value="TRY">TRY</option>
                 <option value="USD">USD</option>
@@ -56,15 +56,15 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Tarih</label>
+          <label class="col-12 col-md-4 col-form-label">Tarih <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
-            <input type="date" class="form-control" id="offerDate" value="<?= date('Y-m-d') ?>">
+            <input type="date" class="form-control" id="offerDate" value="<?= date('Y-m-d') ?>" required>
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Geçerlilik</label>
+          <label class="col-12 col-md-4 col-form-label">Geçerlilik <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
-            <input type="date" class="form-control" id="offerValidDate">
+            <input type="date" class="form-control" id="offerValidDate" required>
           </div>
         </div>
         <div class="row mb-3">

@@ -43,6 +43,33 @@ class InvoiceController
         }
     }
 
+    public static function show(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Geçersiz kayıt.', 422);
+            return;
+        }
+
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            return;
+        }
+
+        $Repo = new InvoiceRepository();
+        $Fatura = $Repo->bul($Id);
+        if (!$Fatura) {
+            Response::error('Fatura bulunamadı.', 404);
+            return;
+        }
+
+        // Fatura kalemlerini ekle
+        $Fatura['Kalemler'] = $Repo->getKalemler($Id);
+
+        Response::json($Fatura);
+    }
+
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -60,6 +87,17 @@ class InvoiceController
         $Tarih = trim((string)$Girdi['Tarih']); // YYYY-MM-DD formatinda gelmeli
         $Doviz = isset($Girdi['DovizCinsi']) ? trim((string)$Girdi['DovizCinsi']) : 'TL';
         $Aciklama = isset($Girdi['Aciklama']) ? trim((string)$Girdi['Aciklama']) : null;
+        
+        // Yeni alanlar
+        $FaturaNo = isset($Girdi['FaturaNo']) ? trim((string)$Girdi['FaturaNo']) : null;
+        $SupheliAlacak = isset($Girdi['SupheliAlacak']) ? (int)$Girdi['SupheliAlacak'] : 0;
+        $TevkifatAktif = isset($Girdi['TevkifatAktif']) ? (int)$Girdi['TevkifatAktif'] : 0;
+        $TevkifatOran1 = isset($Girdi['TevkifatOran1']) ? (float)$Girdi['TevkifatOran1'] : null;
+        $TevkifatOran2 = isset($Girdi['TevkifatOran2']) ? (float)$Girdi['TevkifatOran2'] : null;
+        $TakvimAktif = isset($Girdi['TakvimAktif']) ? (int)$Girdi['TakvimAktif'] : 0;
+        $TakvimSure = isset($Girdi['TakvimSure']) ? (int)$Girdi['TakvimSure'] : null;
+        $TakvimSureTipi = isset($Girdi['TakvimSureTipi']) ? trim((string)$Girdi['TakvimSureTipi']) : null;
+        $Kalemler = isset($Girdi['Kalemler']) && is_array($Girdi['Kalemler']) ? $Girdi['Kalemler'] : [];
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -68,15 +106,37 @@ class InvoiceController
         }
 
         $Repo = new InvoiceRepository();
-        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $Tarih, $Tutar, $Doviz, $Aciklama, $KullaniciId) {
-            return $Repo->ekle([
+        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $Tarih, $Tutar, $Doviz, $Aciklama, 
+                                                   $FaturaNo, $SupheliAlacak, $TevkifatAktif, $TevkifatOran1, $TevkifatOran2,
+                                                   $TakvimAktif, $TakvimSure, $TakvimSureTipi, $Kalemler, $KullaniciId) {
+            $FaturaId = $Repo->ekle([
                 'MusteriId' => $MusteriId,
                 'ProjeId' => $ProjeId,
                 'Tarih' => $Tarih,
                 'Tutar' => $Tutar,
                 'DovizCinsi' => $Doviz,
-                'Aciklama' => $Aciklama
+                'Aciklama' => $Aciklama,
+                'FaturaNo' => $FaturaNo,
+                'SupheliAlacak' => $SupheliAlacak,
+                'TevkifatAktif' => $TevkifatAktif,
+                'TevkifatOran1' => $TevkifatOran1,
+                'TevkifatOran2' => $TevkifatOran2,
+                'TakvimAktif' => $TakvimAktif,
+                'TakvimSure' => $TakvimSure,
+                'TakvimSureTipi' => $TakvimSureTipi
             ], $KullaniciId);
+            
+            // Fatura kalemlerini kaydet
+            if (!empty($Kalemler)) {
+                $Repo->kaydetKalemler($FaturaId, $Kalemler, $KullaniciId);
+            }
+            
+            // Takvim hatırlatması oluştur
+            if ($TakvimAktif && $TakvimSure && $TakvimSureTipi) {
+                $Repo->takvimHatirlatmaOlustur($FaturaId, $MusteriId, $ProjeId, $Tarih, $TakvimSure, $TakvimSureTipi, $KullaniciId);
+            }
+            
+            return $FaturaId;
         });
 
         Response::json(['id' => $Id], 201);
@@ -113,9 +173,24 @@ class InvoiceController
             if (isset($Girdi['DovizCinsi'])) $Guncellenecek['DovizCinsi'] = $Girdi['DovizCinsi'];
             if (isset($Girdi['Aciklama'])) $Guncellenecek['Aciklama'] = $Girdi['Aciklama'];
             if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
+            
+            // Yeni alanlar
+            if (isset($Girdi['FaturaNo'])) $Guncellenecek['FaturaNo'] = $Girdi['FaturaNo'];
+            if (isset($Girdi['SupheliAlacak'])) $Guncellenecek['SupheliAlacak'] = (int)$Girdi['SupheliAlacak'];
+            if (isset($Girdi['TevkifatAktif'])) $Guncellenecek['TevkifatAktif'] = (int)$Girdi['TevkifatAktif'];
+            if (isset($Girdi['TevkifatOran1'])) $Guncellenecek['TevkifatOran1'] = $Girdi['TevkifatOran1'] ? (float)$Girdi['TevkifatOran1'] : null;
+            if (isset($Girdi['TevkifatOran2'])) $Guncellenecek['TevkifatOran2'] = $Girdi['TevkifatOran2'] ? (float)$Girdi['TevkifatOran2'] : null;
+            if (isset($Girdi['TakvimAktif'])) $Guncellenecek['TakvimAktif'] = (int)$Girdi['TakvimAktif'];
+            if (isset($Girdi['TakvimSure'])) $Guncellenecek['TakvimSure'] = $Girdi['TakvimSure'] ? (int)$Girdi['TakvimSure'] : null;
+            if (isset($Girdi['TakvimSureTipi'])) $Guncellenecek['TakvimSureTipi'] = $Girdi['TakvimSureTipi'];
 
             if (!empty($Guncellenecek)) {
                 $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+            }
+            
+            // Fatura kalemlerini güncelle
+            if (isset($Girdi['Kalemler']) && is_array($Girdi['Kalemler'])) {
+                $Repo->kaydetKalemler($Id, $Girdi['Kalemler'], $KullaniciId);
             }
         });
 

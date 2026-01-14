@@ -146,12 +146,65 @@ const DashboardModule = {
         
         NbtCalendar.render(container, {
             events: NbtCalendar.events,
-            onDayClick: (date, events) => {
-                if (events.length) {
-                    NbtToast.info(`${date}: ${events.length} etkinlik`);
-                }
-            }
+            onDayClick: (date, dayEvents) => this.openCalendarDayModal(date, dayEvents)
         });
+    },
+
+    openCalendarDayModal(date, events) {
+        const modal = document.getElementById('calendarDayModal');
+        if (!modal) return;
+        
+        // Tarih formatlama
+        const dateObj = new Date(date);
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const formattedDate = dateObj.toLocaleDateString('tr-TR', options);
+        
+        document.getElementById('calendarDayModalTitle').innerHTML = `<i class="bi bi-calendar3 me-2"></i>${formattedDate}`;
+        
+        const eventList = document.getElementById('calendarDayEventList');
+        const noEvents = document.getElementById('calendarDayNoEvents');
+        
+        if (!events || events.length === 0) {
+            eventList.innerHTML = '';
+            eventList.classList.add('d-none');
+            noEvents.classList.remove('d-none');
+        } else {
+            noEvents.classList.add('d-none');
+            eventList.classList.remove('d-none');
+            
+            let html = '';
+            events.forEach(event => {
+                const typeColors = {
+                    'fatura': { bg: 'bg-danger-subtle', text: 'text-danger', icon: 'bi-receipt' },
+                    'odeme': { bg: 'bg-success-subtle', text: 'text-success', icon: 'bi-cash' },
+                    'teklif': { bg: 'bg-warning-subtle', text: 'text-warning', icon: 'bi-file-earmark-text' },
+                    'sozlesme': { bg: 'bg-info-subtle', text: 'text-info', icon: 'bi-file-earmark-check' },
+                    'teminat': { bg: 'bg-secondary-subtle', text: 'text-secondary', icon: 'bi-shield-check' },
+                    'gorusme': { bg: 'bg-primary-subtle', text: 'text-primary', icon: 'bi-chat-dots' },
+                    'takvim': { bg: 'bg-success-subtle', text: 'text-success', icon: 'bi-calendar-event' },
+                    'default': { bg: 'bg-primary-subtle', text: 'text-primary', icon: 'bi-calendar-event' }
+                };
+                const typeStyle = typeColors[event.type] || typeColors.default;
+                
+                html += `
+                    <div class="list-group-item d-flex align-items-start gap-3 py-3">
+                        <span class="badge ${typeStyle.bg} ${typeStyle.text} p-2 rounded">
+                            <i class="bi ${typeStyle.icon} fs-5"></i>
+                        </span>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold">${NbtUtils.escapeHtml(event.title)}</div>
+                            ${event.description ? `<div class="text-muted small">${NbtUtils.escapeHtml(event.description)}</div>` : ''}
+                            ${event.customer ? `<div class="small"><i class="bi bi-building me-1"></i>${NbtUtils.escapeHtml(event.customer)}</div>` : ''}
+                            ${event.time ? `<div class="small text-muted"><i class="bi bi-clock me-1"></i>${event.time}</div>` : ''}
+                        </div>
+                        ${event.amount ? `<span class="badge bg-dark">${NbtUtils.formatMoney(event.amount, event.currency || 'TRY')}</span>` : ''}
+                    </div>
+                `;
+            });
+            eventList.innerHTML = html;
+        }
+        
+        NbtModal.open('calendarDayModal');
     },
 
     bindEvents() {
@@ -203,6 +256,13 @@ const CustomerModule = {
     pageSize: window.APP_CONFIG?.PAGINATION_DEFAULT || 10,
     currentPage: 1,
     paginationInfo: null,
+    // Filtre için ek property'ler
+    filteredData: null,
+    filteredPage: 1,
+    filteredPaginationInfo: null,
+    // Tüm müşterileri cache'le (filtreleme için)
+    allCustomers: null,
+    allCustomersLoading: false,
     
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
@@ -220,6 +280,9 @@ const CustomerModule = {
             AppState.customers = response.data || [];
             this.paginationInfo = response.pagination || null;
             this.currentPage = page;
+            // Filtre state'lerini temizle
+            this.filteredData = null;
+            this.filteredPaginationInfo = null;
             this.renderTable(AppState.customers);
         } catch (err) {
             container.innerHTML = `<div class="alert alert-danger m-3">${err.message}</div>`;
@@ -235,13 +298,75 @@ const CustomerModule = {
         }
     },
 
-    applyFilters() {
-        let filtered = AppState.customers;
+    async applyFilters(page = 1) {
+        // Eğer hiç filtre yoksa normal listeye dön
+        const hasFilters = this.searchQuery || Object.keys(this.columnFilters).length > 0;
+        if (!hasFilters) {
+            this.filteredData = null;
+            this.filteredPaginationInfo = null;
+            this.loadList(1);
+            return;
+        }
+        
+        // Tüm müşterileri yükle (filtreleme için)
+        if (!this.allCustomers && !this.allCustomersLoading) {
+            this.allCustomersLoading = true;
+            const container = document.getElementById('customersTableContainer');
+            if (container) {
+                container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> <small class="text-muted ms-2">Arama yapılıyor...</small></div>';
+            }
+            try {
+                const response = await NbtApi.get('/api/customers?page=1&limit=10000');
+                this.allCustomers = response.data || [];
+            } catch (err) {
+                console.error('Tüm müşteriler yüklenemedi:', err);
+                this.allCustomers = AppState.customers || [];
+            }
+            this.allCustomersLoading = false;
+        }
+        
+        // Eğer hala yükleniyorsa bekle
+        if (this.allCustomersLoading) {
+            setTimeout(() => this.applyFilters(page), 100);
+            return;
+        }
+        
+        let filtered = this.allCustomers || [];
+        
+        // Türkçe karakter normalizasyonu için yardımcı fonksiyon
+        const normalize = (str) => {
+            return (str || '').toString()
+                .toLocaleLowerCase('tr-TR')
+                .replace(/ı/g, 'i')
+                .replace(/İ/g, 'i')
+                .replace(/ğ/g, 'g')
+                .replace(/Ğ/g, 'g')
+                .replace(/ü/g, 'u')
+                .replace(/Ü/g, 'u')
+                .replace(/ş/g, 's')
+                .replace(/Ş/g, 's')
+                .replace(/ö/g, 'o')
+                .replace(/Ö/g, 'o')
+                .replace(/ç/g, 'c')
+                .replace(/Ç/g, 'c');
+        };
+        
+        // Tarih karşılaştırma için yardımcı fonksiyon (YYYY-MM-DD formatında)
+        const formatDateForCompare = (dateStr) => {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return '';
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
         
         // Global arama işlemi
         if (this.searchQuery) {
+            const searchNorm = normalize(this.searchQuery);
             filtered = filtered.filter(c => 
-                (c.Unvan || '').toLowerCase().includes(this.searchQuery)
+                normalize(c.Unvan).includes(searchNorm)
             );
         }
         
@@ -251,15 +376,38 @@ const CustomerModule = {
             if (value) {
                 filtered = filtered.filter(c => {
                     let cellValue = c[field];
-                    if (field === 'EklemeZamani' && cellValue) {
-                        cellValue = NbtUtils.formatDate(cellValue);
+                    
+                    // Tarih alanı için özel karşılaştırma
+                    if (field === 'EklemeZamani') {
+                        const cellDate = formatDateForCompare(cellValue);
+                        return cellDate === value; // value zaten YYYY-MM-DD formatında
                     }
-                    return (cellValue || '').toString().toLowerCase().includes(value.toLowerCase());
+                    
+                    // Diğer alanlar için normalize edilmiş karşılaştırma
+                    return normalize(cellValue).includes(normalize(value));
                 });
             }
         });
         
-        this.renderTable(filtered, true);
+        // Filtrelenmiş verileri sakla
+        this.filteredData = filtered;
+        this.filteredPage = page;
+        
+        // Pagination hesapla
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / this.pageSize);
+        const startIndex = (page - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, total);
+        const pageData = filtered.slice(startIndex, endIndex);
+        
+        this.filteredPaginationInfo = {
+            page: page,
+            limit: this.pageSize,
+            total: total,
+            totalPages: totalPages
+        };
+        
+        this.renderTable(pageData, true);
     },
 
     renderTable(data, isFiltered = false) {
@@ -276,6 +424,21 @@ const CustomerModule = {
         // Header row
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:110px;">İşlem</th>';
+
+        // Filter row - her kolon için arama input'u
+        const filterRow = columns.map(c => {
+            const currentValue = this.columnFilters[c.field] || '';
+            if (c.field === 'EklemeZamani') {
+                // Tarih alanı için date input
+                return `<th class="p-1"><input type="date" class="form-control form-control-sm" data-column-filter="${c.field}" data-table-id="customers" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+            }
+            return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="customers" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+        }).join('') + `<th class="p-1 text-center">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="apply-filters" title="Ara"><i class="bi bi-search"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="clear-filters" title="Filtreleri Temizle"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </th>`;
 
         // Data rows
         let rowsHtml = '';
@@ -308,16 +471,29 @@ const CustomerModule = {
 
         container.innerHTML = `
             <div class="table-responsive px-2 py-2">
-                <table class="table table-bordered table-hover table-sm mb-0">
+                <table class="table table-bordered table-hover table-sm mb-0" id="customersTable">
                     <thead>
                         <tr>${headers}</tr>
+                        <tr class="bg-white">${filterRow}</tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             </div>`;
 
-        // Pagination ekleme
-        if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
+        // Pagination ekleme - filtrelenmiş veriler için de göster
+        if (isFiltered && this.filteredPaginationInfo) {
+            const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+            if (totalPages > 1) {
+                container.innerHTML += this.renderFilteredPagination();
+            } else if (total > 0) {
+                // Tek sayfa ise sadece bilgi göster
+                container.innerHTML += `
+                    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+                        <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${total} kayıt gösteriliyor</small>
+                    </div>
+                `;
+            }
+        } else if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
             container.innerHTML += this.renderPagination();
         }
 
@@ -352,6 +528,33 @@ const CustomerModule = {
         `;
     },
 
+    renderFilteredPagination() {
+        if (!this.filteredPaginationInfo) return '';
+        const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-filtered-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light" id="customersFilteredPagination">
+                <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
+    },
+
     bindTableEvents(container) {
         // View buttons
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
@@ -369,6 +572,55 @@ const CustomerModule = {
                 if (!isNaN(newPage) && newPage !== this.currentPage) {
                     this.loadList(newPage);
                 }
+            });
+        });
+
+        // Filtered pagination event binding
+        container.querySelectorAll('[data-filtered-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.filteredPage);
+                if (!isNaN(newPage) && newPage !== this.filteredPage) {
+                    this.applyFilters(newPage);
+                }
+            });
+        });
+
+        // Apply filters button - arama butonu
+        container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                container.querySelectorAll('[data-column-filter][data-table-id="customers"]').forEach(input => {
+                    const field = input.dataset.columnFilter;
+                    const value = input.value.trim();
+                    if (value) {
+                        this.columnFilters[field] = value;
+                    }
+                });
+                this.applyFilters();
+            });
+        });
+
+        // Enter tuşu ile arama
+        container.querySelectorAll('[data-column-filter][data-table-id="customers"]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    container.querySelector('[data-action="apply-filters"]')?.click();
+                }
+            });
+        });
+
+        // Clear filters button
+        container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                this.searchQuery = '';
+                this.allCustomers = null; // Cache'i temizle
+                container.querySelectorAll('[data-column-filter][data-table-id="customers"]').forEach(input => {
+                    input.value = '';
+                });
+                // Filtreler temizlenince normal listeye dön
+                this.loadList(1);
             });
         });
 
@@ -549,6 +801,12 @@ const CustomerDetailModule = {
     filters: {},
     sidebarCustomers: [],
     pageSize: window.APP_CONFIG?.PAGINATION_DEFAULT || 10,
+    // Kolon filtreleri için - her tablo için ayrı
+    columnFilters: {},
+    // Filtreleme için tüm veriler cache
+    allData: {},
+    allDataLoading: {},
+    filteredPaginationInfo: {},
 
     /**
      * Ortak proje select doldurma fonksiyonu
@@ -597,7 +855,8 @@ const CustomerDetailModule = {
         meetings: [],
         contacts: [],
         stampTaxes: [],
-        files: []
+        files: [],
+        calendars: []
     },
 
     tabConfig: {
@@ -607,7 +866,7 @@ const CustomerDetailModule = {
         projeler: { title: 'Projeler', icon: 'bi-kanban', endpoint: '/api/projects', key: 'projects' },
         teklifler: { title: 'Teklifler', icon: 'bi-file-earmark-text', endpoint: '/api/offers', key: 'offers' },
         sozlesmeler: { title: 'Sözleşmeler', icon: 'bi-file-text', endpoint: '/api/contracts', key: 'contracts' },
-        takvim: { title: 'Takvim', icon: 'bi-calendar3', endpoint: null },
+        takvim: { title: 'Takvim', icon: 'bi-calendar3', endpoint: '/api/takvim', key: 'calendars' },
         damgavergisi: { title: 'Damga Vergisi', icon: 'bi-percent', endpoint: '/api/stamp-taxes', key: 'stampTaxes' },
         teminatlar: { title: 'Teminatlar', icon: 'bi-shield-check', endpoint: '/api/guarantees', key: 'guarantees' },
         faturalar: { title: 'Faturalar', icon: 'bi-receipt', endpoint: '/api/invoices', key: 'invoices' },
@@ -728,7 +987,8 @@ const CustomerDetailModule = {
                 this.loadRelatedData('meetings', '/api/meetings'),
                 this.loadRelatedData('contacts', '/api/contacts'),
                 this.loadRelatedData('stampTaxes', '/api/stamp-taxes'),
-                this.loadRelatedData('files', '/api/files')
+                this.loadRelatedData('files', '/api/files'),
+                this.loadRelatedData('calendars', '/api/takvim')
             ]);
         } catch (err) {
             NbtToast.error(err.message);
@@ -848,15 +1108,33 @@ const CustomerDetailModule = {
             </div>`;
     },
 
-    renderDataTable(id, columns, data, emptyMsg) {
+    renderDataTable(id, columns, data, emptyMsg, isFiltered = false) {
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + '<th class="bg-light text-center px-3" style="width:110px;">İşlem</th>';
+
+        // Filter row - her kolon için arama input'u
+        const tableFilters = this.columnFilters[id] || {};
+        const filterRow = columns.map(c => {
+            const currentValue = tableFilters[c.field] || '';
+            // Tarih alanları için date input
+            const isDateField = c.field.toLowerCase().includes('tarih') || c.field === 'BaslangicTarihi' || c.field === 'BitisTarihi' || c.field === 'TeklifTarihi' || c.field === 'VadeTarihi';
+            if (isDateField) {
+                return `<th class="p-1"><input type="date" class="form-control form-control-sm" data-column-filter="${c.field}" data-table-id="${id}" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+            }
+            return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="${id}" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+        }).join('') + `<th class="p-1 text-center">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="apply-filters" data-table-id="${id}" title="Ara"><i class="bi bi-search"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="clear-filters" data-table-id="${id}" title="Filtreleri Temizle"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </th>`;
 
         if (!data || !data.length) {
             return `
                 <div class="table-responsive px-2 py-2">
-                    <table class="table table-bordered table-hover table-sm mb-0">
+                    <table class="table table-bordered table-hover table-sm mb-0" id="table_${id}">
                         <thead>
                             <tr>${headers}</tr>
+                            <tr class="bg-white">${filterRow}</tr>
                         </thead>
                         <tbody>
                             <tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>${emptyMsg || 'Kayıt bulunamadı'}</td></tr>
@@ -866,13 +1144,25 @@ const CustomerDetailModule = {
         }
         
         const dataKey = this.getDataKeyFromTableId(id);
-        const paginationInfo = this.paginationInfo[dataKey] || null;
         
-        const currentPage = paginationInfo ? paginationInfo.page : 1;
-        const totalItems = paginationInfo ? paginationInfo.total : data.length;
-        const totalPages = paginationInfo ? paginationInfo.totalPages : 1;
-        const startIndex = paginationInfo ? ((paginationInfo.page - 1) * paginationInfo.limit) : 0;
-        const endIndex = paginationInfo ? Math.min(startIndex + paginationInfo.limit, totalItems) : data.length;
+        // Filtrelenmiş veriler için ayrı pagination
+        let paginationInfo, currentPage, totalItems, totalPages, startIndex, endIndex;
+        
+        if (isFiltered && this.filteredPaginationInfo[id]) {
+            paginationInfo = this.filteredPaginationInfo[id];
+            currentPage = paginationInfo.page;
+            totalItems = paginationInfo.total;
+            totalPages = paginationInfo.totalPages;
+            startIndex = (paginationInfo.page - 1) * paginationInfo.limit;
+            endIndex = Math.min(startIndex + paginationInfo.limit, totalItems);
+        } else {
+            paginationInfo = this.paginationInfo[dataKey] || null;
+            currentPage = paginationInfo ? paginationInfo.page : 1;
+            totalItems = paginationInfo ? paginationInfo.total : data.length;
+            totalPages = paginationInfo ? paginationInfo.totalPages : 1;
+            startIndex = paginationInfo ? ((paginationInfo.page - 1) * paginationInfo.limit) : 0;
+            endIndex = paginationInfo ? Math.min(startIndex + paginationInfo.limit, totalItems) : data.length;
+        }
         
         const rows = data.map(row => {
             const cells = columns.map(c => {
@@ -900,18 +1190,53 @@ const CustomerDetailModule = {
                 </tr>`;
         }).join('');
 
-        const paginationHtml = this.renderPagination(id, currentPage, totalPages, totalItems, startIndex, endIndex);
+        const paginationHtml = isFiltered 
+            ? this.renderFilteredPaginationDetail(id, currentPage, totalPages, totalItems, startIndex, endIndex)
+            : this.renderPagination(id, currentPage, totalPages, totalItems, startIndex, endIndex);
 
         return `
             <div class="table-responsive px-2 py-2">
                 <table class="table table-bordered table-hover table-sm mb-0" id="table_${id}">
                     <thead>
                         <tr>${headers}</tr>
+                        <tr class="bg-white">${filterRow}</tr>
                     </thead>
                     <tbody>${rows}</tbody>
                 </table>
             </div>
             ${paginationHtml}`;
+    },
+
+    // Filtrelenmiş veriler için pagination
+    renderFilteredPaginationDetail(tableId, currentPage, totalPages, totalItems, startIndex, endIndex) {
+        if (totalItems <= this.pageSize) {
+            // Tek sayfa - sadece bilgi göster
+            return `
+                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+                    <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${totalItems} kayıt gösteriliyor</small>
+                </div>
+            `;
+        }
+        
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="1" data-table-id="${tableId}"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${currentPage - 1}" data-table-id="${tableId}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === currentPage ? 'active' : ''}"><a class="page-link" href="#" data-filtered-page="${i}" data-table-id="${tableId}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${currentPage + 1}" data-table-id="${tableId}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${totalPages}" data-table-id="${tableId}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light" id="filteredPagination_${tableId}">
+                <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: Toplam ${totalItems} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
     },
 
     renderPagination(tableId, currentPage, totalPages, totalItems, startIndex, endIndex) {
@@ -1272,22 +1597,21 @@ const CustomerDetailModule = {
     },
 
     renderTakvim() {
-        const meetings = this.data.meetings || [];
+        const calendars = this.data.calendars || [];
         
         return this.renderPanel({
             id: 'takvim',
-            title: 'Takvim / Görüşmeler',
+            title: 'Takvim',
             icon: 'bi-calendar3',
-            addType: 'meeting',
-            emptyMsg: 'Henüz görüşme kaydı yok',
+            addType: 'calendar',
+            emptyMsg: 'Henüz takvim kaydı yok',
             columns: [
-                { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
-                { field: 'Tarih', label: 'Saat', render: v => v ? new Date(v).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '-' },
-                { field: 'Konu', label: 'Konu' },
-                { field: 'Kisi', label: 'Görüşülen Kişi' },
-                { field: 'Notlar', label: 'Notlar' }
+                { field: 'ProjeAdi', label: 'Proje' },
+                { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v) },
+                { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v) },
+                { field: 'Ozet', label: 'Özet' }
             ],
-            data: meetings
+            data: calendars
         });
     },
 
@@ -1543,6 +1867,12 @@ const CustomerDetailModule = {
                 e.preventDefault();
                 const action = actionEl.dataset.action;
                 
+                if (action === 'apply-filters') {
+                    const tableId = actionEl.dataset.tableId;
+                    this.applyColumnFilters(tableId);
+                    return;
+                }
+                
                 if (action === 'clear-filters') {
                     const tableId = actionEl.dataset.tableId;
                     this.clearColumnFilters(tableId);
@@ -1573,16 +1903,6 @@ const CustomerDetailModule = {
                     e.preventDefault();
                     this.applyColumnFilters(columnFilter.dataset.tableId);
                 }
-            }
-        });
-        
-        container.addEventListener('input', (e) => {
-            const columnFilter = e.target.closest('[data-column-filter]');
-            if (columnFilter) {
-                clearTimeout(this._columnFilterTimeout);
-                this._columnFilterTimeout = setTimeout(() => {
-                    this.applyColumnFilters(columnFilter.dataset.tableId);
-                }, 300);
             }
         });
 
@@ -1770,40 +2090,127 @@ const CustomerDetailModule = {
             .replace(/Ç/g, 'c');
     },
     
-    applyColumnFilters(tableId) {
+    async applyColumnFilters(tableId, page = 1) {
         const table = document.getElementById(`table_${tableId}`);
         if (!table) return;
         
+        // Input değerlerini al
         const filters = {};
         table.querySelectorAll('[data-column-filter]').forEach(input => {
             const field = input.dataset.columnFilter;
-            const value = this.normalizeText(input.value.trim());
+            const value = input.value.trim();
             if (value) filters[field] = value;
         });
         
-        if (Object.keys(filters).length > 0) {
-            this.currentPages[tableId] = 1;
+        // Filtre varsa kaydet
+        this.columnFilters[tableId] = filters;
+        
+        // Eğer hiç filtre yoksa normal listeye dön
+        if (Object.keys(filters).length === 0) {
+            this.allData[tableId] = null;
+            this.filteredPaginationInfo[tableId] = null;
+            const dataKey = this.getDataKeyFromTableId(tableId);
+            this.switchTab(this.activeTab);
+            return;
         }
         
-        const rows = table.querySelectorAll('tbody tr');
-        rows.forEach(row => {
-            if (!row.dataset.id) {
-                row.style.display = '';
-                return;
+        const dataKey = this.getDataKeyFromTableId(tableId);
+        const panelBody = document.getElementById(`body_${tableId}`);
+        
+        // Tüm verileri yükle (filtreleme için)
+        if (!this.allData[tableId] && !this.allDataLoading[tableId]) {
+            this.allDataLoading[tableId] = true;
+            if (panelBody) {
+                panelBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> <small class="text-muted ms-2">Arama yapılıyor...</small></div>';
             }
             
-            let visible = true;
-            for (const [field, filterValue] of Object.entries(filters)) {
-                const cell = row.querySelector(`td[data-field="${field}"]`);
-                if (cell) {
-                    const cellText = this.normalizeText(cell.textContent);
-                    if (!cellText.includes(filterValue)) {
-                        visible = false;
-                        break;
-                    }
+            const endpointMap = {
+                'projects': '/api/projects',
+                'invoices': '/api/invoices',
+                'payments': '/api/payments',
+                'offers': '/api/offers',
+                'contracts': '/api/contracts',
+                'guarantees': '/api/guarantees',
+                'meetings': '/api/meetings',
+                'contacts': '/api/contacts',
+                'stampTaxes': '/api/stamp-taxes',
+                'files': '/api/files'
+            };
+            
+            const endpoint = endpointMap[dataKey];
+            if (endpoint) {
+                try {
+                    const response = await NbtApi.get(`${endpoint}?musteri_id=${this.customerId}&page=1&limit=10000`);
+                    this.allData[tableId] = response.data || [];
+                } catch (err) {
+                    console.error('Tüm veriler yüklenemedi:', err);
+                    this.allData[tableId] = this.data[dataKey] || [];
                 }
+            } else {
+                this.allData[tableId] = this.data[dataKey] || [];
             }
-            row.style.display = visible ? '' : 'none';
+            this.allDataLoading[tableId] = false;
+        }
+        
+        // Hala yükleniyorsa bekle
+        if (this.allDataLoading[tableId]) {
+            setTimeout(() => this.applyColumnFilters(tableId, page), 100);
+            return;
+        }
+        
+        let filtered = this.allData[tableId] || [];
+        
+        // Kolon filtreleri uygula
+        Object.keys(filters).forEach(field => {
+            const value = filters[field];
+            if (value) {
+                filtered = filtered.filter(item => {
+                    let cellValue = item[field];
+                    
+                    // Tarih alanı için özel karşılaştırma
+                    const isDateField = field.toLowerCase().includes('tarih') || field === 'BaslangicTarihi' || field === 'BitisTarihi' || field === 'TeklifTarihi' || field === 'VadeTarihi';
+                    if (isDateField) {
+                        const cellDate = NbtUtils.formatDateForCompare(cellValue);
+                        return cellDate === value;
+                    }
+                    
+                    // Diğer alanlar için normalize edilmiş karşılaştırma
+                    return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
+                });
+            }
+        });
+        
+        // Pagination hesapla
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / this.pageSize);
+        const startIndex = (page - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, total);
+        const pageData = filtered.slice(startIndex, endIndex);
+        
+        this.filteredPaginationInfo[tableId] = {
+            page: page,
+            limit: this.pageSize,
+            total: total,
+            totalPages: totalPages
+        };
+        
+        // Tabloyu render et
+        const config = this.getColumnConfig(tableId);
+        if (config && panelBody) {
+            panelBody.innerHTML = this.renderDataTable(tableId, config.columns, pageData, config.emptyMsg, true);
+            this.bindFilteredPaginationEvents(panelBody, tableId);
+        }
+    },
+    
+    bindFilteredPaginationEvents(container, tableId) {
+        container.querySelectorAll('[data-filtered-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.filteredPage);
+                if (!isNaN(newPage)) {
+                    this.applyColumnFilters(tableId, newPage);
+                }
+            });
         });
     },
     
@@ -1811,13 +2218,18 @@ const CustomerDetailModule = {
         const table = document.getElementById(`table_${tableId}`);
         if (!table) return;
         
+        // Input'ları temizle
         table.querySelectorAll('[data-column-filter]').forEach(input => {
             input.value = '';
         });
         
-        table.querySelectorAll('tbody tr').forEach(row => {
-            row.style.display = '';
-        });
+        // Filtre state'lerini temizle
+        this.columnFilters[tableId] = {};
+        this.allData[tableId] = null;
+        this.filteredPaginationInfo[tableId] = null;
+        
+        // Normal listeyi yeniden yükle
+        this.switchTab(this.activeTab);
     },
     
     getColumnConfig(panelId) {
@@ -1933,7 +2345,7 @@ const CustomerDetailModule = {
         return configs[panelId] || { columns: [], emptyMsg: 'Kayıt bulunamadı' };
     },
 
-    handleTableAction(action, id, tab) {
+    async handleTableAction(action, id, tab) {
         const typeMap = {
             projeler: { type: 'project', detailType: 'project', endpoint: '/api/projects', key: 'projects' },
             teklifler: { type: 'offer', detailType: 'offer', endpoint: '/api/offers', key: 'offers' },
@@ -1953,6 +2365,27 @@ const CustomerDetailModule = {
 
         if (action === 'view') {
             const parsedId = parseInt(id, 10);
+            
+            // Fatura için özel olarak API'den kalemlerle birlikte çek
+            if (config.type === 'invoice') {
+                try {
+                    const invoice = await NbtApi.get(`/api/invoices/${parsedId}`);
+                    if (invoice) {
+                        NbtDetailModal.show(
+                            config.detailType, 
+                            invoice, 
+                            (editId) => this.openEditModal(config.type, editId),
+                            (deleteId, deleteData) => this.confirmDelete(tab, config.endpoint, deleteId, config.key, deleteData)
+                        );
+                    } else {
+                        NbtToast.error('Fatura bulunamadı');
+                    }
+                } catch (err) {
+                    NbtToast.error('Fatura detayı yüklenemedi');
+                }
+                return;
+            }
+            
             const dataArray = this.data[config.key];
             
             if (!dataArray || !Array.isArray(dataArray)) {
@@ -1992,7 +2425,8 @@ const CustomerDetailModule = {
             meeting: MeetingModule,
             contact: ContactModule,
             stamptax: StampTaxModule,
-            file: FileModule
+            file: FileModule,
+            calendar: CalendarTabModule
         };
 
         const module = moduleMap[type];
@@ -2015,7 +2449,8 @@ const CustomerDetailModule = {
             meeting: 'meetings',
             contact: 'contacts',
             stamptax: 'stampTaxes',
-            file: 'files'
+            file: 'files',
+            calendar: 'calendars'
         };
 
         const dataKey = dataMap[type];
@@ -2034,7 +2469,8 @@ const CustomerDetailModule = {
             meeting: MeetingModule,
             contact: ContactModule,
             stamptax: StampTaxModule,
-            file: FileModule
+            file: FileModule,
+            calendar: CalendarTabModule
         };
 
         const module = moduleMap[type];
@@ -2152,6 +2588,11 @@ const InvoiceModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
+    // Filtre için ek property'ler
+    allData: null,
+    allDataLoading: false,
+    filteredPage: 1,
+    filteredPaginationInfo: null,
     
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
@@ -2162,13 +2603,15 @@ const InvoiceModule = {
 
     async loadList(page = 1) {
         const container = document.getElementById('invoicesTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         try {
             container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
             const response = await NbtApi.get(`/api/invoices?page=${page}&limit=${this.pageSize}`);
             this.data = response.data || [];
             this.paginationInfo = response.pagination || null;
             this.currentPage = page;
+            // Filtre state'lerini temizle
+            this.filteredPaginationInfo = null;
             this.renderTable(this.data);
         } catch (err) {
             container.innerHTML = `<div class="alert alert-danger m-3">${err.message}</div>`;
@@ -2191,16 +2634,37 @@ const InvoiceModule = {
         });
     },
 
-    applyFilters() {
-        let filtered = this.data;
-        
-        // Global arama işlemi
-        if (this.searchQuery) {
-            filtered = filtered.filter(item => 
-                (item.Aciklama || '').toLowerCase().includes(this.searchQuery) ||
-                (item.MusteriUnvan || '').toLowerCase().includes(this.searchQuery)
-            );
+    async applyFilters(page = 1) {
+        const hasFilters = Object.keys(this.columnFilters).length > 0;
+        if (!hasFilters) {
+            this.allData = null;
+            this.filteredPaginationInfo = null;
+            this.loadList(1);
+            return;
         }
+        
+        // Tüm verileri yükle
+        if (!this.allData && !this.allDataLoading) {
+            this.allDataLoading = true;
+            const container = document.getElementById('invoicesTableContainer');
+            if (container) {
+                container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> <small class="text-muted ms-2">Arama yapılıyor...</small></div>';
+            }
+            try {
+                const response = await NbtApi.get('/api/invoices?page=1&limit=10000');
+                this.allData = response.data || [];
+            } catch (err) {
+                this.allData = this.data || [];
+            }
+            this.allDataLoading = false;
+        }
+        
+        if (this.allDataLoading) {
+            setTimeout(() => this.applyFilters(page), 100);
+            return;
+        }
+        
+        let filtered = this.allData || [];
         
         // Kolon filtreleri
         Object.keys(this.columnFilters).forEach(field => {
@@ -2208,26 +2672,33 @@ const InvoiceModule = {
             if (value) {
                 filtered = filtered.filter(item => {
                     let cellValue = item[field];
-                    if (field === 'Tarih' && cellValue) {
-                        cellValue = NbtUtils.formatDate(cellValue);
+                    const isDateField = field === 'Tarih';
+                    if (isDateField) {
+                        return NbtUtils.formatDateForCompare(cellValue) === value;
                     }
-                    if ((field === 'Tutar' || field === 'Kalan') && cellValue !== undefined) {
-                        cellValue = NbtUtils.formatMoney(cellValue, item.DovizCinsi);
-                    }
-                    return (cellValue || '').toString().toLowerCase().includes(value.toLowerCase());
+                    return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
                 });
             }
         });
         
-        this.renderTable(filtered, true);
+        // Pagination hesapla
+        this.filteredPage = page;
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / this.pageSize);
+        const startIndex = (page - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, total);
+        const pageData = filtered.slice(startIndex, endIndex);
+        
+        this.filteredPaginationInfo = { page, limit: this.pageSize, total, totalPages };
+        this.renderTable(pageData, true);
     },
 
     renderTable(data, isFiltered = false) {
         const container = document.getElementById('invoicesTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         const columns = [
             { field: 'MusteriUnvan', label: 'Müşteri' },
-            { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+            { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
             { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.DovizCinsi) },
             { field: 'Kalan', label: 'Kalan', render: (v, row) => {
                 const kalan = parseFloat(v) || 0;
@@ -2240,6 +2711,20 @@ const InvoiceModule = {
         // Header row
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:140px;">İşlem</th>';
+
+        // Filter row
+        const filterRow = columns.map(c => {
+            const currentValue = this.columnFilters[c.field] || '';
+            if (c.isDate) {
+                return `<th class="p-1"><input type="date" class="form-control form-control-sm" data-column-filter="${c.field}" data-table-id="invoices" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+            }
+            return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="invoices" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+        }).join('') + `<th class="p-1 text-center">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="apply-filters" title="Ara"><i class="bi bi-search"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="clear-filters" title="Filtreleri Temizle"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </th>`;
 
         // Data rows
         let rowsHtml = '';
@@ -2272,33 +2757,51 @@ const InvoiceModule = {
 
         container.innerHTML = `
             <div class="table-responsive px-2 py-2">
-                <table class="table table-bordered table-hover table-sm mb-0">
+                <table class="table table-bordered table-hover table-sm mb-0" id="invoicesTable">
                     <thead>
                         <tr>${headers}</tr>
+                        <tr class="bg-white">${filterRow}</tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             </div>`;
 
         // Pagination ekleme
-        if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
+        if (isFiltered && this.filteredPaginationInfo) {
+            const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+            if (totalPages > 1) {
+                container.innerHTML += this.renderFilteredPagination();
+            } else if (total > 0) {
+                container.innerHTML += `<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"><small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${total} kayıt gösteriliyor</small></div>`;
+            }
+        } else if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
             container.innerHTML += this.renderPagination();
         }
 
-        // Bind events
         this.bindTableEvents(container);
     },
 
     bindTableEvents(container) {
         // View buttons
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const id = parseInt(btn.dataset.id);
-                const invoice = this.data.find(i => parseInt(i.Id, 10) === id);
-                if (invoice) {
-                    NbtDetailModal.show('invoice', invoice, null, null);
-                } else {
-                    NbtToast.error('Fatura kaydı bulunamadı');
+                try {
+                    // API'den fatura detayını kalemlerle birlikte al
+                    const invoice = await NbtApi.get(`/api/invoices/${id}`);
+                    if (invoice) {
+                        NbtDetailModal.show('invoice', invoice, null, null);
+                    } else {
+                        NbtToast.error('Fatura kaydı bulunamadı');
+                    }
+                } catch (err) {
+                    // Fallback: local data
+                    const invoice = (this.allData || this.data).find(i => parseInt(i.Id, 10) === id);
+                    if (invoice) {
+                        NbtDetailModal.show('invoice', invoice, null, null);
+                    } else {
+                        NbtToast.error('Fatura kaydı bulunamadı');
+                    }
                 }
             });
         });
@@ -2311,6 +2814,51 @@ const InvoiceModule = {
                 if (!isNaN(newPage) && newPage !== this.currentPage) {
                     this.loadList(newPage);
                 }
+            });
+        });
+
+        // Filtered pagination
+        container.querySelectorAll('[data-filtered-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.filteredPage);
+                if (!isNaN(newPage) && newPage !== this.filteredPage) {
+                    this.applyFilters(newPage);
+                }
+            });
+        });
+
+        // Apply filters button
+        container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    const field = input.dataset.columnFilter;
+                    const value = input.value.trim();
+                    if (value) this.columnFilters[field] = value;
+                });
+                this.applyFilters();
+            });
+        });
+
+        // Enter key for filters
+        container.querySelectorAll('[data-column-filter]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    container.querySelector('[data-action="apply-filters"]')?.click();
+                }
+            });
+        });
+
+        // Clear filters button
+        container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                this.allData = null;
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    input.value = '';
+                });
+                this.loadList(1);
             });
         });
     },
@@ -2342,9 +2890,36 @@ const InvoiceModule = {
         `;
     },
 
+    renderFilteredPagination() {
+        if (!this.filteredPaginationInfo) return '';
+        const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-filtered-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+                <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
+    },
+
     async openModal(id = null) {
         NbtModal.resetForm('invoiceModal');
-        document.getElementById('invoiceModalTitle').textContent = id ? 'Fatura Düzenle' : 'Yeni Fatura';
+        document.getElementById('invoiceModalTitle').innerHTML = id ? '<i class="bi bi-receipt me-2"></i>Fatura Düzenle' : '<i class="bi bi-receipt me-2"></i>Yeni Fatura';
         document.getElementById('invoiceId').value = id || '';
 
         const select = document.getElementById('invoiceMusteriId');
@@ -2362,6 +2937,32 @@ const InvoiceModule = {
         if (dovizSelect) {
             await NbtParams.populateCurrencySelect(dovizSelect);
         }
+
+        // Yeni alanları sıfırla
+        const faturaNoEl = document.getElementById('invoiceFaturaNo');
+        const supheliEl = document.getElementById('invoiceSupheliAlacak');
+        const tevkifatAktifEl = document.getElementById('invoiceTevkifatAktif');
+        const tevkifatOran1El = document.getElementById('invoiceTevkifatOran1');
+        const tevkifatOran2El = document.getElementById('invoiceTevkifatOran2');
+        const takvimAktifEl = document.getElementById('invoiceTakvimAktif');
+        const takvimSureEl = document.getElementById('invoiceTakvimSure');
+        const takvimSureTipiEl = document.getElementById('invoiceTakvimSureTipi');
+        const tevkifatAlani = document.getElementById('tevkifatAlani');
+        const takvimAlani = document.getElementById('takvimAlani');
+
+        if (faturaNoEl) faturaNoEl.value = '';
+        if (supheliEl) supheliEl.checked = false;
+        if (tevkifatAktifEl) tevkifatAktifEl.checked = false;
+        if (tevkifatOran1El) tevkifatOran1El.value = '';
+        if (tevkifatOran2El) tevkifatOran2El.value = '';
+        if (takvimAktifEl) takvimAktifEl.checked = false;
+        if (takvimSureEl) takvimSureEl.value = '';
+        if (takvimSureTipiEl) takvimSureTipiEl.value = 'gun';
+        if (tevkifatAlani) tevkifatAlani.style.display = 'none';
+        if (takvimAlani) takvimAlani.style.display = 'none';
+
+        // Fatura kalemlerini sıfırla
+        this.resetInvoiceItems();
 
         // Müşteri değiştiğinde projeleri yükleme
         select.onchange = async () => {
@@ -2400,9 +3001,38 @@ const InvoiceModule = {
                 await select.onchange();
                 document.getElementById('invoiceProjeId').value = invoice.ProjeId || '';
                 document.getElementById('invoiceTarih').value = invoice.Tarih?.split('T')[0] || '';
-                document.getElementById('invoiceTutar').value = invoice.Tutar || '';
+                document.getElementById('invoiceTutar').value = NbtUtils.formatDecimal(invoice.Tutar) || '';
                 document.getElementById('invoiceDoviz').value = invoice.DovizCinsi || 'TRY';
                 document.getElementById('invoiceAciklama').value = invoice.Aciklama || '';
+                
+                // Yeni alanları doldur
+                if (faturaNoEl && invoice.FaturaNo) faturaNoEl.value = invoice.FaturaNo;
+                if (supheliEl) supheliEl.checked = !!invoice.SupheliAlacak;
+                if (invoice.TevkifatAktif) {
+                    if (tevkifatAktifEl) tevkifatAktifEl.checked = true;
+                    if (tevkifatAlani) tevkifatAlani.style.display = 'block';
+                    if (tevkifatOran1El) tevkifatOran1El.value = NbtUtils.formatDecimal(invoice.TevkifatOran1) || '';
+                    if (tevkifatOran2El) tevkifatOran2El.value = NbtUtils.formatDecimal(invoice.TevkifatOran2) || '';
+                }
+                if (invoice.TakvimAktif) {
+                    if (takvimAktifEl) takvimAktifEl.checked = true;
+                    if (takvimAlani) takvimAlani.style.display = 'block';
+                    if (takvimSureEl) takvimSureEl.value = invoice.TakvimSure || '';
+                    if (takvimSureTipiEl) takvimSureTipiEl.value = invoice.TakvimSureTipi || 'gun';
+                }
+
+                // Fatura kalemlerini API'den yükle (her zaman güncel veri için)
+                try {
+                    const detailResponse = await NbtApi.get(`/api/invoices/${parsedId}`);
+                    if (detailResponse && detailResponse.Kalemler && Array.isArray(detailResponse.Kalemler)) {
+                        this.loadInvoiceItems(detailResponse.Kalemler);
+                    }
+                } catch (err) {
+                    // API hatası durumunda local data'dan yükle
+                    if (invoice.Kalemler && Array.isArray(invoice.Kalemler)) {
+                        this.loadInvoiceItems(invoice.Kalemler);
+                    }
+                }
             } else {
                 NbtToast.error('Fatura kaydı bulunamadı');
                 return;
@@ -2427,7 +3057,17 @@ const InvoiceModule = {
             Tarih: document.getElementById('invoiceTarih').value,
             Tutar: parseFloat(document.getElementById('invoiceTutar').value) || 0,
             DovizCinsi: document.getElementById('invoiceDoviz').value,
-            Aciklama: document.getElementById('invoiceAciklama').value.trim() || null
+            Aciklama: document.getElementById('invoiceAciklama').value.trim() || null,
+            // Yeni alanlar
+            FaturaNo: document.getElementById('invoiceFaturaNo')?.value.trim() || null,
+            SupheliAlacak: document.getElementById('invoiceSupheliAlacak')?.checked ? 1 : 0,
+            TevkifatAktif: document.getElementById('invoiceTevkifatAktif')?.checked ? 1 : 0,
+            TevkifatOran1: parseFloat(document.getElementById('invoiceTevkifatOran1')?.value) || null,
+            TevkifatOran2: parseFloat(document.getElementById('invoiceTevkifatOran2')?.value) || null,
+            TakvimAktif: document.getElementById('invoiceTakvimAktif')?.checked ? 1 : 0,
+            TakvimSure: parseInt(document.getElementById('invoiceTakvimSure')?.value) || null,
+            TakvimSureTipi: document.getElementById('invoiceTakvimSureTipi')?.value || null,
+            Kalemler: this.getInvoiceItems()
         };
 
         NbtModal.clearError('invoiceModal');
@@ -2449,6 +3089,12 @@ const InvoiceModule = {
         if (!data.Tutar || data.Tutar <= 0) {
             NbtModal.showFieldError('invoiceModal', 'invoiceTutar', 'Tutar zorunludur');
             NbtModal.showError('invoiceModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
+        // Takvim aktifse süre zorunlu
+        if (data.TakvimAktif && (!data.TakvimSure || data.TakvimSure <= 0)) {
+            NbtModal.showFieldError('invoiceModal', 'invoiceTakvimSure', 'Takvim süresi zorunludur');
+            NbtModal.showError('invoiceModal', 'Takvim hatırlatması için süre giriniz');
             return;
         }
 
@@ -2475,6 +3121,46 @@ const InvoiceModule = {
         }
     },
 
+    // Fatura kalemleri yardımcı fonksiyonlar - Dinamik yapı
+    resetInvoiceItems() {
+        // Modal'daki UI reset fonksiyonunu çağır
+        if (typeof window.resetInvoiceItemsUI === 'function') {
+            window.resetInvoiceItemsUI();
+        }
+    },
+
+    loadInvoiceItems(kalemler) {
+        // Modal'daki UI load fonksiyonunu çağır
+        if (typeof window.loadInvoiceItemsUI === 'function') {
+            window.loadInvoiceItemsUI(kalemler);
+        }
+    },
+
+    getInvoiceItems() {
+        const kalemler = [];
+        const rows = document.querySelectorAll('#invoiceItemsBody .invoice-item-row');
+        rows.forEach((row, index) => {
+            const miktar = parseFloat(row.querySelector('.item-miktar').value) || 0;
+            const aciklama = row.querySelector('.item-aciklama').value.trim();
+            const kdvOran = parseFloat(row.querySelector('.item-kdv').value) || 0;
+            const birimFiyat = parseFloat(row.querySelector('.item-birimfiyat').value) || 0;
+            const tutar = parseFloat(row.querySelector('.item-tutar').value) || 0;
+            
+            // Sadece dolu kalemleri ekle (en az miktar veya açıklama olmalı)
+            if (miktar > 0 || aciklama || birimFiyat > 0) {
+                kalemler.push({
+                    Sira: index + 1,
+                    Miktar: miktar,
+                    Aciklama: aciklama,
+                    KdvOran: kdvOran,
+                    BirimFiyat: birimFiyat,
+                    Tutar: tutar
+                });
+            }
+        });
+        return kalemler;
+    },
+
     bindEvents() {
         if (this._eventsBound) return;
         this._eventsBound = true;
@@ -2493,6 +3179,11 @@ const PaymentModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
+    // Filtre için ek property'ler
+    allData: null,
+    allDataLoading: false,
+    filteredPage: 1,
+    filteredPaginationInfo: null,
     
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
@@ -2503,13 +3194,14 @@ const PaymentModule = {
 
     async loadList(page = 1) {
         const container = document.getElementById('paymentsTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         try {
             container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
             const response = await NbtApi.get(`/api/payments?page=${page}&limit=${this.pageSize}`);
             this.data = response.data || [];
             this.paginationInfo = response.pagination || null;
             this.currentPage = page;
+            this.filteredPaginationInfo = null;
             this.renderTable(this.data);
         } catch (err) {
             container.innerHTML = `<div class="alert alert-danger m-3">${err.message}</div>`;
@@ -2532,52 +3224,87 @@ const PaymentModule = {
         });
     },
 
-    applyFilters() {
-        let filtered = this.data;
-        
-        // Global arama işlemi
-        if (this.searchQuery) {
-            filtered = filtered.filter(item => 
-                (item.Aciklama || '').toLowerCase().includes(this.searchQuery) ||
-                (item.MusteriUnvan || '').toLowerCase().includes(this.searchQuery)
-            );
+    async applyFilters(page = 1) {
+        const hasFilters = Object.keys(this.columnFilters).length > 0;
+        if (!hasFilters) {
+            this.allData = null;
+            this.filteredPaginationInfo = null;
+            this.loadList(1);
+            return;
         }
         
-        // Kolon filtreleri
+        if (!this.allData && !this.allDataLoading) {
+            this.allDataLoading = true;
+            const container = document.getElementById('paymentsTableContainer');
+            if (container) {
+                container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> <small class="text-muted ms-2">Arama yapılıyor...</small></div>';
+            }
+            try {
+                const response = await NbtApi.get('/api/payments?page=1&limit=10000');
+                this.allData = response.data || [];
+            } catch (err) {
+                this.allData = this.data || [];
+            }
+            this.allDataLoading = false;
+        }
+        
+        if (this.allDataLoading) {
+            setTimeout(() => this.applyFilters(page), 100);
+            return;
+        }
+        
+        let filtered = this.allData || [];
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (value) {
                 filtered = filtered.filter(item => {
                     let cellValue = item[field];
-                    if (field === 'Tarih' && cellValue) {
-                        cellValue = NbtUtils.formatDate(cellValue);
+                    if (field === 'Tarih') {
+                        return NbtUtils.formatDateForCompare(cellValue) === value;
                     }
-                    if (field === 'Tutar' && cellValue !== undefined) {
-                        cellValue = NbtUtils.formatMoney(cellValue);
-                    }
-                    return (cellValue || '').toString().toLowerCase().includes(value.toLowerCase());
+                    return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
                 });
             }
         });
         
-        this.renderTable(filtered, true);
+        this.filteredPage = page;
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / this.pageSize);
+        const startIndex = (page - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, total);
+        const pageData = filtered.slice(startIndex, endIndex);
+        
+        this.filteredPaginationInfo = { page, limit: this.pageSize, total, totalPages };
+        this.renderTable(pageData, true);
     },
 
     renderTable(data, isFiltered = false) {
         const container = document.getElementById('paymentsTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         const columns = [
             { field: 'MusteriUnvan', label: 'Müşteri' },
-            { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+            { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
             { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatMoney(v) },
             { field: 'Aciklama', label: 'Açıklama' }
         ];
 
-        // Header row
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:140px;">İşlem</th>';
 
-        // Data rows
+        const filterRow = columns.map(c => {
+            const currentValue = this.columnFilters[c.field] || '';
+            if (c.isDate) {
+                return `<th class="p-1"><input type="date" class="form-control form-control-sm" data-column-filter="${c.field}" data-table-id="payments" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+            }
+            return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="payments" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+        }).join('') + `<th class="p-1 text-center">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="apply-filters" title="Ara"><i class="bi bi-search"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="clear-filters" title="Filtreleri Temizle"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </th>`;
+
         let rowsHtml = '';
         if (!data || data.length === 0) {
             rowsHtml = `<tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Ödeme bulunamadı</td></tr>`;
@@ -2608,29 +3335,34 @@ const PaymentModule = {
 
         container.innerHTML = `
             <div class="table-responsive px-2 py-2">
-                <table class="table table-bordered table-hover table-sm mb-0">
+                <table class="table table-bordered table-hover table-sm mb-0" id="paymentsTable">
                     <thead>
                         <tr>${headers}</tr>
+                        <tr class="bg-white">${filterRow}</tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             </div>`;
 
-        // Pagination ekleme
-        if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
+        if (isFiltered && this.filteredPaginationInfo) {
+            const { page, totalPages, total } = this.filteredPaginationInfo;
+            if (totalPages > 1) {
+                container.innerHTML += this.renderFilteredPagination();
+            } else if (total > 0) {
+                container.innerHTML += `<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"><small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${total} kayıt gösteriliyor</small></div>`;
+            }
+        } else if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
             container.innerHTML += this.renderPagination();
         }
 
-        // Bind events
         this.bindTableEvents(container);
     },
 
     bindTableEvents(container) {
-        // View buttons
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = parseInt(btn.dataset.id);
-                const payment = this.data.find(p => parseInt(p.Id, 10) === id);
+                const payment = (this.allData || this.data).find(p => parseInt(p.Id, 10) === id);
                 if (payment) {
                     NbtDetailModal.show('payment', payment, null, null);
                 } else {
@@ -2639,7 +3371,6 @@ const PaymentModule = {
             });
         });
 
-        // Pagination
         container.querySelectorAll('[data-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -2647,6 +3378,47 @@ const PaymentModule = {
                 if (!isNaN(newPage) && newPage !== this.currentPage) {
                     this.loadList(newPage);
                 }
+            });
+        });
+
+        container.querySelectorAll('[data-filtered-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.filteredPage);
+                if (!isNaN(newPage) && newPage !== this.filteredPage) {
+                    this.applyFilters(newPage);
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    const field = input.dataset.columnFilter;
+                    const value = input.value.trim();
+                    if (value) this.columnFilters[field] = value;
+                });
+                this.applyFilters();
+            });
+        });
+
+        container.querySelectorAll('[data-column-filter]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    container.querySelector('[data-action="apply-filters"]')?.click();
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                this.allData = null;
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    input.value = '';
+                });
+                this.loadList(1);
             });
         });
     },
@@ -2678,10 +3450,37 @@ const PaymentModule = {
         `;
     },
 
+    renderFilteredPagination() {
+        if (!this.filteredPaginationInfo) return '';
+        const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-filtered-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+                <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
+    },
+
     _musteriChangeHandler: null,
     _invoicesCache: [],
     
-    async loadInvoicesForCustomer(musteriId, editingPaymentId = null) {
+    async loadInvoicesForCustomer(musteriId, editingPayment = null) {
         const faturaSelect = document.getElementById('paymentFaturaId');
         if (!faturaSelect) return;
         
@@ -2696,7 +3495,12 @@ const PaymentModule = {
             
             // Ödenmemiş faturaları filtrele (Kalan > 0)
             // Kalan yoksa Tutar'ı kullan (hiç ödeme yapılmamış faturalar için)
+            // Edit modda: düzenlenen ödemenin faturasını her durumda göster
             faturalar = faturalar.filter(f => {
+                // Edit modda düzenlenen ödemenin faturası her zaman gösterilmeli
+                if (editingPayment && parseInt(f.Id) === parseInt(editingPayment.FaturaId)) {
+                    return true;
+                }
                 const kalan = f.Kalan !== undefined && f.Kalan !== null 
                     ? parseFloat(f.Kalan) 
                     : parseFloat(f.Tutar) || 0;
@@ -2711,9 +3515,15 @@ const PaymentModule = {
             }
             
             faturalar.forEach(f => {
-                const kalan = f.Kalan !== undefined && f.Kalan !== null 
+                let kalan = f.Kalan !== undefined && f.Kalan !== null 
                     ? parseFloat(f.Kalan) 
                     : parseFloat(f.Tutar) || 0;
+                
+                // Edit modda: düzenlenen ödemenin faturasıysa, mevcut ödeme tutarını kalan tutara ekle
+                if (editingPayment && parseInt(f.Id) === parseInt(editingPayment.FaturaId)) {
+                    kalan += parseFloat(editingPayment.Tutar) || 0;
+                }
+                
                 const tutar = parseFloat(f.Tutar) || 0;
                 const label = `FT${f.Id}/${NbtUtils.formatDate(f.Tarih)} - Kalan: ${NbtUtils.formatMoney(kalan, f.DovizCinsi)} / Toplam: ${NbtUtils.formatMoney(tutar, f.DovizCinsi)}`;
                 faturaSelect.innerHTML += `<option value="${f.Id}" data-kalan="${kalan}" data-doviz="${f.DovizCinsi || 'TRY'}">${label}</option>`;
@@ -2757,9 +3567,6 @@ const PaymentModule = {
             await this.loadInvoicesForCustomer(CustomerDetailModule.customerId);
         }
 
-        // Projeleri yükleme
-        await CustomerDetailModule.populateProjectSelect('paymentProjeId');
-
         if (id) {
             const parsedId = parseInt(id, 10);
             let payment = this.data?.find(p => parseInt(p.Id, 10) === parsedId);
@@ -2768,20 +3575,23 @@ const PaymentModule = {
             }
             if (payment) {
                 select.value = payment.MusteriId;
+                // Projeleri yükleme - edit modda seçili projeyi de gönder
+                await CustomerDetailModule.populateProjectSelect('paymentProjeId', payment.ProjeId);
                 document.getElementById('paymentTarih').value = payment.Tarih?.split('T')[0] || '';
-                document.getElementById('paymentTutar').value = payment.Tutar || '';
+                document.getElementById('paymentTutar').value = NbtUtils.formatDecimal(payment.Tutar) || '';
                 document.getElementById('paymentAciklama').value = payment.Aciklama || '';
                 if (faturaSelect && payment.FaturaId) {
-                    this.loadInvoicesForCustomer(payment.MusteriId).then(() => {
-                        setTimeout(() => {
-                            faturaSelect.value = payment.FaturaId;
-                        }, 100);
-                    });
+                    // Edit modda mevcut ödeme bilgisini gönder - kalan tutar hesaplaması için
+                    await this.loadInvoicesForCustomer(payment.MusteriId, payment);
+                    faturaSelect.value = payment.FaturaId;
                 }
             } else {
                 NbtToast.error('Ödeme kaydı bulunamadı');
                 return;
             }
+        } else {
+            // Yeni kayıt için projeleri yükleme
+            await CustomerDetailModule.populateProjectSelect('paymentProjeId');
         }
 
         NbtModal.open('paymentModal');
@@ -2893,23 +3703,25 @@ const MeetingModule = {
             document.getElementById('meetingMusteriId').value = CustomerDetailModule.customerId;
         }
 
-        // Projeleri yükleme
-        await CustomerDetailModule.populateProjectSelect('meetingProjeId');
-
         if (id) {
             const meeting = CustomerDetailModule.data.meetings?.find(m => parseInt(m.Id, 10) === parseInt(id, 10));
             if (meeting) {
                 document.getElementById('meetingMusteriId').value = meeting.MusteriId;
-                document.getElementById('meetingProjeId').value = meeting.ProjeId || '';
-                document.getElementById('meetingProjeId').value = meeting.ProjeId || '';
+                // Projeleri yükleme - edit modda seçili projeyi de gönder
+                await CustomerDetailModule.populateProjectSelect('meetingProjeId', meeting.ProjeId);
                 document.getElementById('meetingTarih').value = meeting.Tarih?.split('T')[0] || '';
                 document.getElementById('meetingKonu').value = meeting.Konu || '';
                 document.getElementById('meetingKisi').value = meeting.Kisi || '';
+                document.getElementById('meetingEposta').value = meeting.Eposta || '';
+                document.getElementById('meetingTelefon').value = meeting.Telefon || '';
                 document.getElementById('meetingNotlar').value = meeting.Notlar || '';
             } else {
                 NbtToast.error('Görüşme kaydı bulunamadı');
                 return;
             }
+        } else {
+            // Yeni kayıt için projeleri yükleme
+            await CustomerDetailModule.populateProjectSelect('meetingProjeId');
         }
 
         NbtModal.open('meetingModal');
@@ -2930,6 +3742,8 @@ const MeetingModule = {
             Tarih: document.getElementById('meetingTarih').value,
             Konu: document.getElementById('meetingKonu').value.trim(),
             Kisi: document.getElementById('meetingKisi').value.trim() || null,
+            Eposta: document.getElementById('meetingEposta').value.trim() || null,
+            Telefon: document.getElementById('meetingTelefon').value.trim() || null,
             Notlar: document.getElementById('meetingNotlar').value.trim() || null
         };
 
@@ -2988,6 +3802,128 @@ const MeetingModule = {
 };
 
 // =============================================
+// TAKVİM TAB MODÜLÜ (CUSTOMER DETAIL TAKVİM TABI)
+// =============================================
+const CalendarTabModule = {
+    _eventsBound: false,
+
+    async openModal(id = null) {
+        NbtModal.resetForm('calendarModal');
+        document.getElementById('calendarModalTitle').textContent = id ? 'Takvim Düzenle' : 'Yeni Takvim Kaydı';
+        document.getElementById('calendarId').value = id || '';
+
+        // Yeni kayıt için müşteri id'sini set et
+        if (CustomerDetailModule.customerId) {
+            document.getElementById('calendarMusteriId').value = CustomerDetailModule.customerId;
+        }
+
+        // Özet karakter sayacı
+        const ozetInput = document.getElementById('calendarOzet');
+        const ozetCount = document.getElementById('calendarOzetCount');
+        if (ozetInput && ozetCount) {
+            ozetInput.oninput = () => {
+                ozetCount.textContent = ozetInput.value.length;
+            };
+        }
+
+        if (id) {
+            const calendar = CustomerDetailModule.data.calendars?.find(c => parseInt(c.Id, 10) === parseInt(id, 10));
+            if (calendar) {
+                document.getElementById('calendarMusteriId').value = calendar.MusteriId;
+                // Projeleri yükleme - edit modda seçili projeyi de gönder
+                await CustomerDetailModule.populateProjectSelect('calendarProjeId', calendar.ProjeId);
+                document.getElementById('calendarBaslangicTarihi').value = calendar.BaslangicTarihi?.split('T')[0] || '';
+                document.getElementById('calendarBitisTarihi').value = calendar.BitisTarihi?.split('T')[0] || '';
+                document.getElementById('calendarOzet').value = calendar.Ozet || '';
+                if (ozetCount) ozetCount.textContent = (calendar.Ozet || '').length;
+            } else {
+                NbtToast.error('Takvim kaydı bulunamadı');
+                return;
+            }
+        } else {
+            // Yeni kayıt için projeleri yükleme
+            await CustomerDetailModule.populateProjectSelect('calendarProjeId');
+        }
+
+        NbtModal.open('calendarModal');
+    },
+
+    async save() {
+        const id = document.getElementById('calendarId').value;
+        
+        let musteriId = parseInt(document.getElementById('calendarMusteriId').value);
+        if (!musteriId || isNaN(musteriId)) {
+            musteriId = CustomerDetailModule.customerId;
+        }
+        
+        const projeIdVal = document.getElementById('calendarProjeId').value;
+        const data = {
+            MusteriId: musteriId,
+            ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
+            BaslangicTarihi: document.getElementById('calendarBaslangicTarihi').value,
+            BitisTarihi: document.getElementById('calendarBitisTarihi').value,
+            Ozet: document.getElementById('calendarOzet').value.trim()
+        };
+
+        NbtModal.clearError('calendarModal');
+        
+        if (!data.MusteriId || isNaN(data.MusteriId)) {
+            NbtModal.showError('calendarModal', 'Müşteri seçilmedi. Lütfen müşteri detay sayfasından işlem yapın.');
+            return;
+        }
+        if (!data.ProjeId) {
+            NbtModal.showFieldError('calendarModal', 'calendarProjeId', 'Proje seçiniz');
+            NbtModal.showError('calendarModal', 'Proje seçimi zorunludur');
+            return;
+        }
+        if (!data.BaslangicTarihi) {
+            NbtModal.showFieldError('calendarModal', 'calendarBaslangicTarihi', 'Başlangıç tarihi zorunludur');
+            NbtModal.showError('calendarModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
+        if (!data.BitisTarihi) {
+            NbtModal.showFieldError('calendarModal', 'calendarBitisTarihi', 'Bitiş tarihi zorunludur');
+            NbtModal.showError('calendarModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
+        if (!data.Ozet) {
+            NbtModal.showFieldError('calendarModal', 'calendarOzet', 'Özet zorunludur');
+            NbtModal.showError('calendarModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
+        if (data.Ozet.length > 255) {
+            NbtModal.showFieldError('calendarModal', 'calendarOzet', 'Özet 255 karakteri geçemez');
+            NbtModal.showError('calendarModal', 'Özet 255 karakteri geçemez');
+            return;
+        }
+
+        NbtModal.setLoading('calendarModal', true);
+        try {
+            if (id) {
+                await NbtApi.put(`/api/takvim/${id}`, data);
+                NbtToast.success('Takvim kaydı güncellendi');
+            } else {
+                await NbtApi.post('/api/takvim', data);
+                NbtToast.success('Takvim kaydı eklendi');
+            }
+            NbtModal.close('calendarModal');
+            await CustomerDetailModule.loadRelatedData('calendars', '/api/takvim');
+            CustomerDetailModule.switchTab('takvim');
+        } catch (err) {
+            NbtModal.showError('calendarModal', err.message);
+        } finally {
+            NbtModal.setLoading('calendarModal', false);
+        }
+    },
+
+    bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
+        document.getElementById('btnSaveCalendar')?.addEventListener('click', () => this.save());
+    }
+};
+
+// =============================================
 // KİŞİ MODÜLÜ (CONTACT)
 // =============================================
 const ContactModule = {
@@ -3003,14 +3939,12 @@ const ContactModule = {
             document.getElementById('contactMusteriId').value = CustomerDetailModule.customerId;
         }
 
-        // Projeleri yükleme
-        await CustomerDetailModule.populateProjectSelect('contactProjeId');
-
         if (id) {
             const contact = CustomerDetailModule.data.contacts?.find(c => parseInt(c.Id, 10) === parseInt(id, 10));
             if (contact) {
                 document.getElementById('contactMusteriId').value = contact.MusteriId;
-                document.getElementById('contactProjeId').value = contact.ProjeId || '';
+                // Projeleri yükleme - edit modda seçili projeyi de gönder
+                await CustomerDetailModule.populateProjectSelect('contactProjeId', contact.ProjeId);
                 document.getElementById('contactAdSoyad').value = contact.AdSoyad || '';
                 document.getElementById('contactUnvan').value = contact.Unvan || '';
                 document.getElementById('contactTelefon').value = contact.Telefon || '';
@@ -3021,6 +3955,9 @@ const ContactModule = {
                 NbtToast.error('Kişi kaydı bulunamadı');
                 return;
             }
+        } else {
+            // Yeni kayıt için projeleri yükleme
+            await CustomerDetailModule.populateProjectSelect('contactProjeId');
         }
 
         NbtModal.open('contactModal');
@@ -3111,9 +4048,6 @@ const StampTaxModule = {
         if (CustomerDetailModule.customerId) {
             document.getElementById('stampTaxMusteriId').value = CustomerDetailModule.customerId;
         }
-
-        // Projeleri yükleme
-        await CustomerDetailModule.populateProjectSelect('stampTaxProjeId');
         
         // Döviz seçeneklerini dinamik yükle
         const dovizSelect = document.getElementById('stampTaxDovizCinsi');
@@ -3125,9 +4059,10 @@ const StampTaxModule = {
             const item = CustomerDetailModule.data.stampTaxes?.find(s => parseInt(s.Id, 10) === parseInt(id, 10));
             if (item) {
                 document.getElementById('stampTaxMusteriId').value = item.MusteriId;
-                document.getElementById('stampTaxProjeId').value = item.ProjeId || '';
+                // Projeleri yükleme - edit modda seçili projeyi de gönder
+                await CustomerDetailModule.populateProjectSelect('stampTaxProjeId', item.ProjeId);
                 document.getElementById('stampTaxTarih').value = item.Tarih?.split('T')[0] || '';
-                document.getElementById('stampTaxTutar').value = item.Tutar || '';
+                document.getElementById('stampTaxTutar').value = NbtUtils.formatDecimal(item.Tutar) || '';
                 document.getElementById('stampTaxDovizCinsi').value = item.DovizCinsi || 'TRY';
                 document.getElementById('stampTaxBelgeNo').value = item.BelgeNo || '';
                 document.getElementById('stampTaxAciklama').value = item.Aciklama || '';
@@ -3140,6 +4075,9 @@ const StampTaxModule = {
                 NbtToast.error('Damga vergisi kaydı bulunamadı');
                 return;
             }
+        } else {
+            // Yeni kayıt için projeleri yükleme
+            await CustomerDetailModule.populateProjectSelect('stampTaxProjeId');
         }
 
         NbtModal.open('stampTaxModal');
@@ -3226,6 +4164,7 @@ const StampTaxModule = {
             if (file || this.removeExistingFile) {
                 const formData = new FormData();
                 formData.append('MusteriId', data.MusteriId);
+                if (data.ProjeId) formData.append('ProjeId', data.ProjeId);
                 formData.append('Tarih', data.Tarih);
                 formData.append('Tutar', data.Tutar);
                 formData.append('DovizCinsi', data.DovizCinsi);
@@ -3326,10 +4265,8 @@ const FileModule = {
                 if (fileData.MusteriId) {
                     document.getElementById('fileMusteriId').value = fileData.MusteriId;
                 }
-                await CustomerDetailModule.populateProjectSelect('fileProjeId');
-                if (fileData.ProjeId) {
-                    document.getElementById('fileProjeId').value = fileData.ProjeId;
-                }
+                // Edit modda seçili projeyi de gönder
+                await CustomerDetailModule.populateProjectSelect('fileProjeId', fileData.ProjeId);
                 document.getElementById('fileAciklama').value = fileData.Aciklama || '';
             }
         } else {
@@ -3483,6 +4420,11 @@ const ProjectModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
+    // Filtre için ek property'ler
+    allData: null,
+    allDataLoading: false,
+    filteredPage: 1,
+    filteredPaginationInfo: null,
     
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
@@ -3493,13 +4435,14 @@ const ProjectModule = {
 
     async loadList(page = 1) {
         const container = document.getElementById('projectsTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         try {
             container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
             const response = await NbtApi.get(`/api/projects?page=${page}&limit=${this.pageSize}`);
             this.data = response.data || [];
             this.paginationInfo = response.pagination || null;
             this.currentPage = page;
+            this.filteredPaginationInfo = null;
             this.renderTable(this.data);
         } catch (err) {
             container.innerHTML = `<div class="alert alert-danger m-3">${err.message}</div>`;
@@ -3522,49 +4465,73 @@ const ProjectModule = {
         });
     },
 
-    applyFilters() {
-        let filtered = this.data;
-        
-        // Global arama işlemi
-        if (this.searchQuery) {
-            filtered = filtered.filter(item => 
-                (item.ProjeAdi || '').toLowerCase().includes(this.searchQuery) ||
-                (item.MusteriUnvan || '').toLowerCase().includes(this.searchQuery)
-            );
+    async applyFilters(page = 1) {
+        const hasFilters = Object.keys(this.columnFilters).length > 0;
+        if (!hasFilters) {
+            this.allData = null;
+            this.filteredPaginationInfo = null;
+            this.loadList(1);
+            return;
         }
         
-        // Kolon filtreleri
+        if (!this.allData && !this.allDataLoading) {
+            this.allDataLoading = true;
+            const container = document.getElementById('projectsTableContainer');
+            if (container) {
+                container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> <small class="text-muted ms-2">Arama yapılıyor...</small></div>';
+            }
+            try {
+                const response = await NbtApi.get('/api/projects?page=1&limit=10000');
+                this.allData = response.data || [];
+            } catch (err) {
+                this.allData = this.data || [];
+            }
+            this.allDataLoading = false;
+        }
+        
+        if (this.allDataLoading) {
+            setTimeout(() => this.applyFilters(page), 100);
+            return;
+        }
+        
+        let filtered = this.allData || [];
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (value) {
                 filtered = filtered.filter(item => {
                     let cellValue = item[field];
-                    if ((field === 'BaslangicTarihi' || field === 'BitisTarihi') && cellValue) {
-                        cellValue = NbtUtils.formatDate(cellValue);
-                    }
-                    if (field === 'Butce' && cellValue) {
-                        cellValue = NbtUtils.formatMoney(cellValue);
+                    if (field === 'BaslangicTarihi' || field === 'BitisTarihi') {
+                        return NbtUtils.formatDateForCompare(cellValue) === value;
                     }
                     if (field === 'Durum') {
                         const statuses = { 1: 'Aktif', 2: 'Tamamlandı', 3: 'İptal' };
                         cellValue = statuses[cellValue] || '';
                     }
-                    return (cellValue || '').toString().toLowerCase().includes(value.toLowerCase());
+                    return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
                 });
             }
         });
         
-        this.renderTable(filtered, true);
+        this.filteredPage = page;
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / this.pageSize);
+        const startIndex = (page - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, total);
+        const pageData = filtered.slice(startIndex, endIndex);
+        
+        this.filteredPaginationInfo = { page, limit: this.pageSize, total, totalPages };
+        this.renderTable(pageData, true);
     },
 
     renderTable(data, isFiltered = false) {
         const container = document.getElementById('projectsTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         const columns = [
             { field: 'MusteriUnvan', label: 'Müşteri' },
             { field: 'ProjeAdi', label: 'Proje Adı' },
-            { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v) },
-            { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v) },
+            { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
+            { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
             { field: 'Butce', label: 'Bütçe', render: v => NbtUtils.formatMoney(v) },
             { field: 'Durum', label: 'Durum', render: v => {
                 const statuses = { 1: ['Aktif', 'success'], 2: ['Tamamlandı', 'info'], 3: ['İptal', 'danger'] };
@@ -3573,11 +4540,22 @@ const ProjectModule = {
             }}
         ];
 
-        // Header row
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:140px;">İşlem</th>';
 
-        // Data rows
+        const filterRow = columns.map(c => {
+            const currentValue = this.columnFilters[c.field] || '';
+            if (c.isDate) {
+                return `<th class="p-1"><input type="date" class="form-control form-control-sm" data-column-filter="${c.field}" data-table-id="projects" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+            }
+            return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="projects" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+        }).join('') + `<th class="p-1 text-center">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="apply-filters" title="Ara"><i class="bi bi-search"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="clear-filters" title="Filtreleri Temizle"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </th>`;
+
         let rowsHtml = '';
         if (!data || data.length === 0) {
             rowsHtml = `<tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Proje bulunamadı</td></tr>`;
@@ -3608,29 +4586,34 @@ const ProjectModule = {
 
         container.innerHTML = `
             <div class="table-responsive px-2 py-2">
-                <table class="table table-bordered table-hover table-sm mb-0">
+                <table class="table table-bordered table-hover table-sm mb-0" id="projectsTable">
                     <thead>
                         <tr>${headers}</tr>
+                        <tr class="bg-white">${filterRow}</tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             </div>`;
 
-        // Pagination ekleme
-        if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
+        if (isFiltered && this.filteredPaginationInfo) {
+            const { page, totalPages, total } = this.filteredPaginationInfo;
+            if (totalPages > 1) {
+                container.innerHTML += this.renderFilteredPagination();
+            } else if (total > 0) {
+                container.innerHTML += `<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"><small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${total} kayıt gösteriliyor</small></div>`;
+            }
+        } else if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
             container.innerHTML += this.renderPagination();
         }
 
-        // Bind events
         this.bindTableEvents(container);
     },
 
     bindTableEvents(container) {
-        // View buttons
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = parseInt(btn.dataset.id);
-                const project = this.data.find(p => parseInt(p.Id, 10) === id);
+                const project = (this.allData || this.data).find(p => parseInt(p.Id, 10) === id);
                 if (project) {
                     NbtDetailModal.show('project', project, null, null);
                 } else {
@@ -3639,7 +4622,6 @@ const ProjectModule = {
             });
         });
 
-        // Pagination
         container.querySelectorAll('[data-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -3647,6 +4629,47 @@ const ProjectModule = {
                 if (!isNaN(newPage) && newPage !== this.currentPage) {
                     this.loadList(newPage);
                 }
+            });
+        });
+
+        container.querySelectorAll('[data-filtered-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.filteredPage);
+                if (!isNaN(newPage) && newPage !== this.filteredPage) {
+                    this.applyFilters(newPage);
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    const field = input.dataset.columnFilter;
+                    const value = input.value.trim();
+                    if (value) this.columnFilters[field] = value;
+                });
+                this.applyFilters();
+            });
+        });
+
+        container.querySelectorAll('[data-column-filter]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    container.querySelector('[data-action="apply-filters"]')?.click();
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                this.allData = null;
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    input.value = '';
+                });
+                this.loadList(1);
             });
         });
     },
@@ -3673,6 +4696,33 @@ const ProjectModule = {
         return `
             <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light" id="projectsPagination">
                 <small class="text-muted">Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
+    },
+
+    renderFilteredPagination() {
+        if (!this.filteredPaginationInfo) return '';
+        const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-filtered-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+                <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
                 <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
             </div>
         `;
@@ -4983,6 +6033,11 @@ const OfferModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
+    // Filtre için ek property'ler
+    allData: null,
+    allDataLoading: false,
+    filteredPage: 1,
+    filteredPaginationInfo: null,
 
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
@@ -4993,13 +6048,14 @@ const OfferModule = {
 
     async loadList(page = 1) {
         const container = document.getElementById('offersTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         try {
             container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
             const response = await NbtApi.get(`/api/offers?page=${page}&limit=${this.pageSize}`);
             this.data = response.data || [];
             this.paginationInfo = response.pagination || null;
             this.currentPage = page;
+            this.filteredPaginationInfo = null;
             this.renderTable(this.data);
         } catch (err) {
             container.innerHTML = `<div class="alert alert-danger m-3">${err.message}</div>`;
@@ -5022,51 +6078,74 @@ const OfferModule = {
         });
     },
 
-    applyFilters() {
-        let filtered = this.data;
-        
-        // Global arama işlemi
-        if (this.searchQuery) {
-            filtered = filtered.filter(item => 
-                (item.TeklifNo || '').toLowerCase().includes(this.searchQuery) ||
-                (item.Konu || '').toLowerCase().includes(this.searchQuery) ||
-                (item.MusteriUnvan || '').toLowerCase().includes(this.searchQuery)
-            );
+    async applyFilters(page = 1) {
+        const hasFilters = Object.keys(this.columnFilters).length > 0;
+        if (!hasFilters) {
+            this.allData = null;
+            this.filteredPaginationInfo = null;
+            this.loadList(1);
+            return;
         }
         
-        // Kolon filtreleri
+        if (!this.allData && !this.allDataLoading) {
+            this.allDataLoading = true;
+            const container = document.getElementById('offersTableContainer');
+            if (container) {
+                container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> <small class="text-muted ms-2">Arama yapılıyor...</small></div>';
+            }
+            try {
+                const response = await NbtApi.get('/api/offers?page=1&limit=10000');
+                this.allData = response.data || [];
+            } catch (err) {
+                this.allData = this.data || [];
+            }
+            this.allDataLoading = false;
+        }
+        
+        if (this.allDataLoading) {
+            setTimeout(() => this.applyFilters(page), 100);
+            return;
+        }
+        
+        let filtered = this.allData || [];
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (value) {
                 filtered = filtered.filter(item => {
                     let cellValue = item[field];
-                    if (field === 'TeklifTarihi' && cellValue) {
-                        cellValue = NbtUtils.formatDate(cellValue);
-                    }
-                    if (field === 'Tutar' && cellValue !== undefined) {
-                        cellValue = NbtUtils.formatMoney(cellValue, item.ParaBirimi);
+                    if (field === 'TeklifTarihi') {
+                        return NbtUtils.formatDateForCompare(cellValue) === value;
                     }
                     if (field === 'Durum') {
                         const statuses = { 0: 'Taslak', 1: 'Gönderildi', 2: 'Onaylandı', 3: 'Reddedildi' };
                         cellValue = statuses[cellValue] || '';
                     }
-                    return (cellValue || '').toString().toLowerCase().includes(value.toLowerCase());
+                    return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
                 });
             }
         });
         
-        this.renderTable(filtered, true);
+        this.filteredPage = page;
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / this.pageSize);
+        const startIndex = (page - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, total);
+        const pageData = filtered.slice(startIndex, endIndex);
+        
+        this.filteredPaginationInfo = { page, limit: this.pageSize, total, totalPages };
+        this.renderTable(pageData, true);
     },
 
     renderTable(data, isFiltered = false) {
         const container = document.getElementById('offersTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         const columns = [
             { field: 'MusteriUnvan', label: 'Müşteri' },
             { field: 'TeklifNo', label: 'Teklif No' },
             { field: 'Konu', label: 'Konu' },
             { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
-            { field: 'TeklifTarihi', label: 'Tarih', render: v => NbtUtils.formatDate(v) },
+            { field: 'TeklifTarihi', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
             { field: 'Durum', label: 'Durum', render: v => {
                 const statuses = { 0: ['Taslak', 'secondary'], 1: ['Gönderildi', 'warning'], 2: ['Onaylandı', 'success'], 3: ['Reddedildi', 'danger'] };
                 const s = statuses[v] || ['Bilinmiyor', 'secondary'];
@@ -5074,11 +6153,22 @@ const OfferModule = {
             }}
         ];
 
-        // Header row
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:140px;">İşlem</th>';
 
-        // Data rows
+        const filterRow = columns.map(c => {
+            const currentValue = this.columnFilters[c.field] || '';
+            if (c.isDate) {
+                return `<th class="p-1"><input type="date" class="form-control form-control-sm" data-column-filter="${c.field}" data-table-id="offers" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+            }
+            return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="offers" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+        }).join('') + `<th class="p-1 text-center">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="apply-filters" title="Ara"><i class="bi bi-search"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="clear-filters" title="Filtreleri Temizle"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </th>`;
+
         let rowsHtml = '';
         if (!data || data.length === 0) {
             rowsHtml = `<tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Teklif bulunamadı</td></tr>`;
@@ -5109,29 +6199,34 @@ const OfferModule = {
 
         container.innerHTML = `
             <div class="table-responsive px-2 py-2">
-                <table class="table table-bordered table-hover table-sm mb-0">
+                <table class="table table-bordered table-hover table-sm mb-0" id="offersTable">
                     <thead>
                         <tr>${headers}</tr>
+                        <tr class="bg-white">${filterRow}</tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             </div>`;
 
-        // Pagination ekleme
-        if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
+        if (isFiltered && this.filteredPaginationInfo) {
+            const { page, totalPages, total } = this.filteredPaginationInfo;
+            if (totalPages > 1) {
+                container.innerHTML += this.renderFilteredPagination();
+            } else if (total > 0) {
+                container.innerHTML += `<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"><small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${total} kayıt gösteriliyor</small></div>`;
+            }
+        } else if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
             container.innerHTML += this.renderPagination();
         }
 
-        // Bind events
         this.bindTableEvents(container);
     },
 
     bindTableEvents(container) {
-        // View buttons
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = parseInt(btn.dataset.id);
-                const offer = this.data.find(o => parseInt(o.Id, 10) === id);
+                const offer = (this.allData || this.data).find(o => parseInt(o.Id, 10) === id);
                 if (offer) {
                     NbtDetailModal.show('offer', offer, null, null);
                 } else {
@@ -5140,7 +6235,6 @@ const OfferModule = {
             });
         });
 
-        // Pagination
         container.querySelectorAll('[data-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -5148,6 +6242,47 @@ const OfferModule = {
                 if (!isNaN(newPage) && newPage !== this.currentPage) {
                     this.loadList(newPage);
                 }
+            });
+        });
+
+        container.querySelectorAll('[data-filtered-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.filteredPage);
+                if (!isNaN(newPage) && newPage !== this.filteredPage) {
+                    this.applyFilters(newPage);
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    const field = input.dataset.columnFilter;
+                    const value = input.value.trim();
+                    if (value) this.columnFilters[field] = value;
+                });
+                this.applyFilters();
+            });
+        });
+
+        container.querySelectorAll('[data-column-filter]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    container.querySelector('[data-action="apply-filters"]')?.click();
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                this.allData = null;
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    input.value = '';
+                });
+                this.loadList(1);
             });
         });
     },
@@ -5174,6 +6309,33 @@ const OfferModule = {
         return `
             <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light" id="offersPagination">
                 <small class="text-muted">Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
+    },
+
+    renderFilteredPagination() {
+        if (!this.filteredPaginationInfo) return '';
+        const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-filtered-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+                <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
                 <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
             </div>
         `;
@@ -5236,7 +6398,7 @@ const OfferModule = {
                 document.getElementById('offerProjeId').value = offer.ProjeId || '';
                 document.getElementById('offerNo').value = offer.TeklifNo || '';
                 document.getElementById('offerSubject').value = offer.Konu || '';
-                document.getElementById('offerAmount').value = offer.Tutar || '';
+                document.getElementById('offerAmount').value = NbtUtils.formatDecimal(offer.Tutar) || '';
                 document.getElementById('offerCurrency').value = offer.ParaBirimi || NbtParams.getDefaultCurrency();
                 document.getElementById('offerDate').value = offer.TeklifTarihi?.split('T')[0] || '';
                 document.getElementById('offerValidDate').value = offer.GecerlilikTarihi?.split('T')[0] || '';
@@ -5287,6 +6449,21 @@ const OfferModule = {
             NbtModal.showError('offerModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
+        if (!data.Tutar || data.Tutar <= 0) {
+            NbtModal.showFieldError('offerModal', 'offerAmount', 'Tutar zorunludur');
+            NbtModal.showError('offerModal', 'Lütfen tutar giriniz');
+            return;
+        }
+        if (!data.TeklifTarihi) {
+            NbtModal.showFieldError('offerModal', 'offerDate', 'Tarih zorunludur');
+            NbtModal.showError('offerModal', 'Lütfen tarih seçiniz');
+            return;
+        }
+        if (!data.GecerlilikTarihi) {
+            NbtModal.showFieldError('offerModal', 'offerValidDate', 'Geçerlilik tarihi zorunludur');
+            NbtModal.showError('offerModal', 'Lütfen geçerlilik tarihi seçiniz');
+            return;
+        }
 
         NbtModal.setLoading('offerModal', true);
         try {
@@ -5329,6 +6506,11 @@ const ContractModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
+    // Filtre için ek property'ler
+    allData: null,
+    allDataLoading: false,
+    filteredPage: 1,
+    filteredPaginationInfo: null,
 
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
@@ -5339,13 +6521,14 @@ const ContractModule = {
 
     async loadList(page = 1) {
         const container = document.getElementById('contractsTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         try {
             container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
             const response = await NbtApi.get(`/api/contracts?page=${page}&limit=${this.pageSize}`);
             this.data = response.data || [];
             this.paginationInfo = response.pagination || null;
             this.currentPage = page;
+            this.filteredPaginationInfo = null;
             this.renderTable(this.data);
         } catch (err) {
             container.innerHTML = `<div class="alert alert-danger m-3">${err.message}</div>`;
@@ -5368,49 +6551,73 @@ const ContractModule = {
         });
     },
 
-    applyFilters() {
-        let filtered = this.data;
-        
-        // Global arama işlemi
-        if (this.searchQuery) {
-            filtered = filtered.filter(item => 
-                (item.SozlesmeNo || '').toLowerCase().includes(this.searchQuery) ||
-                (item.MusteriUnvan || '').toLowerCase().includes(this.searchQuery)
-            );
+    async applyFilters(page = 1) {
+        const hasFilters = Object.keys(this.columnFilters).length > 0;
+        if (!hasFilters) {
+            this.allData = null;
+            this.filteredPaginationInfo = null;
+            this.loadList(1);
+            return;
         }
         
-        // Kolon filtreleri
+        if (!this.allData && !this.allDataLoading) {
+            this.allDataLoading = true;
+            const container = document.getElementById('contractsTableContainer');
+            if (container) {
+                container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> <small class="text-muted ms-2">Arama yapılıyor...</small></div>';
+            }
+            try {
+                const response = await NbtApi.get('/api/contracts?page=1&limit=10000');
+                this.allData = response.data || [];
+            } catch (err) {
+                this.allData = this.data || [];
+            }
+            this.allDataLoading = false;
+        }
+        
+        if (this.allDataLoading) {
+            setTimeout(() => this.applyFilters(page), 100);
+            return;
+        }
+        
+        let filtered = this.allData || [];
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (value) {
                 filtered = filtered.filter(item => {
                     let cellValue = item[field];
-                    if ((field === 'BaslangicTarihi' || field === 'BitisTarihi') && cellValue) {
-                        cellValue = NbtUtils.formatDate(cellValue);
-                    }
-                    if (field === 'Tutar' && cellValue !== undefined) {
-                        cellValue = NbtUtils.formatMoney(cellValue, item.ParaBirimi);
+                    if (field === 'BaslangicTarihi' || field === 'BitisTarihi') {
+                        return NbtUtils.formatDateForCompare(cellValue) === value;
                     }
                     if (field === 'Durum') {
                         const statuses = { 1: 'Aktif', 2: 'Pasif', 3: 'İptal' };
                         cellValue = statuses[cellValue] || '';
                     }
-                    return (cellValue || '').toString().toLowerCase().includes(value.toLowerCase());
+                    return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
                 });
             }
         });
         
-        this.renderTable(filtered, true);
+        this.filteredPage = page;
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / this.pageSize);
+        const startIndex = (page - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, total);
+        const pageData = filtered.slice(startIndex, endIndex);
+        
+        this.filteredPaginationInfo = { page, limit: this.pageSize, total, totalPages };
+        this.renderTable(pageData, true);
     },
 
     renderTable(data, isFiltered = false) {
         const container = document.getElementById('contractsTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         const columns = [
             { field: 'MusteriUnvan', label: 'Müşteri' },
             { field: 'SozlesmeNo', label: 'Sözleşme No' },
-            { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v) },
-            { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v) },
+            { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
+            { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
             { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
             { field: 'Durum', label: 'Durum', render: v => {
                 const statuses = { 1: ['Aktif', 'success'], 2: ['Pasif', 'secondary'], 3: ['İptal', 'danger'] };
@@ -5419,11 +6626,22 @@ const ContractModule = {
             }}
         ];
 
-        // Header row
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:140px;">İşlem</th>';
 
-        // Data rows
+        const filterRow = columns.map(c => {
+            const currentValue = this.columnFilters[c.field] || '';
+            if (c.isDate) {
+                return `<th class="p-1"><input type="date" class="form-control form-control-sm" data-column-filter="${c.field}" data-table-id="contracts" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+            }
+            return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="contracts" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+        }).join('') + `<th class="p-1 text-center">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="apply-filters" title="Ara"><i class="bi bi-search"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="clear-filters" title="Filtreleri Temizle"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </th>`;
+
         let rowsHtml = '';
         if (!data || data.length === 0) {
             rowsHtml = `<tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Sözleşme bulunamadı</td></tr>`;
@@ -5454,29 +6672,34 @@ const ContractModule = {
 
         container.innerHTML = `
             <div class="table-responsive px-2 py-2">
-                <table class="table table-bordered table-hover table-sm mb-0">
+                <table class="table table-bordered table-hover table-sm mb-0" id="contractsTable">
                     <thead>
                         <tr>${headers}</tr>
+                        <tr class="bg-white">${filterRow}</tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             </div>`;
 
-        // Pagination ekleme
-        if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
+        if (isFiltered && this.filteredPaginationInfo) {
+            const { page, totalPages, total } = this.filteredPaginationInfo;
+            if (totalPages > 1) {
+                container.innerHTML += this.renderFilteredPagination();
+            } else if (total > 0) {
+                container.innerHTML += `<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"><small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${total} kayıt gösteriliyor</small></div>`;
+            }
+        } else if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
             container.innerHTML += this.renderPagination();
         }
 
-        // Bind events
         this.bindTableEvents(container);
     },
 
     bindTableEvents(container) {
-        // View buttons
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = parseInt(btn.dataset.id);
-                const contract = this.data.find(c => parseInt(c.Id, 10) === id);
+                const contract = (this.allData || this.data).find(c => parseInt(c.Id, 10) === id);
                 if (contract) {
                     NbtDetailModal.show('contract', contract, null, null);
                 } else {
@@ -5485,7 +6708,6 @@ const ContractModule = {
             });
         });
 
-        // Pagination
         container.querySelectorAll('[data-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -5493,6 +6715,47 @@ const ContractModule = {
                 if (!isNaN(newPage) && newPage !== this.currentPage) {
                     this.loadList(newPage);
                 }
+            });
+        });
+
+        container.querySelectorAll('[data-filtered-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.filteredPage);
+                if (!isNaN(newPage) && newPage !== this.filteredPage) {
+                    this.applyFilters(newPage);
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    const field = input.dataset.columnFilter;
+                    const value = input.value.trim();
+                    if (value) this.columnFilters[field] = value;
+                });
+                this.applyFilters();
+            });
+        });
+
+        container.querySelectorAll('[data-column-filter]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    container.querySelector('[data-action="apply-filters"]')?.click();
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                this.allData = null;
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    input.value = '';
+                });
+                this.loadList(1);
             });
         });
     },
@@ -5519,6 +6782,33 @@ const ContractModule = {
         return `
             <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light" id="contractsPagination">
                 <small class="text-muted">Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
+    },
+
+    renderFilteredPagination() {
+        if (!this.filteredPaginationInfo) return '';
+        const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-filtered-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+                <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
                 <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
             </div>
         `;
@@ -5579,10 +6869,9 @@ const ContractModule = {
                 // Projeleri yükleme ve seçili projeyi ayarlama
                 await select.onchange();
                 document.getElementById('contractProjeId').value = contract.ProjeId || '';
-                document.getElementById('contractNo').value = contract.SozlesmeNo || '';
                 document.getElementById('contractStart').value = contract.BaslangicTarihi?.split('T')[0] || '';
                 document.getElementById('contractEnd').value = contract.BitisTarihi?.split('T')[0] || '';
-                document.getElementById('contractAmount').value = contract.Tutar || '';
+                document.getElementById('contractAmount').value = NbtUtils.formatDecimal(contract.Tutar) || '';
                 document.getElementById('contractCurrency').value = contract.ParaBirimi || NbtParams.getDefaultCurrency();
                 document.getElementById('contractStatus').value = contract.Durum ?? '';
             } else {
@@ -5606,7 +6895,6 @@ const ContractModule = {
         const data = {
             MusteriId: musteriId,
             ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
-            SozlesmeNo: document.getElementById('contractNo').value.trim(),
             BaslangicTarihi: document.getElementById('contractStart').value || null,
             BitisTarihi: document.getElementById('contractEnd').value || null,
             Tutar: parseFloat(document.getElementById('contractAmount').value) || 0,
@@ -5625,9 +6913,9 @@ const ContractModule = {
             NbtModal.showError('contractModal', 'Proje seçimi zorunludur');
             return;
         }
-        if (!data.SozlesmeNo) {
-            NbtModal.showFieldError('contractModal', 'contractNo', 'Sözleşme No zorunludur');
-            NbtModal.showError('contractModal', 'Lütfen zorunlu alanları doldurun');
+        if (!data.Tutar || data.Tutar <= 0) {
+            NbtModal.showFieldError('contractModal', 'contractAmount', 'Tutar zorunludur');
+            NbtModal.showError('contractModal', 'Tutar 0\'dan büyük olmalıdır');
             return;
         }
 
@@ -5672,6 +6960,14 @@ const GuaranteeModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
+    // Filtre için ek property'ler
+    allData: null,
+    allDataLoading: false,
+    filteredPage: 1,
+    filteredPaginationInfo: null,
+    // PDF dosya işlemleri için
+    selectedFile: null,
+    removeExistingFile: false,
 
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
@@ -5682,13 +6978,14 @@ const GuaranteeModule = {
 
     async loadList(page = 1) {
         const container = document.getElementById('guaranteesTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         try {
             container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
             const response = await NbtApi.get(`/api/guarantees?page=${page}&limit=${this.pageSize}`);
             this.data = response.data || [];
             this.paginationInfo = response.pagination || null;
             this.currentPage = page;
+            this.filteredPaginationInfo = null;
             this.renderTable(this.data);
         } catch (err) {
             container.innerHTML = `<div class="alert alert-danger m-3">${err.message}</div>`;
@@ -5711,70 +7008,106 @@ const GuaranteeModule = {
         });
     },
 
-    applyFilters() {
-        let filtered = [...this.data];
-        
-        // Global search
-        if (this.searchQuery) {
-            filtered = filtered.filter(item =>
-                (item.BelgeNo || '').toLowerCase().includes(this.searchQuery) ||
-                (item.Tur || '').toLowerCase().includes(this.searchQuery) ||
-                (item.MusteriUnvan || '').toLowerCase().includes(this.searchQuery) ||
-                (item.BankaAdi || '').toLowerCase().includes(this.searchQuery)
-            );
+    async applyFilters(page = 1) {
+        const hasFilters = Object.keys(this.columnFilters).length > 0;
+        if (!hasFilters) {
+            this.allData = null;
+            this.filteredPaginationInfo = null;
+            this.loadList(1);
+            return;
         }
         
-        // Column filters
-        Object.entries(this.columnFilters).forEach(([field, value]) => {
-            if (!value) return;
-            const lowerValue = value.toLowerCase();
-            filtered = filtered.filter(item => {
-                if (field === 'Durum') {
-                    const statuses = { 1: 'Bekliyor', 2: 'İade Edildi', 3: 'Tahsil Edildi', 4: 'Yandı' };
-                    return (statuses[item.Durum] || '').toLowerCase().includes(lowerValue);
-                }
-                if (field === 'Tutar') {
-                    const formatted = NbtUtils.formatMoney(item.Tutar, item.ParaBirimi);
-                    return formatted.toLowerCase().includes(lowerValue);
-                }
-                if (field === 'VadeTarihi') {
-                    return NbtUtils.formatDate(item[field]).toLowerCase().includes(lowerValue);
-                }
-                return (item[field] || '').toString().toLowerCase().includes(lowerValue);
-            });
+        if (!this.allData && !this.allDataLoading) {
+            this.allDataLoading = true;
+            const container = document.getElementById('guaranteesTableContainer');
+            if (container) {
+                container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> <small class="text-muted ms-2">Arama yapılıyor...</small></div>';
+            }
+            try {
+                const response = await NbtApi.get('/api/guarantees?page=1&limit=10000');
+                this.allData = response.data || [];
+            } catch (err) {
+                this.allData = this.data || [];
+            }
+            this.allDataLoading = false;
+        }
+        
+        if (this.allDataLoading) {
+            setTimeout(() => this.applyFilters(page), 100);
+            return;
+        }
+        
+        let filtered = this.allData || [];
+        
+        Object.keys(this.columnFilters).forEach(field => {
+            const value = this.columnFilters[field];
+            if (value) {
+                filtered = filtered.filter(item => {
+                    let cellValue = item[field];
+                    if (field === 'VadeTarihi') {
+                        return NbtUtils.formatDateForCompare(cellValue) === value;
+                    }
+                    if (field === 'Durum') {
+                        const statuses = { 1: 'Bekliyor', 2: 'İade Edildi', 3: 'Tahsil Edildi', 4: 'Yandı' };
+                        cellValue = statuses[cellValue] || '';
+                    }
+                    return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
+                });
+            }
         });
         
-        this.renderTable(filtered, true);
+        this.filteredPage = page;
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / this.pageSize);
+        const startIndex = (page - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, total);
+        const pageData = filtered.slice(startIndex, endIndex);
+        
+        this.filteredPaginationInfo = { page, limit: this.pageSize, total, totalPages };
+        this.renderTable(pageData, true);
     },
 
     renderTable(data, isFiltered = false) {
         const container = document.getElementById('guaranteesTableContainer');
-        if (!container) return; // Standalone sayfa değilse çık
+        if (!container) return;
         const statuses = { 1: ['Bekliyor', 'warning'], 2: ['İade Edildi', 'info'], 3: ['Tahsil Edildi', 'success'], 4: ['Yandı', 'danger'] };
         
-        let html = `
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Müşteri</th>
-                            <th>Belge No</th>
-                            <th>Tür</th>
-                            <th>Tutar</th>
-                            <th>Banka</th>
-                            <th>Vade</th>
-                            <th>Durum</th>
-                            <th style="width:100px">İşlem</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-        
-        if (data.length === 0) {
-            html += '<tr><td colspan="8" class="text-center text-muted py-4">Teminat bulunamadı</td></tr>';
+        const columns = [
+            { field: 'MusteriUnvan', label: 'Müşteri' },
+            { field: 'BelgeNo', label: 'Belge No' },
+            { field: 'Tur', label: 'Tür' },
+            { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
+            { field: 'BankaAdi', label: 'Banka' },
+            { field: 'VadeTarihi', label: 'Vade', render: v => NbtUtils.formatDate(v), isDate: true },
+            { field: 'Durum', label: 'Durum', render: v => {
+                const s = statuses[v] || ['Bilinmiyor', 'secondary'];
+                return `<span class="badge bg-${s[1]}">${s[0]}</span>`;
+            }}
+        ];
+
+        const headers = columns.map(c => `<th class="bg-light">${c.label}</th>`).join('') + 
+            '<th class="bg-light text-center" style="width:100px">İşlem</th>';
+
+        const filterRow = columns.map(c => {
+            const currentValue = this.columnFilters[c.field] || '';
+            if (c.isDate) {
+                return `<th class="p-1"><input type="date" class="form-control form-control-sm" data-column-filter="${c.field}" data-table-id="guarantees" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+            }
+            return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="guarantees" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+        }).join('') + `<th class="p-1 text-center">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="apply-filters" title="Ara"><i class="bi bi-search"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="clear-filters" title="Filtreleri Temizle"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </th>`;
+
+        let rowsHtml = '';
+        if (!data || data.length === 0) {
+            rowsHtml = '<tr><td colspan="8" class="text-center text-muted py-4">Teminat bulunamadı</td></tr>';
         } else {
-            data.forEach(row => {
+            rowsHtml = data.map(row => {
                 const s = statuses[row.Durum] || ['Bilinmiyor', 'secondary'];
-                html += `
+                return `
                     <tr>
                         <td>${NbtUtils.escapeHtml(row.MusteriUnvan || '')}</td>
                         <td>${NbtUtils.escapeHtml(row.BelgeNo || '')}</td>
@@ -5790,26 +7123,41 @@ const GuaranteeModule = {
                             </div>
                         </td>
                     </tr>`;
-            });
+            }).join('');
         }
         
-        html += '</tbody></table></div>';
-        
-        // Pagination
-        if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
-            html += this.renderPagination();
-        }
+        let html = `
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle mb-0" id="guaranteesTable">
+                    <thead class="table-light">
+                        <tr>${headers}</tr>
+                        <tr class="bg-white">${filterRow}</tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>`;
         
         container.innerHTML = html;
+
+        if (isFiltered && this.filteredPaginationInfo) {
+            const { page, totalPages, total } = this.filteredPaginationInfo;
+            if (totalPages > 1) {
+                container.innerHTML += this.renderFilteredPagination();
+            } else if (total > 0) {
+                container.innerHTML += `<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"><small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${total} kayıt gösteriliyor</small></div>`;
+            }
+        } else if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
+            container.innerHTML += this.renderPagination();
+        }
+
         this.bindTableEvents(container);
     },
 
     bindTableEvents(container) {
-        // View buttons
         container.querySelectorAll('.btn-view').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = parseInt(btn.dataset.id, 10);
-                const guarantee = this.data.find(g => parseInt(g.Id, 10) === id);
+                const guarantee = (this.allData || this.data).find(g => parseInt(g.Id, 10) === id);
                 if (guarantee) {
                     NbtDetailModal.show('guarantee', guarantee, null, null);
                 } else {
@@ -5818,7 +7166,6 @@ const GuaranteeModule = {
             });
         });
         
-        // Pagination
         container.querySelectorAll('[data-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -5826,6 +7173,47 @@ const GuaranteeModule = {
                 if (!isNaN(newPage) && newPage !== this.currentPage) {
                     this.loadList(newPage);
                 }
+            });
+        });
+
+        container.querySelectorAll('[data-filtered-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.filteredPage);
+                if (!isNaN(newPage) && newPage !== this.filteredPage) {
+                    this.applyFilters(newPage);
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    const field = input.dataset.columnFilter;
+                    const value = input.value.trim();
+                    if (value) this.columnFilters[field] = value;
+                });
+                this.applyFilters();
+            });
+        });
+
+        container.querySelectorAll('[data-column-filter]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    container.querySelector('[data-action="apply-filters"]')?.click();
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                this.allData = null;
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    input.value = '';
+                });
+                this.loadList(1);
             });
         });
     },
@@ -5857,10 +7245,43 @@ const GuaranteeModule = {
         `;
     },
 
+    renderFilteredPagination() {
+        if (!this.filteredPaginationInfo) return '';
+        const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-filtered-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+                <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
+    },
+
     async openModal(id = null) {
         NbtModal.resetForm('guaranteeModal');
         document.getElementById('guaranteeModalTitle').textContent = id ? 'Teminat Düzenle' : 'Yeni Teminat';
         document.getElementById('guaranteeId').value = id || '';
+        
+        // PDF dosya değişkenlerini sıfırla
+        this.selectedFile = null;
+        this.removeExistingFile = false;
+        document.getElementById('guaranteeDosya').value = '';
+        document.getElementById('guaranteeCurrentFile')?.classList.add('d-none');
 
         const select = document.getElementById('guaranteeMusteriId');
         select.innerHTML = '<option value="">Seçiniz...</option>';
@@ -5915,10 +7336,16 @@ const GuaranteeModule = {
                 document.getElementById('guaranteeNo').value = guarantee.BelgeNo || '';
                 document.getElementById('guaranteeType').value = guarantee.Tur || 'Nakit';
                 document.getElementById('guaranteeBank').value = guarantee.BankaAdi || '';
-                document.getElementById('guaranteeAmount').value = guarantee.Tutar || '';
+                document.getElementById('guaranteeAmount').value = NbtUtils.formatDecimal(guarantee.Tutar) || '';
                 document.getElementById('guaranteeCurrency').value = guarantee.ParaBirimi || NbtParams.getDefaultCurrency();
                 document.getElementById('guaranteeDate').value = guarantee.VadeTarihi?.split('T')[0] || '';
                 document.getElementById('guaranteeStatus').value = guarantee.Durum ?? '';
+                
+                // Mevcut dosya varsa göster
+                if (guarantee.DosyaAdi) {
+                    document.getElementById('guaranteeCurrentFileName').textContent = guarantee.DosyaAdi;
+                    document.getElementById('guaranteeCurrentFile')?.classList.remove('d-none');
+                }
             } else {
                 NbtToast.error('Teminat kaydı bulunamadı');
                 return;
@@ -5926,6 +7353,26 @@ const GuaranteeModule = {
         }
 
         NbtModal.open('guaranteeModal');
+    },
+    
+    validatePdfFile(file) {
+        const errors = [];
+        
+        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+            errors.push('Sadece PDF dosyası yükleyebilirsiniz.');
+        }
+        
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            errors.push(`Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
+        }
+        
+        if (file.size === 0) {
+            errors.push('Dosya boş olamaz.');
+        }
+        
+        return errors;
     },
 
     async save() {
@@ -5965,16 +7412,69 @@ const GuaranteeModule = {
             NbtModal.showError('guaranteeModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
+        
+        // PDF dosya kontrolü
+        const fileInput = document.getElementById('guaranteeDosya');
+        const file = fileInput?.files?.[0];
+        if (file) {
+            const fileErrors = this.validatePdfFile(file);
+            if (fileErrors.length > 0) {
+                fileInput.classList.add('is-invalid');
+                document.getElementById('guaranteeDosyaError').textContent = fileErrors.join(' ');
+                NbtModal.showError('guaranteeModal', fileErrors.join(' '));
+                return;
+            }
+        }
 
         NbtModal.setLoading('guaranteeModal', true);
         try {
-            if (id) {
-                await NbtApi.put(`/api/guarantees/${id}`, data);
-                NbtToast.success('Teminat güncellendi');
+            let result;
+            
+            if (file || this.removeExistingFile) {
+                const formData = new FormData();
+                formData.append('MusteriId', data.MusteriId);
+                if (data.ProjeId) formData.append('ProjeId', data.ProjeId);
+                if (data.BelgeNo) formData.append('BelgeNo', data.BelgeNo);
+                formData.append('Tur', data.Tur);
+                if (data.BankaAdi) formData.append('BankaAdi', data.BankaAdi);
+                formData.append('Tutar', data.Tutar);
+                formData.append('ParaBirimi', data.ParaBirimi);
+                if (data.VadeTarihi) formData.append('VadeTarihi', data.VadeTarihi);
+                formData.append('Durum', data.Durum);
+                if (file) formData.append('file', file);
+                if (this.removeExistingFile) formData.append('removeFile', '1');
+                
+                const url = id ? `/api/guarantees/${id}` : '/api/guarantees';
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Authorization': 'Bearer ' + NbtUtils.getToken(),
+                        'X-Tab-Id': NbtUtils.getTabId()
+                    },
+                    body: formData
+                });
+                
+                const text = await response.text();
+                try {
+                    result = JSON.parse(text);
+                } catch (parseErr) {
+                    throw new Error('Sunucu hatası: Geçersiz yanıt');
+                }
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'İşlem başarısız');
+                }
             } else {
-                await NbtApi.post('/api/guarantees', data);
-                NbtToast.success('Teminat eklendi');
+                if (id) {
+                    result = await NbtApi.put(`/api/guarantees/${id}`, data);
+                } else {
+                    result = await NbtApi.post('/api/guarantees', data);
+                }
             }
+            
+            NbtToast.success(id ? 'Teminat güncellendi' : 'Teminat eklendi');
             NbtModal.close('guaranteeModal');
             await this.loadList();
             
@@ -5993,6 +7493,27 @@ const GuaranteeModule = {
         if (this._eventsBound) return;
         this._eventsBound = true;
         document.getElementById('btnSaveGuarantee')?.addEventListener('click', () => this.save());
+        
+        // PDF dosya kaldırma butonu
+        document.getElementById('btnRemoveGuaranteeFile')?.addEventListener('click', () => {
+            this.removeExistingFile = true;
+            document.getElementById('guaranteeCurrentFile')?.classList.add('d-none');
+        });
+        
+        // Dosya seçimi
+        document.getElementById('guaranteeDosya')?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+                const errors = this.validatePdfFile(file);
+                if (errors.length > 0) {
+                    e.target.classList.add('is-invalid');
+                    document.getElementById('guaranteeDosyaError').textContent = errors.join(' ');
+                } else {
+                    e.target.classList.remove('is-invalid');
+                    document.getElementById('guaranteeDosyaError').textContent = '';
+                }
+            }
+        });
     }
 };
 
@@ -6232,6 +7753,7 @@ function setupGlobalEvents() {
     ContractModule.bindEvents();
     GuaranteeModule.bindEvents();
     MeetingModule.bindEvents();
+    CalendarTabModule.bindEvents();
     ContactModule.bindEvents();
     StampTaxModule.bindEvents();
     FileModule.bindEvents();

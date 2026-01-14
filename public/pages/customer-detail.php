@@ -144,5 +144,6 @@ require __DIR__ . '/partials/header.php';
 <?php require __DIR__ . '/partials/modals/contact.php'; ?>
 <?php require __DIR__ . '/partials/modals/stamp-tax.php'; ?>
 <?php require __DIR__ . '/partials/modals/file.php'; ?>
+<?php require __DIR__ . '/partials/modals/calendar.php'; ?>
 <?php require __DIR__ . '/partials/modals/entity-detail.php'; ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>

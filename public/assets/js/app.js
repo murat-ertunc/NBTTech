@@ -140,6 +140,50 @@ const NbtUtils = {
             clearTimeout(timer);
             timer = setTimeout(() => fn(...args), delay);
         };
+    },
+
+    /**
+     * Ondalık sayı formatlama - başındaki 0'ı korur (0.34, 0.65 vb.)
+     * Input'lara değer yüklerken kullanılır
+     */
+    formatDecimal(value, decimals = 2) {
+        if (value === null || value === undefined || value === '') return '';
+        const num = parseFloat(value);
+        if (isNaN(num)) return '';
+        return num.toFixed(decimals);
+    },
+
+    /**
+     * Türkçe karakter normalizasyonu - büyük/küçük harf ve Türkçe karakter duyarsız arama için
+     */
+    normalizeText(str) {
+        return (str || '').toString()
+            .toLocaleLowerCase('tr-TR')
+            .replace(/ı/g, 'i')
+            .replace(/İ/g, 'i')
+            .replace(/ğ/g, 'g')
+            .replace(/Ğ/g, 'g')
+            .replace(/ü/g, 'u')
+            .replace(/Ü/g, 'u')
+            .replace(/ş/g, 's')
+            .replace(/Ş/g, 's')
+            .replace(/ö/g, 'o')
+            .replace(/Ö/g, 'o')
+            .replace(/ç/g, 'c')
+            .replace(/Ç/g, 'c');
+    },
+
+    /**
+     * Tarih karşılaştırma için YYYY-MM-DD formatına çevir
+     */
+    formatDateForCompare(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return '';
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 };
 
@@ -959,10 +1003,16 @@ const NbtDetailModal = {
                 { label: 'Kayıt Tarihi', field: 'EklemeZamani', format: 'date' }
             ],
             invoice: [
+                { label: 'Fatura No', field: 'FaturaNo' },
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Tarih', field: 'Tarih', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'DovizCinsi' },
                 { label: 'Döviz', field: 'DovizCinsi' },
+                { label: 'Şüpheli Alacak', field: 'SupheliAlacak', render: (v) => v ? '<span class="badge bg-warning">Evet</span>' : '<span class="badge bg-secondary">Hayır</span>' },
+                { label: 'Tevkifat', field: 'TevkifatAktif', render: (v, d) => {
+                    if (!v) return '<span class="badge bg-secondary">Yok</span>';
+                    return `<span class="badge bg-info">Oran1: %${d.TevkifatOran1 || 0}, Oran2: %${d.TevkifatOran2 || 0}</span>`;
+                }},
                 { label: 'Açıklama', field: 'Aciklama' }
             ],
             payment: [
@@ -1066,6 +1116,41 @@ const NbtDetailModal = {
         });
         html += '</div>';
         
+        // Fatura kalemleri tablosu (invoice için)
+        if (entityType === 'invoice' && data.Kalemler && Array.isArray(data.Kalemler) && data.Kalemler.length > 0) {
+            html += `
+                <div class="mt-3">
+                    <h6 class="border-bottom pb-2"><i class="bi bi-list-ul me-1"></i>Fatura Kalemleri</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Miktar</th>
+                                    <th>Açıklama</th>
+                                    <th>KDV %</th>
+                                    <th>Birim Fiyat</th>
+                                    <th>Tutar</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.Kalemler.map((k, i) => `
+                                    <tr>
+                                        <td>${i + 1}</td>
+                                        <td>${k.Miktar || 0}</td>
+                                        <td>${NbtUtils.escapeHtml(k.Aciklama || '-')}</td>
+                                        <td>%${k.KdvOran || 0}</td>
+                                        <td>${NbtUtils.formatMoney(k.BirimFiyat || 0)}</td>
+                                        <td>${NbtUtils.formatMoney(k.Tutar || 0)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
         return html;
     }
 };
@@ -1158,10 +1243,10 @@ const NbtCalendar = {
 
     render(container, options = {}) {
         this.container = container;
-        if (options.events) this.events = options.events;
-        if (options.onEventClick) this.onEventClick = options.onEventClick;
-        if (options.onDayClick) this.onDayClick = options.onDayClick;
-        if (options.viewMode) this.viewMode = options.viewMode;
+        if (options.events !== undefined) this.events = options.events;
+        if (options.onEventClick !== undefined) this.onEventClick = options.onEventClick;
+        if (options.onDayClick !== undefined) this.onDayClick = options.onDayClick;
+        if (options.viewMode !== undefined) this.viewMode = options.viewMode;
 
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth();
@@ -1342,14 +1427,18 @@ const NbtCalendar = {
                 if (this.viewMode === 'week') {
                     this.currentDate.setDate(this.currentDate.getDate() - 7);
                 } else {
-                    this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                    // Ay navigasyonunda gün sıfırla - ay sonlarında atlama sorununu önle
+                    const newDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
+                    this.currentDate = newDate;
                 }
                 this.render(container, { events: this.events });
             } else if (nextBtn) {
                 if (this.viewMode === 'week') {
                     this.currentDate.setDate(this.currentDate.getDate() + 7);
                 } else {
-                    this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                    // Ay navigasyonunda gün sıfırla - ay sonlarında atlama sorununu önle
+                    const newDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
+                    this.currentDate = newDate;
                 }
                 this.render(container, { events: this.events });
             } else if (todayBtn) {
@@ -1438,6 +1527,18 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = NbtFullscreen.activeElement ? 'bi bi-fullscreen-exit' : 'bi bi-arrows-fullscreen';
         }
     });
+
+    // Ondalık sayı formatını koru (0.34 → .34 sorununu önle)
+    // Number input'larda blur olduğunda başındaki 0'ı koru
+    document.addEventListener('blur', (e) => {
+        if (e.target.type === 'number' && e.target.step && parseFloat(e.target.step) < 1) {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val) && val > 0 && val < 1) {
+                // Değer 0 ile 1 arasındaysa, formatla (0.34 gibi göster)
+                e.target.value = val.toFixed(2);
+            }
+        }
+    }, true);
 });
 
 // Export for global access

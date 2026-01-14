@@ -52,6 +52,11 @@ $Router->add('GET', '/api/invoices', function () {
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
 	InvoiceController::index();
 });
+$Router->add('GET', '/api/invoices/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'user'])) return;
+	InvoiceController::show($Parametreler);
+});
 $Router->add('POST', '/api/invoices', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -270,6 +275,28 @@ $Router->add('DELETE', '/api/meetings/{id}', function ($Parametreler) {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
     App\Controllers\MeetingController::delete($Parametreler);
+});
+
+// Takvim işlemleri endpointleri (Müşteri detay sayfası takvim tabı)
+$Router->add('GET', '/api/takvim', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'user'])) return;
+    App\Controllers\TakvimController::index();
+});
+$Router->add('POST', '/api/takvim', function () {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'user'])) return;
+    App\Controllers\TakvimController::store();
+});
+$Router->add('PUT', '/api/takvim/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'user'])) return;
+    App\Controllers\TakvimController::update($Parametreler);
+});
+$Router->add('DELETE', '/api/takvim/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'user'])) return;
+    App\Controllers\TakvimController::delete($Parametreler);
 });
 
 // Kişi (İletişim) işlemleri endpointleri

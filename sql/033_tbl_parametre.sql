@@ -82,10 +82,10 @@ GO
 IF NOT EXISTS (SELECT 1 FROM tbl_parametre WHERE Grup = 'durum_teklif')
 BEGIN
     INSERT INTO tbl_parametre (Grup, Kod, Deger, Etiket, Sira, Aktif, Varsayilan) VALUES
-    ('durum_teklif', '0', 'secondary', 'Taslak', 1, 1, 1),
-    ('durum_teklif', '1', 'warning', 'Gönderildi', 2, 1, 0),
-    ('durum_teklif', '2', 'success', 'Onaylandı', 3, 1, 0),
-    ('durum_teklif', '3', 'danger', 'Reddedildi', 4, 1, 0);
+    ('durum_teklif', '0', 'warning', 'Bekliyor', 1, 1, 1),
+    ('durum_teklif', '1', 'danger', 'Red', 2, 1, 0),
+    ('durum_teklif', '2', 'success', 'Onaylı', 3, 1, 0),
+    ('durum_teklif', '3', 'info', 'Gelsin', 4, 1, 0);
     PRINT 'Varsayılan teklif durum parametreleri eklendi';
 END
 GO

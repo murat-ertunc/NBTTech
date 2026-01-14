@@ -22,40 +22,54 @@ require __DIR__ . '/partials/header.php';
             <div class="card-body p-4">
               <!-- Kullanıcı Bilgileri Formu -->
               <form id="myAccountForm">
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Id</label>
-                  <input type="text" class="form-control bg-light" id="accountUserId" readonly>
+                <div class="row mb-3 align-items-center">
+                  <label class="col-3 col-form-label fw-semibold">Id</label>
+                  <div class="col-9">
+                    <input type="text" class="form-control bg-light" id="accountUserId" readonly>
+                  </div>
                 </div>
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Kodu</label>
-                  <input type="text" class="form-control bg-light" id="accountUserCode" readonly>
+                <div class="row mb-3 align-items-center">
+                  <label class="col-3 col-form-label fw-semibold">Kodu</label>
+                  <div class="col-9">
+                    <input type="text" class="form-control bg-light" id="accountUserCode" readonly>
+                  </div>
                 </div>
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Adı</label>
-                  <input type="text" class="form-control bg-light" id="accountUserName" readonly>
+                <div class="row mb-3 align-items-center">
+                  <label class="col-3 col-form-label fw-semibold">Adı</label>
+                  <div class="col-9">
+                    <input type="text" class="form-control bg-light" id="accountUserName" readonly>
+                  </div>
                 </div>
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Rol</label>
-                  <input type="text" class="form-control bg-light" id="accountUserRole" readonly>
+                <div class="row mb-3 align-items-center">
+                  <label class="col-3 col-form-label fw-semibold">Rol</label>
+                  <div class="col-9">
+                    <input type="text" class="form-control bg-light" id="accountUserRole" readonly>
+                  </div>
                 </div>
 
                 <hr class="my-4">
 
                 <h6 class="fw-semibold mb-3"><i class="bi bi-key me-2"></i>Şifre Değiştir</h6>
                 
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Eski Şifre</label>
-                  <input type="password" class="form-control" id="accountOldPassword" autocomplete="new-password" placeholder="Mevcut şifrenizi girin">
+                <div class="row mb-3 align-items-center">
+                  <label class="col-3 col-form-label fw-semibold">Eski Şifre</label>
+                  <div class="col-9">
+                    <input type="password" class="form-control" id="accountOldPassword" autocomplete="new-password" placeholder="Mevcut şifrenizi girin">
+                  </div>
                 </div>
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Yeni Şifre</label>
-                  <input type="password" class="form-control" id="accountNewPassword" autocomplete="new-password" placeholder="Yeni şifrenizi girin (min 6 karakter)">
+                <div class="row mb-3 align-items-center">
+                  <label class="col-3 col-form-label fw-semibold">Yeni Şifre</label>
+                  <div class="col-9">
+                    <input type="password" class="form-control" id="accountNewPassword" autocomplete="new-password" placeholder="Yeni şifrenizi girin (min 6 karakter)">
+                  </div>
                 </div>
 
-                <div class="d-grid">
-                  <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-lg me-2"></i>Şifre Değiştir
-                  </button>
+                <div class="row">
+                  <div class="col-9 offset-3">
+                    <button type="submit" class="btn btn-primary">
+                      <i class="bi bi-check-lg me-2"></i>Şifre Değiştir
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>

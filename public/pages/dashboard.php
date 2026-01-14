@@ -102,4 +102,5 @@ require __DIR__ . '/partials/header.php';
     </div>
 
 <?php require __DIR__ . '/partials/modals/customer.php'; ?>
+<?php require __DIR__ . '/partials/modals/calendar-day.php'; ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>

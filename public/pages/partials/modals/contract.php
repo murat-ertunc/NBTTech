@@ -31,28 +31,22 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Sözleşme No</label>
-          <div class="col-12 col-md-8">
-            <input type="text" class="form-control" id="contractNo">
-          </div>
-        </div>
-        <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Başlangıç</label>
+          <label class="col-12 col-md-4 col-form-label">Sözleşme Tarihi</label>
           <div class="col-12 col-md-8">
             <input type="date" class="form-control" id="contractStart">
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Bitiş</label>
+          <label class="col-12 col-md-4 col-form-label">Sözleşme Bitiş Tarihi</label>
           <div class="col-12 col-md-8">
             <input type="date" class="form-control" id="contractEnd">
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Tutar</label>
+          <label class="col-12 col-md-4 col-form-label">Tutar <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
             <div class="input-group">
-              <input type="number" step="0.01" class="form-control" id="contractAmount">
+              <input type="number" step="0.01" class="form-control" id="contractAmount" required>
               <select class="form-select" id="contractCurrency" style="max-width: 90px;">
                 <option value="TRY">TRY</option>
                 <option value="USD">USD</option>
