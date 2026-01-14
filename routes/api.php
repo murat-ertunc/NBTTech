@@ -9,7 +9,7 @@ use App\Core\Response;
 use App\Middleware\Auth;
 use App\Middleware\Role;
 
-// Sağlık kontrolü endpoint
+// Saglik kontrolu endpoint
 $Router->add('GET', '/health', function () {
 	Response::json([
 		'status' => 'ok',
@@ -18,13 +18,13 @@ $Router->add('GET', '/health', function () {
 	]);
 });
 
-// Kimlik doğrulama endpointleri
+// Kimlik dogrulama endpointleri
 $Router->add('POST', '/api/login', fn() => AuthController::login());
 $Router->add('POST', '/api/register', fn() => AuthController::register());
 $Router->add('POST', '/api/logout', fn() => AuthController::logout());
 $Router->add('POST', '/api/refresh', fn() => AuthController::refresh());
 
-// Müşteri işlemleri endpointleri
+// Musteri islemleri endpointleri
 $Router->add('GET', '/api/customers', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -46,14 +46,14 @@ $Router->add('DELETE', '/api/customers/{id}', function ($Parametreler) {
 	CustomerController::delete($Parametreler);
 });
 
-// Müşteri Cari Özet endpoint
+// Musteri Cari Ozet endpoint
 $Router->add('GET', '/api/customers/{id}/cari-ozet', function ($Parametreler) {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
 	CustomerController::cariOzet($Parametreler);
 });
 
-// Fatura işlemleri endpointleri
+// Fatura islemleri endpointleri
 $Router->add('GET', '/api/invoices', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -80,7 +80,7 @@ $Router->add('DELETE', '/api/invoices/{id}', function ($Parametreler) {
 	InvoiceController::delete($Parametreler);
 });
 
-// Ödeme işlemleri endpointleri
+// Odeme islemleri endpointleri
 $Router->add('GET', '/api/payments', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -103,7 +103,7 @@ $Router->add('DELETE', '/api/payments/{id}', function ($Parametreler) {
 });
 
 
-// Proje işlemleri endpointleri
+// Proje islemleri endpointleri
 $Router->add('GET', '/api/projects', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -125,7 +125,7 @@ $Router->add('DELETE', '/api/projects/{id}', function ($Parametreler) {
 	App\Controllers\ProjectController::delete($Parametreler);
 });
 
-// Teklif işlemleri endpointleri
+// Teklif islemleri endpointleri
 $Router->add('GET', '/api/offers', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -147,7 +147,7 @@ $Router->add('DELETE', '/api/offers/{id}', function ($Parametreler) {
 	App\Controllers\OfferController::delete($Parametreler);
 });
 
-// Sözleşme işlemleri endpointleri
+// Sozlesme islemleri endpointleri
 $Router->add('GET', '/api/contracts', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -169,7 +169,7 @@ $Router->add('DELETE', '/api/contracts/{id}', function ($Parametreler) {
 	App\Controllers\ContractController::delete($Parametreler);
 });
 
-// Teminat işlemleri endpointleri
+// Teminat islemleri endpointleri
 $Router->add('GET', '/api/guarantees', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -196,7 +196,7 @@ $Router->add('GET', '/api/guarantees/{id}/download', function ($Parametreler) {
 	App\Controllers\GuaranteeController::download($Parametreler);
 });
 
-// Kullanıcı yönetimi endpointleri (sadece superadmin)
+// Kullanici yonetimi endpointleri (sadece superadmin)
 $Router->add('GET', '/api/users', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin'])) return;
@@ -221,14 +221,14 @@ $Router->add('DELETE', '/api/users/{id}', function ($Parametreler) {
 	App\Controllers\UserController::delete($Parametreler);
 });
 
-// Kullanıcı ekleme endpoint (sadece superadmin)
+// Kullanici ekleme endpoint (sadece superadmin)
 $Router->add('POST', '/api/users', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin'])) return;
 	App\Controllers\UserController::store();
 });
 
-// Şifre değiştirme endpoint (her kullanıcı kendi şifresini değiştirebilir)
+// Sifre degistirme endpoint (her kullanici kendi sifresini degistirebilir)
 $Router->add('POST', '/api/users/change-password', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	App\Controllers\UserController::changePassword();
@@ -240,7 +240,7 @@ $Router->add('GET', '/api/dashboard', function () {
     DashboardController::index();
 });
 
-// Log kayıtları endpoint (sadece superadmin)
+// Log kayitlari endpoint (sadece superadmin)
 $Router->add('GET', '/api/logs', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin'])) return;
@@ -267,7 +267,7 @@ $Router->add('GET', '/api/calendar/day/{date}', function ($Parametreler) {
     (new App\Controllers\CalendarController())->day($Parametreler['date']);
 });
 
-// Görüşme işlemleri endpointleri
+// Gorusme islemleri endpointleri
 $Router->add('GET', '/api/meetings', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -289,7 +289,7 @@ $Router->add('DELETE', '/api/meetings/{id}', function ($Parametreler) {
     App\Controllers\MeetingController::delete($Parametreler);
 });
 
-// Takvim işlemleri endpointleri (Müşteri detay sayfası takvim tabı)
+// Takvim islemleri endpointleri (Musteri detay sayfasi takvim tabi)
 $Router->add('GET', '/api/takvim', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -311,7 +311,7 @@ $Router->add('DELETE', '/api/takvim/{id}', function ($Parametreler) {
     App\Controllers\TakvimController::delete($Parametreler);
 });
 
-// Kişi (İletişim) işlemleri endpointleri
+// Kisi (Iletisim) islemleri endpointleri
 $Router->add('GET', '/api/contacts', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -333,7 +333,7 @@ $Router->add('DELETE', '/api/contacts/{id}', function ($Parametreler) {
     App\Controllers\ContactController::delete($Parametreler);
 });
 
-// Damga vergisi işlemleri endpointleri
+// Damga vergisi islemleri endpointleri
 $Router->add('GET', '/api/stamp-taxes', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -360,7 +360,7 @@ $Router->add('GET', '/api/stamp-taxes/{id}/download', function ($Parametreler) {
     App\Controllers\StampTaxController::download($Parametreler);
 });
 
-// Dosya işlemleri endpointleri
+// Dosya islemleri endpointleri
 $Router->add('GET', '/api/files', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -387,7 +387,7 @@ $Router->add('GET', '/api/files/{id}/download', function ($Parametreler) {
     App\Controllers\FileController::download($Parametreler);
 });
 
-// Parametre işlemleri endpointleri
+// Parametre islemleri endpointleri
 $Router->add('GET', '/api/parameters', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin'])) return;

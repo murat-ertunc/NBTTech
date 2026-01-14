@@ -1,13 +1,13 @@
 /**
- * NbtProject - Ana JavaScript Modülü
+ * NbtProject - Ana JavaScript Modulu
  * ===================================
- * Ortak fonksiyonlar, API yardımcıları, Toast, Fullscreen vb.
- * Last updated: 2026-01-14 - Durum status fix v3
+ * Bu modul, uygulama genelinde kullanilan ortak fonksiyonlari,
+ * API yardimcilarini, Toast bildirimlerini ve Fullscreen islemlerini icerir.
+ * Tum sayfalarda yuklenecek sekilde tasarlanmistir.
  */
-console.log('app.js loaded - version 2026-01-14 v3');
 
 // =============================================
-// GLOBAL SABITLER
+// GLOBAL SABITLER - Uygulama genelinde kullanilan sabit degerler
 // =============================================
 const NBT = {
     TOKEN_KEY: 'nbt_token',
@@ -15,11 +15,11 @@ const NBT = {
     USER_KEY: 'nbt_user',
     TAB_KEY: 'nbt_tab_id',
     API_BASE: '',
-    DEBUG: false // Production'da false yapılmalı
+    DEBUG: false
 };
 
 // =============================================
-// DEBUG LOGGER - Kurallara uygun loglama
+// LOGLAMA ARACI - Hata ve debug mesajlarini yonetir
 // =============================================
 const NbtLogger = {
     log(...args) {
@@ -29,7 +29,7 @@ const NbtLogger = {
         if (NBT.DEBUG) console.warn('[NBT]', ...args);
     },
     error(...args) {
-        // Error'lar her zaman loglanır
+        // Error'lar her zaman loglanir
         console.error('[NBT]', ...args);
     }
 };
@@ -39,7 +39,7 @@ const NbtLogger = {
 // =============================================
 const NbtUtils = {
     /**
-     * Sekme ID'si al/oluştur
+     * Sekme ID'si al/olustur
      */
     getTabId() {
         let id = sessionStorage.getItem(NBT.TAB_KEY);
@@ -65,7 +65,7 @@ const NbtUtils = {
     },
 
     /**
-     * Kullanıcı bilgisi al
+     * Kullanici bilgisi al
      */
     getUser() {
         try {
@@ -76,7 +76,7 @@ const NbtUtils = {
     },
 
     /**
-     * Oturum aç
+     * Oturum ac
      */
     setSession(token, user) {
         localStorage.setItem(NBT.TOKEN_KEY, token);
@@ -98,7 +98,7 @@ const NbtUtils = {
     },
 
     /**
-     * XSS koruması - HTML escape
+     * XSS korumasi - HTML escape
      */
     escapeHtml(text) {
         if (text == null) return '';
@@ -145,8 +145,8 @@ const NbtUtils = {
     },
 
     /**
-     * Ondalık sayı formatlama - başındaki 0'ı korur (0.34, 0.65 vb.)
-     * Input'lara değer yüklerken kullanılır
+     * Ondalik sayi formatlama - basindaki 0'i korur (0.34, 0.65 vb.)
+     * Input'lara deger yuklerken kullanilir
      */
     formatDecimal(value, decimals = 2) {
         if (value === null || value === undefined || value === '') return '';
@@ -156,7 +156,7 @@ const NbtUtils = {
     },
 
     /**
-     * Türkçe karakter normalizasyonu - büyük/küçük harf ve Türkçe karakter duyarsız arama için
+     * Turkce karakter normalizasyonu - buyuk/kucuk harf ve Turkce karakter duyarsiz arama icin
      */
     normalizeText(str) {
         return (str || '').toString()
@@ -176,7 +176,7 @@ const NbtUtils = {
     },
 
     /**
-     * Tarih karşılaştırma için YYYY-MM-DD formatına çevir
+     * Tarih karsilastirma icin YYYY-MM-DD formatina cevir
      */
     formatDateForCompare(dateStr) {
         if (!dateStr) return '';
@@ -189,7 +189,7 @@ const NbtUtils = {
     },
 
     /**
-     * Sayı formatlama (para birimi olmadan)
+     * Sayi formatlama (para birimi olmadan)
      */
     formatNumber(amount) {
         const num = parseFloat(amount) || 0;
@@ -198,7 +198,7 @@ const NbtUtils = {
 };
 
 // =============================================
-// PARAMETRE YÖNETİCİSİ
+// PARAMETRE YONETICISI
 // =============================================
 const NbtParams = {
     _cache: {
@@ -208,10 +208,10 @@ const NbtParams = {
         lastFetch: 0
     },
     
-    CACHE_TTL: 5 * 60 * 1000, // 5 dakika
+    CACHE_TTL: 5 * 60 * 1000,
 
     /**
-     * Aktif döviz türlerini getir
+     * Aktif doviz turlerini getir
      */
     async getCurrencies(forceRefresh = false) {
         if (!forceRefresh && this._cache.currencies && Date.now() - this._cache.lastFetch < this.CACHE_TTL) {
@@ -223,8 +223,8 @@ const NbtParams = {
             this._cache.lastFetch = Date.now();
             return this._cache.currencies;
         } catch (err) {
-            NbtLogger.error('Döviz parametreleri alınamadı:', err);
-            // Fallback - varsayılan dövizler
+            NbtLogger.error('Doviz parametreleri alinamadi:', err);
+            // Fallback - varsayilan dovizler
             return [
                 { Kod: 'TRY', Etiket: 'Türk Lirası', Deger: '₺', Varsayilan: true },
                 { Kod: 'USD', Etiket: 'Amerikan Doları', Deger: '$', Varsayilan: false },
@@ -234,10 +234,10 @@ const NbtParams = {
     },
 
     /**
-     * Döviz sembollerini obje olarak getir (hızlı erişim için)
+     * Doviz sembollerini obje olarak getir (hizli erisim icin)
      */
     getCurrencySymbols() {
-        // Senkron erişim için cache'den al, yoksa default
+        // Senkron erisim icin cache'den al, yoksa default
         if (this._cache.currencies) {
             const symbols = {};
             this._cache.currencies.forEach(c => symbols[c.Kod] = c.Deger);
@@ -247,7 +247,7 @@ const NbtParams = {
     },
 
     /**
-     * Varsayılan döviz kodunu getir
+     * Varsayilan doviz kodunu getir
      */
     getDefaultCurrency() {
         if (this._cache.currencies) {
@@ -271,13 +271,13 @@ const NbtParams = {
             this._cache.statuses[cacheKey] = response.data || [];
             return this._cache.statuses[cacheKey];
         } catch (err) {
-            NbtLogger.error(`Durum parametreleri alınamadı (${entity}):`, err);
+            NbtLogger.error(`Durum parametreleri alinamadi (${entity}):`, err);
             return [];
         }
     },
 
     /**
-     * Durum badge HTML'i oluştur
+     * Durum badge HTML'i olustur
      * @param entity proje|teklif|sozlesme|teminat
      * @param kod Durum kodu (1, 2, 3 vb.)
      */
@@ -292,7 +292,7 @@ const NbtParams = {
     },
 
     /**
-     * Genel ayarları getir
+     * Genel ayarlari getir
      */
     async getSettings(forceRefresh = false) {
         if (!forceRefresh && this._cache.settings && Date.now() - this._cache.lastFetch < this.CACHE_TTL) {
@@ -300,7 +300,7 @@ const NbtParams = {
         }
         try {
             const response = await NbtApi.get('/api/parameters/settings');
-            // Backend response root'da paginationDefault olarak gönderiyor
+            // Backend response root'da paginationDefault olarak gonderiyor
             this._cache.settings = {
                 pagination_default: response.paginationDefault || 25,
                 default_currency: response.defaultCurrency || 'TRY',
@@ -308,13 +308,13 @@ const NbtParams = {
             };
             return this._cache.settings;
         } catch (err) {
-            NbtLogger.error('Genel ayarlar alınamadı:', err);
+            NbtLogger.error('Genel ayarlar alinamadi:', err);
             return { pagination_default: 25 };
         }
     },
 
     /**
-     * Sayfalama varsayılan değerini getir
+     * Sayfalama varsayilan degerini getir
      */
     getPaginationDefault() {
         if (this._cache.settings && this._cache.settings.pagination_default) {
@@ -324,7 +324,7 @@ const NbtParams = {
     },
 
     /**
-     * Select element'ine döviz seçeneklerini doldur
+     * Select element'ine doviz seceneklerini doldur
      */
     async populateCurrencySelect(selectElement, selectedValue = null) {
         if (!selectElement) return;
@@ -342,7 +342,7 @@ const NbtParams = {
     },
 
     /**
-     * Select element'ine durum seçeneklerini doldur
+     * Select element'ine durum seceneklerini doldur
      */
     async populateStatusSelect(selectElement, entity, selectedValue = null) {
         if (!selectElement) return;
@@ -350,7 +350,7 @@ const NbtParams = {
         const statuses = await this.getStatuses(entity, true);
         selectElement.innerHTML = '';
         if (!statuses || statuses.length === 0) {
-            selectElement.innerHTML = '<option value="">Durum bulunamadı</option>';
+            selectElement.innerHTML = '<option value="">Durum bulunamadi</option>';
             return;
         }
         statuses.forEach(s => {
@@ -365,14 +365,14 @@ const NbtParams = {
     },
 
     /**
-     * Tüm cache'i sıfırla
+     * Tum cache'i sifirla
      */
     clearCache() {
         this._cache = { currencies: null, statuses: {}, settings: null, lastFetch: 0 };
     },
 
     /**
-     * Başlangıçta parametreleri önyükle
+     * Baslangicta parametreleri onyukle
      */
     async preload() {
         try {
@@ -384,19 +384,19 @@ const NbtParams = {
                 this.getStatuses('sozlesme'),
                 this.getStatuses('teminat')
             ]);
-            NbtLogger.log('Parametreler önyüklendi');
+            NbtLogger.log('Parametreler onyuklendi');
         } catch (err) {
-            NbtLogger.error('Parametre önyükleme hatası:', err);
+            NbtLogger.error('Parametre onyukleme hatasi:', err);
         }
     }
 };
 
 // =============================================
-// API İSTEK YARDIMCISI
+// API ISTEK YARDIMCISI
 // =============================================
 const NbtApi = {
     /**
-     * API isteği yap
+     * API istegi yap
      */
     async request(path, options = {}) {
         const headers = options.headers || {};
@@ -419,21 +419,21 @@ const NbtApi = {
             if (response.status === 401) {
                 NbtUtils.clearSession();
                 window.location.href = '/login';
-                throw new Error('Oturum süresi doldu');
+                throw new Error('Oturum suresi doldu');
             }
             if (response.status === 403) {
-                throw new Error(data.error || 'Bu işlem için yetkiniz yok');
+                throw new Error(data.error || 'Bu islem icin yetkiniz yok');
             }
             if (response.status === 404) {
-                throw new Error(data.error || 'Kayıt bulunamadı');
+                throw new Error(data.error || 'Kayit bulunamadi');
             }
             if (response.status === 422) {
-                throw new Error(data.error || 'Validasyon hatası');
+                throw new Error(data.error || 'Validasyon hatasi');
             }
             if (response.status >= 500) {
-                throw new Error(data.error || 'Sunucu hatası');
+                throw new Error(data.error || 'Sunucu hatasi');
             }
-            throw new Error(data.error || 'Bir hata oluştu');
+            throw new Error(data.error || 'Bir hata olustu');
         }
 
         return data;
@@ -446,7 +446,7 @@ const NbtApi = {
 };
 
 // =============================================
-// TOAST BİLDİRİMLERİ (Bootstrap Toast)
+// TOAST BILDIRIMLERI (Bootstrap Toast)
 // =============================================
 const NbtToast = {
     container: null,
@@ -561,7 +561,7 @@ const NbtFullscreen = {
 };
 
 // =============================================
-// LIST TOOLBAR KOMPONENTİ (Bootstrap)
+// LIST TOOLBAR KOMPONENTI (Bootstrap)
 // =============================================
 const NbtListToolbar = {
     create(options = {}) {
@@ -616,7 +616,7 @@ const NbtListToolbar = {
 };
 
 // =============================================
-// DATA TABLE KOMPONENTİ (Bootstrap)
+// DATA TABLE KOMPONENTI (Bootstrap)
 // =============================================
 const NbtDataTable = {
     create(columns, data, options = {}) {
@@ -718,19 +718,19 @@ const NbtDataTable = {
 };
 
 // =============================================
-// MODAL KOMPONENTİ
+// MODAL KOMPONENTI
 // =============================================
 const NbtModal = {
     instances: {},
 
     /**
-     * Modal aç
+     * Modal ac
      */
     open(id) {
         const modal = document.getElementById(id);
         if (!modal) {
             if (typeof NbtToast !== 'undefined') {
-                NbtToast.warning(`Modal bulunamadı: ${id}`);
+                NbtToast.warning(`Modal bulunamadi: ${id}`);
             }
             return false;
         }
@@ -754,7 +754,7 @@ const NbtModal = {
     },
 
     /**
-     * Modal hata göster
+     * Modal hata goster
      */
     showError(modalId, message) {
         const errorEl = document.querySelector(`#${modalId} [id$="ModalError"], #${modalId} .modal-error`);
@@ -765,7 +765,7 @@ const NbtModal = {
     },
 
     /**
-     * Field-level hata göster (Bootstrap is-invalid class)
+     * Field-level hata goster (Bootstrap is-invalid class)
      */
     showFieldError(modalId, fieldId, message) {
         const field = document.querySelector(`#${modalId} #${fieldId}`);
@@ -782,7 +782,7 @@ const NbtModal = {
     },
 
     /**
-     * Tüm field-level hataları temizle
+     * Tum field-level hatalari temizle
      */
     clearFieldErrors(modalId) {
         const modal = document.getElementById(modalId);
@@ -808,7 +808,7 @@ const NbtModal = {
     },
 
     /**
-     * Form sıfırla - hidden id alanları hariç tüm inputları temizle
+     * Form sifirla - hidden id alanlari haric tum inputlari temizle
      */
     resetForm(modalId) {
         const modal = document.getElementById(modalId);
@@ -858,7 +858,7 @@ const NbtModal = {
     },
     
     /**
-     * Save butonunu disable/enable et + spinner göster
+     * Save butonunu disable/enable et + spinner goster
      */
     setLoading(modalId, loading) {
         const modal = document.getElementById(modalId);
@@ -880,7 +880,7 @@ const NbtModal = {
 };
 
 // =============================================
-// DETAY MODAL KOMPONENTİ (Read-Only Görüntüleme)
+// DETAY MODAL KOMPONENTI (Read-Only Goruntuleme)
 // =============================================
 const NbtDetailModal = {
     _currentEntity: null,
@@ -890,14 +890,14 @@ const NbtDetailModal = {
     _onDelete: null,
 
     /**
-     * Entity detaylarını modal'da göster
+     * Entity detaylarini modal'da goster
      * @param {string} entityType - Entity tipi (invoice, payment, project, vb.)
-     * @param {object} data - Gösterilecek veri
-     * @param {function} onEdit - Düzenle butonuna basılınca çağrılacak fonksiyon
-     * @param {function} onDelete - Sil butonuna basılınca çağrılacak fonksiyon
+     * @param {object} data - Gosterilecek veri
+     * @param {function} onEdit - Duzenle butonuna basilinca cagrilacak fonksiyon
+     * @param {function} onDelete - Sil butonuna basilinca cagrilacak fonksiyon
      */
     async show(entityType, data, onEdit = null, onDelete = null) {
-        // Durum parametrelerini önceden yükle (proje, teklif, sözleşme, teminat için)
+        // Durum parametrelerini onceden yukle (proje, teklif, sozlesme, teminat icin)
         const statusEntityMap = {
             project: 'proje',
             offer: 'teklif',
@@ -949,7 +949,7 @@ const NbtDetailModal = {
             titleEl.innerHTML = `<i class="bi ${icons[entityType] || 'bi-eye'} me-2"></i>${titles[entityType] || 'Detay'}`;
         }
 
-        // İçerik oluşturma
+        // Icerik olusturma
         const bodyEl = document.getElementById('entityDetailModalBody');
         if (bodyEl) {
             bodyEl.innerHTML = this._buildContent(entityType, data);
@@ -974,7 +974,7 @@ const NbtDetailModal = {
                 pageBtn.classList.remove('d-none');
                 pageBtn.onclick = () => {
                     NbtModal.close('entityDetailModal');
-                    // Server-rendered navigation: gerçek sayfa yüklemesi
+                    // Server-rendered navigation: gercek sayfa yuklemesi
                     window.location.href = `/customer/${this._currentId}`;
                 };
             } else {
@@ -998,7 +998,7 @@ const NbtDetailModal = {
     },
 
     /**
-     * Entity tipine göre içerik oluştur
+     * Entity tipine gore icerik olustur
      */
     _buildContent(entityType, data) {
         const formatters = {
@@ -1143,7 +1143,7 @@ const NbtDetailModal = {
         });
         html += '</div>';
         
-        // Fatura kalemleri tablosu (invoice için)
+        // Fatura kalemleri tablosu (invoice icin)
         if (entityType === 'invoice' && data.Kalemler && Array.isArray(data.Kalemler) && data.Kalemler.length > 0) {
             html += `
                 <div class="mt-3">
@@ -1178,7 +1178,7 @@ const NbtDetailModal = {
             `;
         }
         
-        // Fatura dosyaları tablosu (invoice için)
+        // Fatura dosyalari tablosu (invoice icin)
         if (entityType === 'invoice' && data.Dosyalar && Array.isArray(data.Dosyalar) && data.Dosyalar.length > 0) {
             html += `
                 <div class="mt-3">
@@ -1261,15 +1261,15 @@ const NbtDetailModal = {
 // =============================================
 // NAVIGATION HELPER - Server-Rendered Sayfa Mimarisi
 // =============================================
-// Sayfa başlatma ve navigasyon yardımcıları.
-// Tüm navigasyonlar gerçek sayfa yüklemesi yapar (SPA değil).
+// Sayfa baslatma ve navigasyon yardimcilari.
+// Tum navigasyonlar gercek sayfa yuklemesi yapar (SPA degil).
 
 const NbtRouter = {
     routes: {},
     defaultRoute: 'dashboard',
 
     /**
-     * Sayfa modülü kaydet - Sayfa yüklendiğinde init için kullanılır
+     * Sayfa modulu kaydet - Sayfa yuklendiginde init icin kullanilir
      */
     register(path, handler) {
         this.routes[path] = handler;
@@ -1277,7 +1277,7 @@ const NbtRouter = {
 
     /**
      * Sayfaya git - Server-Rendered Navigation
-     * NOT: Artık pushState kullanılmıyor, gerçek sayfa yüklemesi yapılır.
+     * NOT: Artik pushState kullanilmiyor, gercek sayfa yuklemesi yapilir.
      */
     navigate(path, params = {}) {
         // /customer/9 gibi full path'leri parse et
@@ -1287,22 +1287,22 @@ const NbtRouter = {
             targetUrl = '/' + path;
         }
         
-        // customer/123 formatını handle et
+        // customer/123 formatini handle et
         if (path.includes('customer') && params.id) {
             targetUrl = `/customer/${params.id}`;
         } else if (params.id) {
             targetUrl = `/${path}/${params.id}`;
         }
         
-        // Tab parametresi KALDIRILDI - tab state artık URL'de değil
-        // (params.tab artık URL'ye eklenmez)
+        // Tab parametresi KALDIRILDI - tab state artik URL'de degil
+        // (params.tab artik URL'ye eklenmez)
         
-        // Gerçek sayfa yüklemesi yapılması (SPA değil)
+        // Gercek sayfa yuklemesi yapilmasi (SPA degil)
         window.location.href = targetUrl;
     },
 
     /**
-     * Sayfa başlatma - CURRENT_PAGE'e göre ilgili modülü init eder
+     * Sayfa baslatma - CURRENT_PAGE'e gore ilgili modulu init eder
      */
     init() {
         const currentPage = window.APP_CONFIG?.CURRENT_PAGE || 'dashboard';
@@ -1323,7 +1323,7 @@ const NbtRouter = {
             params[key] = value;
         });
         
-        // /customer/{id} formatından ID al
+        // /customer/{id} formatindan ID al
         const pathParts = window.location.pathname.split('/').filter(Boolean);
         if (pathParts[0] === 'customer' && pathParts[1]) {
             params.id = pathParts[1];
@@ -1334,7 +1334,7 @@ const NbtRouter = {
 };
 
 // =============================================
-// TAKVİM KOMPONENTİ (Profesyonel Haftalık/Aylık)
+// TAKVIM KOMPONENTI (Profesyonel Haftalik/Aylik)
 // =============================================
 const NbtCalendar = {
     currentDate: new Date(),
@@ -1412,7 +1412,7 @@ const NbtCalendar = {
             html += `<div class="text-center small text-muted py-1 border-bottom fw-semibold">${d}</div>`;
         });
 
-        // Önceki ayın günleri
+        // Onceki ayin gunleri
         const prevMonthDays = new Date(year, month, 0).getDate();
         for (let i = startDay - 2; i >= 0; i--) {
             html += `<div class="text-center text-muted p-1 border-bottom border-end opacity-50" style="min-height:60px;"><small>${prevMonthDays - i}</small></div>`;
@@ -1530,7 +1530,7 @@ const NbtCalendar = {
                 if (this.viewMode === 'week') {
                     this.currentDate.setDate(this.currentDate.getDate() - 7);
                 } else {
-                    // Ay navigasyonunda gün sıfırla - ay sonlarında atlama sorununu önle
+                    // Ay navigasyonunda gun sifirla - ay sonlarinda atlama sorununu onle
                     const newDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
                     this.currentDate = newDate;
                 }
@@ -1539,7 +1539,7 @@ const NbtCalendar = {
                 if (this.viewMode === 'week') {
                     this.currentDate.setDate(this.currentDate.getDate() + 7);
                 } else {
-                    // Ay navigasyonunda gün sıfırla - ay sonlarında atlama sorununu önle
+                    // Ay navigasyonunda gun sifirla - ay sonlarinda atlama sorununu onle
                     const newDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
                     this.currentDate = newDate;
                 }
@@ -1631,13 +1631,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Ondalık sayı formatını koru (0.34 → .34 sorununu önle)
-    // Number input'larda blur olduğunda başındaki 0'ı koru
+    // Ondalik sayi formatini koru (0.34 → .34 sorununu onle)
+    // Number input'larda blur oldugunda basindaki 0'i koru
     document.addEventListener('blur', (e) => {
         if (e.target.type === 'number' && e.target.step && parseFloat(e.target.step) < 1) {
             const val = parseFloat(e.target.value);
             if (!isNaN(val) && val > 0 && val < 1) {
-                // Değer 0 ile 1 arasındaysa, formatla (0.34 gibi göster)
+                // Deger 0 ile 1 arasindaysa, formatla (0.34 gibi goster)
                 e.target.value = val.toFixed(2);
             }
         }

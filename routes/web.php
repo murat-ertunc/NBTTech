@@ -3,21 +3,21 @@
 /**
  * Web Routes - Server-Rendered Sayfa Mimarisi
  * 
- * Her sayfa ayrı bir PHP dosyasından server-side render edilir.
- * SPA routing KALDIRILDI - her route gerçek sayfa yüklemesi yapar.
+ * Her sayfa ayri bir PHP dosyasindan server-side render edilir.
+ * SPA routing KALDIRILDI - her route gercek sayfa yuklemesi yapar.
  * 
- * URL Yapısı:
+ * URL Yapisi:
  *   /               → Dashboard
  *   /dashboard      → Dashboard
- *   /customers      → Müşteri listesi
- *   /customer/{id}  → Müşteri detay (tab URL'de değil, JS state'de)
+ *   /customers      → Musteri listesi
+ *   /customer/{id}  → Musteri detay (tab URL'de degil, JS state'de)
  *   /invoices       → Fatura listesi
- *   /payments       → Ödeme listesi
+ *   /payments       → Odeme listesi
  *   /projects       → Proje listesi
  *   /offers         → Teklif listesi
- *   /contracts      → Sözleşme listesi
+ *   /contracts      → Sozlesme listesi
  *   /guarantees     → Teminat listesi
- *   /users          → Kullanıcı listesi
+ *   /users          → Kullanici listesi
  *   /logs           → Log listesi
  */
 
@@ -30,7 +30,7 @@ $Router->add('GET', '/dashboard', function () {
 	require __DIR__ . '/../public/pages/dashboard.php';
 });
 
-// ===== MÜŞTERİLER =====
+// ===== MUSTERILER =====
 $Router->add('GET', '/customers', function () {
 	require __DIR__ . '/../public/pages/customers.php';
 });
@@ -45,7 +45,7 @@ $Router->add('GET', '/invoices', function () {
 	require __DIR__ . '/../public/pages/invoices.php';
 });
 
-// ===== ÖDEMELER =====
+// ===== ODEMELER =====
 $Router->add('GET', '/payments', function () {
 	require __DIR__ . '/../public/pages/payments.php';
 });
@@ -55,17 +55,17 @@ $Router->add('GET', '/projects', function () {
 	require __DIR__ . '/../public/pages/projects.php';
 });
 
-// ===== TEKLİFLER =====
+// ===== TEKLIFLER =====
 $Router->add('GET', '/offers', function () {
 	require __DIR__ . '/../public/pages/offers.php';
 });
 
-// ===== SÖZLEŞMELER =====
+// ===== SOZLESMELER =====
 $Router->add('GET', '/contracts', function () {
 	require __DIR__ . '/../public/pages/contracts.php';
 });
 
-// ===== TEMİNATLAR =====
+// ===== TEMINATLAR =====
 $Router->add('GET', '/guarantees', function () {
 	require __DIR__ . '/../public/pages/guarantees.php';
 });
