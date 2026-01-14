@@ -1,5 +1,5 @@
--- Sözleşme Backup Tablosu
-CREATE TABLE bck_tbl_sozlesme (
+-- Görüşme Backup Tablosu
+CREATE TABLE bck_tbl_gorusme (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     KaynakId INT NOT NULL,
     BackupZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -16,18 +16,16 @@ CREATE TABLE bck_tbl_sozlesme (
     -- İlişkiler
     MusteriId INT NOT NULL,
     ProjeId INT NULL,
-    TeklifId INT NULL,
     
-    -- Sözleşme Bilgileri
-    SozlesmeNo NVARCHAR(50) NOT NULL,
-    BaslangicTarihi DATE NULL,
-    BitisTarihi DATE NULL,
-    Tutar DECIMAL(16,2) NULL,
-    ParaBirimi NVARCHAR(3) NULL,
-    DosyaYolu NVARCHAR(255) NULL,
-    Durum TINYINT NULL
+    -- Görüşme Bilgileri
+    Tarih DATE NOT NULL,
+    Konu NVARCHAR(255) NOT NULL,
+    Notlar NVARCHAR(MAX) NULL,
+    Kisi NVARCHAR(255) NULL,
+    Eposta NVARCHAR(255) NULL,
+    Telefon NVARCHAR(50) NULL
 );
 GO
 
-CREATE INDEX IX_bck_tbl_sozlesme_KaynakId ON bck_tbl_sozlesme(KaynakId);
+CREATE INDEX IX_bck_tbl_gorusme_KaynakId ON bck_tbl_gorusme(KaynakId);
 GO

@@ -1,10 +1,11 @@
+-- Fatura Backup Tablosu
 CREATE TABLE bck_tbl_fatura (
     Id INT IDENTITY(1,1) PRIMARY KEY,
-    KaynakId INT NOT NULL, -- Orijinal kaydin Id si
+    KaynakId INT NOT NULL,
     BackupZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
     BackupUserId INT NULL,
     
-    -- Orijinal tablodaki veriler
+    -- Orijinal tablo verileri
     Guid UNIQUEIDENTIFIER NOT NULL,
     EklemeZamani DATETIME2(0) NOT NULL,
     EkleyenUserId INT NULL,
@@ -12,11 +13,31 @@ CREATE TABLE bck_tbl_fatura (
     DegistirenUserId INT NULL,
     Sil BIT NOT NULL,
     
+    -- İlişkiler
     MusteriId INT NOT NULL,
+    ProjeId INT NULL,
+    
+    -- Fatura Bilgileri
+    FaturaNo NVARCHAR(50) NULL,
     Tarih DATE NOT NULL,
     Tutar DECIMAL(16,2) NOT NULL,
     DovizCinsi NVARCHAR(3) NOT NULL,
-    Aciklama NVARCHAR(MAX) NULL
+    Aciklama NVARCHAR(MAX) NULL,
+    
+    -- Şüpheli Alacak
+    SupheliAlacak TINYINT NULL,
+    
+    -- Tevkifat Bilgileri
+    TevkifatAktif TINYINT NULL,
+    TevkifatOran1 DECIMAL(5,2) NULL,
+    TevkifatOran2 DECIMAL(5,2) NULL,
+    
+    -- Takvim Hatırlatma
+    TakvimAktif TINYINT NULL,
+    TakvimSure INT NULL,
+    TakvimSureTipi NVARCHAR(10) NULL
 );
+GO
 
-CREATE INDEX IX_bck_tbl_fatura_KaynakId ON bck_tbl_fatura (KaynakId);
+CREATE INDEX IX_bck_tbl_fatura_KaynakId ON bck_tbl_fatura(KaynakId);
+GO

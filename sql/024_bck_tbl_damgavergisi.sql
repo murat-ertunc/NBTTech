@@ -1,5 +1,5 @@
--- Sözleşme Backup Tablosu
-CREATE TABLE bck_tbl_sozlesme (
+-- Damga Vergisi Backup Tablosu
+CREATE TABLE bck_tbl_damgavergisi (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     KaynakId INT NOT NULL,
     BackupZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -16,18 +16,19 @@ CREATE TABLE bck_tbl_sozlesme (
     -- İlişkiler
     MusteriId INT NOT NULL,
     ProjeId INT NULL,
-    TeklifId INT NULL,
     
-    -- Sözleşme Bilgileri
-    SozlesmeNo NVARCHAR(50) NOT NULL,
-    BaslangicTarihi DATE NULL,
-    BitisTarihi DATE NULL,
-    Tutar DECIMAL(16,2) NULL,
-    ParaBirimi NVARCHAR(3) NULL,
-    DosyaYolu NVARCHAR(255) NULL,
-    Durum TINYINT NULL
+    -- Damga Vergisi Bilgileri
+    Tarih DATE NOT NULL,
+    Tutar DECIMAL(18,2) NOT NULL,
+    DovizCinsi NVARCHAR(10) NULL,
+    Aciklama NVARCHAR(500) NULL,
+    BelgeNo NVARCHAR(100) NULL,
+    
+    -- Dosya Bilgileri
+    DosyaAdi NVARCHAR(255) NULL,
+    DosyaYolu NVARCHAR(500) NULL
 );
 GO
 
-CREATE INDEX IX_bck_tbl_sozlesme_KaynakId ON bck_tbl_sozlesme(KaynakId);
+CREATE INDEX IX_bck_tbl_damgavergisi_KaynakId ON bck_tbl_damgavergisi(KaynakId);
 GO
