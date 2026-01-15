@@ -7,7 +7,7 @@ class ContactRepository extends BaseRepository
     protected string $Tablo = 'tbl_kisi';
 
     /**
-     * Tüm aktif kişileri müşteri adı ile birlikte getir
+     * Tum aktif kisileri musteri adi ile birlikte getir
      */
     public function tumAktifler(): array
     {
@@ -15,7 +15,7 @@ class ContactRepository extends BaseRepository
                 FROM {$this->Tablo} k 
                 LEFT JOIN tbl_musteri m ON k.MusteriId = m.Id 
                 WHERE k.Sil = 0 
-                ORDER BY k.AdSoyad ASC";
+                ORDER BY k.Id DESC";
         $Stmt = $this->Db->query($Sql);
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['Sil' => 0], $Sonuclar);
@@ -28,7 +28,7 @@ class ContactRepository extends BaseRepository
                 FROM {$this->Tablo} k 
                 LEFT JOIN tbl_musteri m ON k.MusteriId = m.Id 
                 WHERE k.MusteriId = :Mid AND k.Sil = 0 
-                ORDER BY k.AdSoyad ASC";
+                ORDER BY k.Id DESC";
         $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute(['Mid' => $MusteriId]);
         $Sonuclar = $Stmt->fetchAll();
@@ -36,15 +36,15 @@ class ContactRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    public function musteriKisileriPaginated(int $MusteriId, int $page = 1, int $limit = 10): array
+    public function musteriKisileriPaginated(int $MusteriId, int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "SELECT k.*, m.Unvan AS MusteriUnvan 
                 FROM {$this->Tablo} k 
                 LEFT JOIN tbl_musteri m ON k.MusteriId = m.Id 
                 WHERE k.MusteriId = :Mid AND k.Sil = 0 
-                ORDER BY k.AdSoyad ASC";
-        $result = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $page, $limit);
-        $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0, 'page' => $page], $result['data']);
-        return $result;
+                ORDER BY k.Id DESC";
+        $Sonuc = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $Sayfa, $Limit);
+        $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 }

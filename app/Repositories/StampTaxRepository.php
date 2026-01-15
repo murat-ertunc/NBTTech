@@ -9,17 +9,18 @@ class StampTaxRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_damgavergisi';
 
-    // Tablo artık standart alan adlarına sahip (EklemeZamani, EkleyenUserId, Guid, BIT Sil)
-    // Bu yüzden BaseRepository'nin ekle() metodunu kullanıyoruz - özel override gerekmiyor
+    // Tablo artik standart alan adlarina sahip (EklemeZamani, EkleyenUserId, Guid, BIT Sil)
+    // Bu yuzden BaseRepository'nin ekle() metodunu kullaniyoruz - ozel override gerekmiyor
 
     /**
-     * Tüm aktif damga vergilerini müşteri adı ile birlikte getir
+     * Tum aktif damga vergilerini musteri adi ile birlikte getir
      */
     public function tumAktifler(): array
     {
-        $Sql = "SELECT d.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT d.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} d 
                 LEFT JOIN tbl_musteri m ON d.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON d.ProjeId = p.Id 
                 WHERE d.Sil = 0 
                 ORDER BY d.Tarih DESC, d.Id DESC";
         $Stmt = $this->Db->query($Sql);
@@ -30,9 +31,10 @@ class StampTaxRepository extends BaseRepository
 
     public function musteriDamgaVergileri(int $MusteriId): array
     {
-        $Sql = "SELECT d.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT d.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} d 
                 LEFT JOIN tbl_musteri m ON d.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON d.ProjeId = p.Id 
                 WHERE d.MusteriId = :Mid AND d.Sil = 0 
                 ORDER BY d.Tarih DESC, d.Id DESC";
         $Stmt = $this->Db->prepare($Sql);
@@ -42,15 +44,16 @@ class StampTaxRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    public function musteriDamgaVergileriPaginated(int $MusteriId, int $page = 1, int $limit = 10): array
+    public function musteriDamgaVergileriPaginated(int $MusteriId, int $Sayfa = 1, int $Limit = 10): array
     {
-        $Sql = "SELECT d.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT d.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} d 
                 LEFT JOIN tbl_musteri m ON d.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON d.ProjeId = p.Id 
                 WHERE d.MusteriId = :Mid AND d.Sil = 0 
                 ORDER BY d.Tarih DESC, d.Id DESC";
-        $result = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $page, $limit);
-        $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0, 'page' => $page], $result['data']);
-        return $result;
+        $Sonuc = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $Sayfa, $Limit);
+        $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 }

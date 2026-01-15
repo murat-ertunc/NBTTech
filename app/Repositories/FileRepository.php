@@ -7,13 +7,14 @@ class FileRepository extends BaseRepository
     protected string $Tablo = 'tbl_dosya';
 
     /**
-     * Tüm aktif dosyaları müşteri adı ile birlikte getir
+     * Tum aktif dosyalari musteri adi ile birlikte getir
      */
     public function tumAktifler(): array
     {
-        $Sql = "SELECT f.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT f.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} f 
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON f.ProjeId = p.Id 
                 WHERE f.Sil = 0 
                 ORDER BY f.EklemeZamani DESC";
         $Stmt = $this->Db->query($Sql);
@@ -24,9 +25,10 @@ class FileRepository extends BaseRepository
 
     public function musteriDosyalari(int $MusteriId): array
     {
-        $Sql = "SELECT f.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT f.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} f 
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON f.ProjeId = p.Id 
                 WHERE f.MusteriId = :Mid AND f.Sil = 0 
                 ORDER BY f.EklemeZamani DESC";
         $Stmt = $this->Db->prepare($Sql);
@@ -38,9 +40,10 @@ class FileRepository extends BaseRepository
 
     public function musteriDosyalariPaginated(int $MusteriId, int $page = 1, int $limit = 10): array
     {
-        $Sql = "SELECT f.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT f.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} f 
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON f.ProjeId = p.Id 
                 WHERE f.MusteriId = :Mid AND f.Sil = 0 
                 ORDER BY f.EklemeZamani DESC";
         $result = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $page, $limit);

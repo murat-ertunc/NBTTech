@@ -1343,6 +1343,7 @@ const NbtCalendar = {
     onEventClick: null,
     onDayClick: null,
     container: null,
+    _eventsBound: false, // Event listener'in zaten bagli olup olmadigini takip et
 
     render(container, options = {}) {
         this.container = container;
@@ -1371,7 +1372,7 @@ const NbtCalendar = {
         }
 
         let html = `
-            <div class="border rounded bg-white">
+            <div class="border rounded bg-white" id="nbt-calendar-inner">
                 <div class="d-flex justify-content-between align-items-center p-2 bg-light border-bottom">
                     <div class="btn-group btn-group-sm">
                         <button type="button" class="btn btn-outline-secondary" data-calendar="prev">
@@ -1398,7 +1399,12 @@ const NbtCalendar = {
 
         html += '</div>';
         container.innerHTML = html;
-        this._bindEvents(container);
+        
+        // Event listener'i sadece bir kez bagla
+        if (!this._eventsBound) {
+            this._bindEvents(container);
+            this._eventsBound = true;
+        }
     },
 
     _renderMonthView(dayNames, today, year, month) {
@@ -1517,7 +1523,7 @@ const NbtCalendar = {
     },
 
     _bindEvents(container) {
-        container.addEventListener('click', (e) => {
+        container.addEventListener('click', async (e) => {
             const prevBtn = e.target.closest('[data-calendar="prev"]');
             const nextBtn = e.target.closest('[data-calendar="next"]');
             const todayBtn = e.target.closest('[data-calendar="today"]');
@@ -1534,6 +1540,8 @@ const NbtCalendar = {
                     const newDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
                     this.currentDate = newDate;
                 }
+                // Yeni ayin verilerini yukle
+                await this.loadEvents(null, this.currentDate.getMonth() + 1, this.currentDate.getFullYear());
                 this.render(container, { events: this.events });
             } else if (nextBtn) {
                 if (this.viewMode === 'week') {
@@ -1543,9 +1551,12 @@ const NbtCalendar = {
                     const newDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
                     this.currentDate = newDate;
                 }
+                // Yeni ayin verilerini yukle
+                await this.loadEvents(null, this.currentDate.getMonth() + 1, this.currentDate.getFullYear());
                 this.render(container, { events: this.events });
             } else if (todayBtn) {
                 this.currentDate = new Date();
+                await this.loadEvents(null, this.currentDate.getMonth() + 1, this.currentDate.getFullYear());
                 this.render(container, { events: this.events });
             } else if (monthBtn) {
                 this.viewMode = 'month';
@@ -1565,11 +1576,21 @@ const NbtCalendar = {
         });
     },
 
-    async loadEvents(customerId = null) {
+    async loadEvents(customerId = null, month = null, year = null) {
         try {
             let url = '/api/calendar';
+            const params = [];
             if (customerId) {
-                url += `?customerId=${customerId}`;
+                params.push(`customerId=${customerId}`);
+            }
+            if (month !== null) {
+                params.push(`month=${month}`);
+            }
+            if (year !== null) {
+                params.push(`year=${year}`);
+            }
+            if (params.length > 0) {
+                url += '?' + params.join('&');
             }
             const response = await NbtApi.get(url);
             this.events = (response.data || []).filter(e => !e.completed);

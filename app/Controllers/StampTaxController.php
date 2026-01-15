@@ -14,18 +14,18 @@ class StampTaxController
         $Repo = new StampTaxRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
+        $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
 
         if ($MusteriId > 0) {
             if (isset($_GET['page']) || isset($_GET['limit'])) {
-                $result = $Repo->musteriDamgaVergileriPaginated($MusteriId, $page, $limit);
-                Response::json($result);
+                $Sonuc = $Repo->musteriDamgaVergileriPaginated($MusteriId, $Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->musteriDamgaVergileri($MusteriId);
                 Response::json(['data' => $Satirlar]);
@@ -36,9 +36,37 @@ class StampTaxController
         }
     }
 
+    /**
+     * Tek Damga Vergisi Detayi Getir
+     */
+    public static function show(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Gecersiz kayit.', 404);
+            return;
+        }
+
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Repo = new StampTaxRepository();
+        $DamgaVergisi = $Repo->bul($Id);
+
+        if (!$DamgaVergisi) {
+            Response::error('Damga vergisi bulunamadi.', 404);
+            return;
+        }
+
+        Response::json(['data' => $DamgaVergisi]);
+    }
+
     public static function store(): void
     {
-        // Hem JSON hem FormData desteği
+        // Hem JSON hem FormData destegi
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($contentType, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -50,34 +78,34 @@ class StampTaxController
         $Zorunlu = ['MusteriId', 'Tarih', 'Tutar'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan]) && $Girdi[$Alan] !== 0) {
-                Response::error("$Alan alanı zorunludur.", 422);
+                Response::error("$Alan alani zorunludur.", 422);
                 return;
             }
         }
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
-        // Dosya yükleme işlemi
+        // Dosya yukleme islemi - varsa dosya yolunu ve adini kaydediyoruz
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = __DIR__ . '/../../storage/uploads/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
+            $YuklemeKlasoru = __DIR__ . '/../../storage/uploads/';
+            if (!is_dir($YuklemeKlasoru)) {
+                mkdir($YuklemeKlasoru, 0755, true);
             }
             
-            $OriginalName = $_FILES['dosya']['name'];
-            $Extension = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
-            $SafeName = uniqid() . '_' . time() . '.' . $Extension;
-            $DestPath = $uploadDir . $SafeName;
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $HedefYol = $YuklemeKlasoru . $GuvenliAd;
             
-            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $DestPath)) {
-                $DosyaAdi = $OriginalName;
-                $DosyaYolu = 'storage/uploads/' . $SafeName;
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
+                $DosyaAdi = $OrijinalAd;
+                $DosyaYolu = 'storage/uploads/' . $GuvenliAd;
             }
         }
 
@@ -103,23 +131,31 @@ class StampTaxController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
-        // Hem JSON hem FormData desteği
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-        if (strpos($contentType, 'application/json') !== false) {
+        // Hem JSON hem FormData gelen istekleri destekliyoruz
+        $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } elseif (strpos($IcerikTipi, 'multipart/form-data') !== false) {
+            // PUT isteklerinde $_POST bos kalir, bu yuzden $_POST kullaniyoruz
+            // Ancak PHP multipart/form-data'yi PUT icin otomatik parse etmez
+            // Frontend POST gibi davranir ve $_POST dolar
+            $Girdi = $_POST;
+        } elseif (strpos($IcerikTipi, 'application/x-www-form-urlencoded') !== false) {
+            // PUT icin urlencoded veri parse ediliyor
+            parse_str(file_get_contents('php://input'), $Girdi);
         } else {
-            // multipart/form-data
+            // Diger durumlar icin $_POST kullan
             $Girdi = $_POST;
         }
         
         $Repo = new StampTaxRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -131,9 +167,9 @@ class StampTaxController
         if (isset($Girdi['BelgeNo'])) $Guncellenecek['BelgeNo'] = trim((string)$Girdi['BelgeNo']);
         if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
 
-        // Dosya silme veya güncelleme işlemi
+        // Dosya silme veya guncelleme islemi
         if (!empty($Girdi['removeFile'])) {
-            // Mevcut dosyayı sil
+            // Mevcut dosyayi sil
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = __DIR__ . '/../../' . $Mevcut['DosyaYolu'];
@@ -145,9 +181,9 @@ class StampTaxController
             $Guncellenecek['DosyaYolu'] = null;
         }
 
-        // Yeni dosya yüklendiyse
+        // Yeni dosya yuklendiyse eskisini silip yenisini kaydediyoruz
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
-            // Eski dosyayı sil
+            // Eski dosyayi fiziksel olarak sil
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = __DIR__ . '/../../' . $Mevcut['DosyaYolu'];
@@ -156,19 +192,19 @@ class StampTaxController
                 }
             }
 
-            $uploadDir = __DIR__ . '/../../storage/uploads/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
+            $YuklemeKlasoru = __DIR__ . '/../../storage/uploads/';
+            if (!is_dir($YuklemeKlasoru)) {
+                mkdir($YuklemeKlasoru, 0755, true);
             }
             
-            $OriginalName = $_FILES['dosya']['name'];
-            $Extension = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
-            $SafeName = uniqid() . '_' . time() . '.' . $Extension;
-            $DestPath = $uploadDir . $SafeName;
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $HedefYol = $YuklemeKlasoru . $GuvenliAd;
             
-            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $DestPath)) {
-                $Guncellenecek['DosyaAdi'] = $OriginalName;
-                $Guncellenecek['DosyaYolu'] = 'storage/uploads/' . $SafeName;
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
+                $Guncellenecek['DosyaAdi'] = $OrijinalAd;
+                $Guncellenecek['DosyaYolu'] = 'storage/uploads/' . $GuvenliAd;
             }
         }
 
@@ -183,14 +219,14 @@ class StampTaxController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
         $Repo = new StampTaxRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -203,7 +239,7 @@ class StampTaxController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
@@ -211,19 +247,19 @@ class StampTaxController
         $Kayit = $Repo->bul($Id);
         
         if (!$Kayit) {
-            Response::error('Kayıt bulunamadı.', 404);
+            Response::error('Kayit bulunamadi.', 404);
             return;
         }
 
         if (empty($Kayit['DosyaYolu'])) {
-            Response::error('Bu kayıta ait dosya bulunamadı.', 404);
+            Response::error('Bu kayita ait dosya bulunamadi.', 404);
             return;
         }
 
         $FilePath = __DIR__ . '/../../' . $Kayit['DosyaYolu'];
         
         if (!file_exists($FilePath)) {
-            Response::error('Dosya bulunamadı.', 404);
+            Response::error('Dosya bulunamadi.', 404);
             return;
         }
 

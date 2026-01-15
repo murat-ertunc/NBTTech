@@ -10,14 +10,14 @@ use App\Repositories\ParameterRepository;
 class ParameterController
 {
     /**
-     * Tüm parametreleri listele
+     * Tum parametreleri listele
      */
     public static function index(): void
     {
         $Repo = new ParameterRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -34,14 +34,14 @@ class ParameterController
     }
 
     /**
-     * Aktif dövizleri getir
+     * Aktif dovizleri getir
      */
     public static function currencies(): void
     {
         $Repo = new ParameterRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -55,14 +55,14 @@ class ParameterController
     }
 
     /**
-     * Durum parametrelerini getir (belirli bir entity için)
+     * Durum parametrelerini getir (belirli bir entity icin)
      */
     public static function statuses(): void
     {
         $Repo = new ParameterRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -75,7 +75,7 @@ class ParameterController
         $Grup = 'durum_' . $Entity;
         $Durumlar = $Repo->grubaGore($Grup);
         
-        // Frontend için array formatında dön
+        // Frontend icin array formatinda don
         $Sonuc = [];
         foreach ($Durumlar as $Durum) {
             $Sonuc[] = [
@@ -90,14 +90,14 @@ class ParameterController
     }
 
     /**
-     * Genel ayarları getir (pagination vb)
+     * Genel ayarlari getir (pagination vb)
      */
     public static function settings(): void
     {
         $Repo = new ParameterRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -121,21 +121,21 @@ class ParameterController
         $Zorunlu = ['Grup', 'Kod', 'Etiket'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
-                Response::error("$Alan alanı zorunludur.", 422);
+                Response::error("$Alan alani zorunludur.", 422);
                 return;
             }
         }
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
-        // Rol kontrolü
+        // Rol kontrolu
         $Rol = Context::rol();
         if ($Rol !== 'superadmin') {
-            Response::error('Bu işlem için yetkiniz yok.', 403);
+            Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }
 
@@ -156,27 +156,27 @@ class ParameterController
     }
 
     /**
-     * Parametre güncelle
+     * Parametre guncelle
      */
     public static function update(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int)$Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
-        // Rol kontrolü
+        // Rol kontrolu
         $Rol = Context::rol();
         if ($Rol !== 'superadmin') {
-            Response::error('Bu işlem için yetkiniz yok.', 403);
+            Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }
 
@@ -208,20 +208,20 @@ class ParameterController
     {
         $Id = isset($Parametreler['id']) ? (int)$Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
-        // Rol kontrolü
+        // Rol kontrolu
         $Rol = Context::rol();
         if ($Rol !== 'superadmin') {
-            Response::error('Bu işlem için yetkiniz yok.', 403);
+            Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }
 
@@ -233,7 +233,7 @@ class ParameterController
     }
 
     /**
-     * Toplu güncelleme (aktiflik ve varsayılan ayarları)
+     * Toplu guncelleme (aktiflik ve varsayilan ayarlari)
      */
     public static function bulkUpdate(): void
     {
@@ -241,28 +241,28 @@ class ParameterController
         
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
-        // Rol kontrolü
+        // Rol kontrolu
         $Rol = Context::rol();
         if ($Rol !== 'superadmin') {
-            Response::error('Bu işlem için yetkiniz yok.', 403);
+            Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }
 
         $Repo = new ParameterRepository();
 
         Transaction::wrap(function () use ($Girdi, $Repo, $KullaniciId) {
-            // Aktiflik güncellemeleri
+            // Aktiflik guncellemeleri
             if (isset($Girdi['aktiflik']) && is_array($Girdi['aktiflik'])) {
                 foreach ($Girdi['aktiflik'] as $item) {
                     $Repo->aktiflikDegistir((int)$item['id'], (bool)$item['aktif'], $KullaniciId);
                 }
             }
 
-            // Varsayılan güncellemeleri
+            // Varsayilan guncellemeleri
             if (isset($Girdi['varsayilan']) && is_array($Girdi['varsayilan'])) {
                 foreach ($Girdi['varsayilan'] as $item) {
                     if ($item['varsayilan']) {
@@ -271,7 +271,7 @@ class ParameterController
                 }
             }
 
-            // Değer güncellemeleri
+            // Deger guncellemeleri
             if (isset($Girdi['degerler']) && is_array($Girdi['degerler'])) {
                 foreach ($Girdi['degerler'] as $item) {
                     $Repo->guncelle((int)$item['id'], ['Deger' => $item['deger']], $KullaniciId);

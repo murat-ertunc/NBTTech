@@ -14,18 +14,18 @@ class MeetingController
         $Repo = new MeetingRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
+        $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
 
         if ($MusteriId > 0) {
             if (isset($_GET['page']) || isset($_GET['limit'])) {
-                $result = $Repo->musteriGorusmeleriPaginated($MusteriId, $page, $limit);
-                Response::json($result);
+                $Sonuc = $Repo->musteriGorusmeleriPaginated($MusteriId, $Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->musteriGorusmeleri($MusteriId);
                 Response::json(['data' => $Satirlar]);
@@ -36,20 +36,48 @@ class MeetingController
         }
     }
 
+    /**
+     * Tek Gorusme Detayi Getir
+     */
+    public static function show(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Gecersiz kayit.', 404);
+            return;
+        }
+
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Repo = new MeetingRepository();
+        $Gorusme = $Repo->bul($Id);
+
+        if (!$Gorusme) {
+            Response::error('Gorusme bulunamadi.', 404);
+            return;
+        }
+
+        Response::json(['data' => $Gorusme]);
+    }
+
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         $Zorunlu = ['MusteriId', 'Tarih', 'Konu'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
-                Response::error("$Alan alanı zorunludur.", 422);
+                Response::error("$Alan alani zorunludur.", 422);
                 return;
             }
         }
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -72,7 +100,7 @@ class MeetingController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
@@ -80,7 +108,7 @@ class MeetingController
         $Repo = new MeetingRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -102,14 +130,14 @@ class MeetingController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
         $Repo = new MeetingRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 

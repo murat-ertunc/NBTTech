@@ -25,42 +25,43 @@ class BaseRepository
     }
 
     /**
-     * Pagination helper - SQL sorgusuna OFFSET FETCH ekler (MSSQL için)
+     * Pagination helper - SQL sorgusuna OFFSET FETCH ekliyor (MSSQL icin)
+     * Base SQL'den toplam kayit sayisini cikarip sayfalama yapiyoruz
      */
-    protected function paginatedQuery(string $baseSql, array $params = [], int $page = 1, int $limit = 10): array
+    protected function paginatedQuery(string $BaseSql, array $Parametreler = [], int $Sayfa = 1, int $Limit = 10): array
     {
-        $countBaseSql = preg_replace('/\s+ORDER\s+BY\s+[\w\s,\.]+(?:ASC|DESC)?(?:\s*,\s*[\w\.]+\s*(?:ASC|DESC)?)*\s*$/is', '', $baseSql);
-        $countSql = "SELECT COUNT(*) as Total FROM ({$countBaseSql}) as CountQuery";
-        $countStmt = $this->Db->prepare($countSql);
-        $countStmt->execute($params);
-        $total = (int) $countStmt->fetch()['Total'];
+        $SayimBaseSql = preg_replace('/\s+ORDER\s+BY\s+[\w\s,\.]+(?:ASC|DESC)?(?:\s*,\s*[\w\.]+\s*(?:ASC|DESC)?)*\s*$/is', '', $BaseSql);
+        $SayimSql = "SELECT COUNT(*) as Total FROM ({$SayimBaseSql}) as CountQuery";
+        $SayimStmt = $this->Db->prepare($SayimSql);
+        $SayimStmt->execute($Parametreler);
+        $Toplam = (int) $SayimStmt->fetch()['Total'];
         
-        $totalPages = $limit > 0 ? (int) ceil($total / $limit) : 1;
-        $page = max(1, min($page, $totalPages > 0 ? $totalPages : 1));
-        $offset = ($page - 1) * $limit;
+        $ToplamSayfa = $Limit > 0 ? (int) ceil($Toplam / $Limit) : 1;
+        $Sayfa = max(1, min($Sayfa, $ToplamSayfa > 0 ? $ToplamSayfa : 1));
+        $Offset = ($Sayfa - 1) * $Limit;
         
-        $paginatedSql = $baseSql . " OFFSET {$offset} ROWS FETCH NEXT {$limit} ROWS ONLY";
+        $SayfaliBirSql = $BaseSql . " OFFSET {$Offset} ROWS FETCH NEXT {$Limit} ROWS ONLY";
         
-        $stmt = $this->Db->prepare($paginatedSql);
-        $stmt->execute($params);
-        $data = $stmt->fetchAll();
+        $Stmt = $this->Db->prepare($SayfaliBirSql);
+        $Stmt->execute($Parametreler);
+        $Veri = $Stmt->fetchAll();
         
         return [
-            'data' => $data,
+            'data' => $Veri,
             'pagination' => [
-                'page' => $page,
-                'limit' => $limit,
-                'total' => $total,
-                'totalPages' => $totalPages,
-                'hasNext' => $page < $totalPages,
-                'hasPrev' => $page > 1
+                'page' => $Sayfa,
+                'limit' => $Limit,
+                'total' => $Toplam,
+                'totalPages' => $ToplamSayfa,
+                'hasNext' => $Sayfa < $ToplamSayfa,
+                'hasPrev' => $Sayfa > 1
             ]
         ];
     }
 
     public function tumAktifler(): array
     {
-        $Stmt = $this->Db->query("SELECT * FROM {$this->Tablo} WHERE Sil = 0");
+        $Stmt = $this->Db->query("SELECT * FROM {$this->Tablo} WHERE Sil = 0 ORDER BY Id DESC");
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['Sil' => 0], $Sonuclar);
         return $Sonuclar;
@@ -75,9 +76,22 @@ class BaseRepository
         return $Sonuc ?: null;
     }
 
+    /**
+     * Sadece ana tablo kolonlarini getiren temel bul metodu
+     * JOIN'lerden gelen ek alanlar dahil degil - yedekleme icin kullanilir
+     */
+    public function bulTemel(int $Id): ?array
+    {
+        $Sql = "SELECT * FROM {$this->Tablo} WHERE Id = :Id AND Sil = 0";
+        $Stmt = $this->Db->prepare($Sql);
+        $Stmt->execute(['Id' => $Id]);
+        return $Stmt->fetch() ?: null;
+    }
+
     public function yedekle(int $Id, string $YedekTablo, ?int $KullaniciId = null): void
     {
-        $Kayit = $this->bul($Id);
+        // Sadece ana tablo kolonlarini al (JOIN'lerden gelen alanlar dahil degil)
+        $Kayit = $this->bulTemel($Id);
         if (!$Kayit) {
             return;
         }

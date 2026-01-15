@@ -36,7 +36,7 @@ class LogController
         // Superadmin role check
         $Rol = Context::rol();
         if ($Rol !== Rol::SUPERADMIN) {
-            Response::forbidden('Bu alana sadece superadmin erişebilir');
+            Response::forbidden('Bu alana sadece superadmin erisebilir');
             return;
         }
         

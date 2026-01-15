@@ -35,8 +35,8 @@ $Router->add('GET', '/customers', function () {
 	require __DIR__ . '/../public/pages/customers.php';
 });
 
-$Router->add('GET', '/customer/{id}', function ($params) {
-	$customerId = (int)($params['id'] ?? 0);
+$Router->add('GET', '/customer/{id}', function ($Parametreler) {
+	$MusteriId = (int)($Parametreler['id'] ?? 0);
 	require __DIR__ . '/../public/pages/customer-detail.php';
 });
 

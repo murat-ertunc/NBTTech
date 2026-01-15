@@ -8,7 +8,7 @@ use App\Core\Context;
  * Islem Loglayici
  * 
  * Tum CRUD islemlerini log_action tablosuna kaydeder.
- * NbtYazilimKurallari'na gore her islem loglanmalidir.
+ * Her islem mutlaka loglanmalidir.
  */
 class ActionLogger
 {

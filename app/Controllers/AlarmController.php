@@ -38,8 +38,8 @@ class AlarmController
                 'id' => 'unpaid_invoices',
                 'type' => 'invoice',
                 'priority' => 'high',
-                'title' => 'Ödenmemiş Faturalar',
-                'description' => $OdenmemisFaturalar['count'] . ' adet fatura ödeme bekliyor',
+                'title' => 'Odenmemis Faturalar',
+                'description' => $OdenmemisFaturalar['count'] . ' adet fatura odeme bekliyor',
                 'total' => $OdenmemisFaturalar['total'],
                 'count' => $OdenmemisFaturalar['count'],
                 'items' => $OdenmemisFaturalar['items']
@@ -53,8 +53,8 @@ class AlarmController
                 'id' => 'upcoming_events',
                 'type' => 'calendar',
                 'priority' => 'medium',
-                'title' => 'Yaklaşan İşler',
-                'description' => 'Bu hafta ' . $YaklasanIsler['count'] . ' görev var',
+                'title' => 'Yaklasan Isler',
+                'description' => 'Bu hafta ' . $YaklasanIsler['count'] . ' gorev var',
                 'count' => $YaklasanIsler['count'],
                 'items' => $YaklasanIsler['items']
             ];
@@ -67,8 +67,8 @@ class AlarmController
                 'id' => 'expired_guarantees',
                 'type' => 'guarantee',
                 'priority' => 'high',
-                'title' => 'Vadesi Geçen Teminatlar',
-                'description' => $VadesiGecenTeminatlar['count'] . ' teminatın vadesi geçmiş',
+                'title' => 'Vadesi Gecen Teminatlar',
+                'description' => $VadesiGecenTeminatlar['count'] . ' teminatin vadesi gecmis',
                 'count' => $VadesiGecenTeminatlar['count'],
                 'items' => $VadesiGecenTeminatlar['items']
             ];
@@ -81,8 +81,8 @@ class AlarmController
                 'id' => 'expiring_contracts',
                 'type' => 'contract',
                 'priority' => 'medium',
-                'title' => 'Sözleşme Bitiş Yaklaşıyor',
-                'description' => $BitenSozlesmeler['count'] . ' sözleşme 30 gün içinde bitiyor',
+                'title' => 'Sozlesme Bitis Yaklasiyor',
+                'description' => $BitenSozlesmeler['count'] . ' sozlesme 30 gun icinde bitiyor',
                 'count' => $BitenSozlesmeler['count'],
                 'items' => $BitenSozlesmeler['items']
             ];
@@ -103,7 +103,7 @@ class AlarmController
         try {
             $Db = Database::connection();
             
-            // Her fatura için ayrı ayrı kalan bakiyeyi hesapla
+            // Her fatura icin ayri ayri kalan bakiyeyi hesapla
             $Sql = "
                 SELECT 
                     f.Id,
@@ -146,9 +146,9 @@ class AlarmController
                     $Fark = $Bugun->diff($FaturaTarihi);
                     $GecikmeGun = $Fark->days;
                     
-                    // Eğer fatura tarihi bugünden önceyse gecikme pozitif
+                    // Eger fatura tarihi bugunden onceyse gecikme pozitif
                     if ($FaturaTarihi > $Bugun) {
-                        $GecikmeGun = -$GecikmeGun; // Henüz vadesi gelmemiş
+                        $GecikmeGun = -$GecikmeGun; // Henuz vadesi gelmemis
                     }
                     
                     $OdenmemisKalemler[] = [
@@ -168,7 +168,7 @@ class AlarmController
                 }
             }
             
-            // Gecikme gününe göre azalan sırala (en çok geciken en üstte)
+            // Gecikme gunune gore azalan sirala (en cok geciken en ustte)
             usort($OdenmemisKalemler, function($a, $b) {
                 return $b['delayDays'] - $a['delayDays'];
             });
@@ -176,7 +176,7 @@ class AlarmController
             return [
                 'count' => count($OdenmemisKalemler),
                 'total' => $ToplamOdenmemis,
-                'items' => $OdenmemisKalemler // Tüm faturalar
+                'items' => $OdenmemisKalemler // Tum faturalar
             ];
         } catch (\Exception $e) {
             return ['count' => 0, 'total' => 0, 'items' => []];

@@ -53,7 +53,7 @@ foreach ($Kullanicilar as $Kullanici) {
             'Rol' => $Kullanici['Rol'],
         ]);
         
-        echo "✓ {$Kullanici['Rol']} kullanıcı oluşturuldu: {$Kullanici['KullaniciAdi']}\n";
+        echo "✓ {$Kullanici['Rol']} kullanici olusturuldu: {$Kullanici['KullaniciAdi']}\n";
     } elseif ((int) $Mevcut['Sil'] === 1) {
         // Silinmis kullaniciyi geri yukle
         $Simdi = date('Y-m-d H:i:s');
@@ -66,7 +66,7 @@ foreach ($Kullanicilar as $Kullanici) {
             'AdSoyad' => $Kullanici['AdSoyad'],
             'DegisiklikZamani' => $Simdi,
         ]);
-        echo "↻ {$Kullanici['Rol']} kullanıcı geri yüklendi: {$Kullanici['KullaniciAdi']}\n";
+        echo "↻ {$Kullanici['Rol']} kullanici geri yuklendi: {$Kullanici['KullaniciAdi']}\n";
     } else {
         echo "• {$Kullanici['KullaniciAdi']} zaten mevcut.\n";
     }

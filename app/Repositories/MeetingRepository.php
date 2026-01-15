@@ -7,13 +7,14 @@ class MeetingRepository extends BaseRepository
     protected string $Tablo = 'tbl_gorusme';
 
     /**
-     * Tüm aktif görüşmeleri müşteri adı ile birlikte getir
+     * Tum aktif gorusmeleri musteri adi ile birlikte getir
      */
     public function tumAktifler(): array
     {
-        $Sql = "SELECT g.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT g.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} g 
                 LEFT JOIN tbl_musteri m ON g.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON g.ProjeId = p.Id 
                 WHERE g.Sil = 0 
                 ORDER BY g.Tarih DESC, g.Id DESC";
         $Stmt = $this->Db->query($Sql);
@@ -24,9 +25,10 @@ class MeetingRepository extends BaseRepository
 
     public function musteriGorusmeleri(int $MusteriId): array
     {
-        $Sql = "SELECT g.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT g.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} g 
                 LEFT JOIN tbl_musteri m ON g.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON g.ProjeId = p.Id 
                 WHERE g.MusteriId = :Mid AND g.Sil = 0 
                 ORDER BY g.Tarih DESC, g.Id DESC";
         $Stmt = $this->Db->prepare($Sql);
@@ -36,15 +38,16 @@ class MeetingRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    public function musteriGorusmeleriPaginated(int $MusteriId, int $page = 1, int $limit = 10): array
+    public function musteriGorusmeleriPaginated(int $MusteriId, int $Sayfa = 1, int $Limit = 10): array
     {
-        $Sql = "SELECT g.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT g.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} g 
                 LEFT JOIN tbl_musteri m ON g.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON g.ProjeId = p.Id 
                 WHERE g.MusteriId = :Mid AND g.Sil = 0 
                 ORDER BY g.Tarih DESC, g.Id DESC";
-        $result = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $page, $limit);
-        $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0, 'page' => $page], $result['data']);
-        return $result;
+        $Sonuc = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $Sayfa, $Limit);
+        $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 }

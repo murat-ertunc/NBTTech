@@ -14,32 +14,60 @@ class ContractController
         $Repo = new ContractRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
+        $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
 
         if ($MusteriId > 0) {
             if (isset($_GET['page']) || isset($_GET['limit'])) {
-                $result = $Repo->musteriSozlesmeleriPaginated($MusteriId, $page, $limit);
-                Response::json($result);
+                $Sonuc = $Repo->musteriSozlesmeleriPaginated($MusteriId, $Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->musteriSozlesmeleri($MusteriId);
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            // Standalone sayfa - pagination ile tüm sözleşmeler
+            // Standalone sayfa - pagination ile tum sozlesmeler
             if (isset($_GET['page']) || isset($_GET['limit'])) {
-                $result = $Repo->tumAktiflerPaginated($page, $limit);
-                Response::json($result);
+                $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->tumAktifler();
                 Response::json(['data' => $Satirlar]);
             }
         }
+    }
+
+    /**
+     * Tek Sozlesme Detayi Getir
+     */
+    public static function show(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Gecersiz kayit.', 404);
+            return;
+        }
+
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Repo = new ContractRepository();
+        $Sozlesme = $Repo->bul($Id);
+
+        if (!$Sozlesme) {
+            Response::error('Sozlesme bulunamadi.', 404);
+            return;
+        }
+
+        Response::json(['data' => $Sozlesme]);
     }
 
     public static function store(): void
@@ -48,14 +76,14 @@ class ContractController
         $Zorunlu = ['MusteriId', 'SozlesmeNo'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
-                Response::error("$Alan alanı zorunludur.", 422);
+                Response::error("$Alan alani zorunludur.", 422);
                 return;
             }
         }
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -84,7 +112,7 @@ class ContractController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
@@ -92,7 +120,7 @@ class ContractController
         $Repo = new ContractRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -120,14 +148,14 @@ class ContractController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
         $Repo = new ContractRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 

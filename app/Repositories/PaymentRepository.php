@@ -10,11 +10,13 @@ class PaymentRepository extends BaseRepository
     {
         $Sql = "
             SELECT o.*, 
+                   p.ProjeAdi,
                    f.Tarih as FaturaTarihi,
                    f.Tutar as FaturaTutari,
                    f.DovizCinsi as FaturaDovizi,
                    f.Aciklama as FaturaAciklama
             FROM tbl_odeme o
+            LEFT JOIN tbl_proje p ON o.ProjeId = p.Id
             LEFT JOIN tbl_fatura f ON o.FaturaId = f.Id
             WHERE o.Sil = 0 AND o.MusteriId = :MId 
             ORDER BY o.Tarih DESC, o.Id DESC
@@ -26,22 +28,24 @@ class PaymentRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    public function musteriyeGorePaginated(int $MusteriId, int $page = 1, int $limit = 10): array
+    public function musteriyeGorePaginated(int $MusteriId, int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "
             SELECT o.*, 
+                   p.ProjeAdi,
                    f.Tarih as FaturaTarihi,
                    f.Tutar as FaturaTutari,
                    f.DovizCinsi as FaturaDovizi,
                    f.Aciklama as FaturaAciklama
             FROM tbl_odeme o
+            LEFT JOIN tbl_proje p ON o.ProjeId = p.Id
             LEFT JOIN tbl_fatura f ON o.FaturaId = f.Id
             WHERE o.Sil = 0 AND o.MusteriId = :MId 
             ORDER BY o.Tarih DESC, o.Id DESC
         ";
-        $result = $this->paginatedQuery($Sql, ['MId' => $MusteriId], $page, $limit);
-        $this->logSelect(['Sil' => 0, 'MusteriId' => $MusteriId, 'page' => $page], $result['data']);
-        return $result;
+        $Sonuc = $this->paginatedQuery($Sql, ['MId' => $MusteriId], $Sayfa, $Limit);
+        $this->logSelect(['Sil' => 0, 'MusteriId' => $MusteriId, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 
     public function tumAktifler(): array
@@ -49,12 +53,14 @@ class PaymentRepository extends BaseRepository
         $Sql = "
             SELECT o.*, 
                    m.Unvan as MusteriUnvan,
+                   p.ProjeAdi,
                    f.Tarih as FaturaTarihi,
                    f.Tutar as FaturaTutari,
                    f.DovizCinsi as FaturaDovizi,
                    f.Aciklama as FaturaAciklama
             FROM tbl_odeme o
             LEFT JOIN tbl_musteri m ON o.MusteriId = m.Id
+            LEFT JOIN tbl_proje p ON o.ProjeId = p.Id
             LEFT JOIN tbl_fatura f ON o.FaturaId = f.Id
             WHERE o.Sil = 0
             ORDER BY o.Tarih DESC, o.Id DESC
@@ -65,23 +71,25 @@ class PaymentRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    public function tumAktiflerPaginated(int $page = 1, int $limit = 10): array
+    public function tumAktiflerPaginated(int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "
             SELECT o.*, 
                    m.Unvan as MusteriUnvan,
+                   p.ProjeAdi,
                    f.Tarih as FaturaTarihi,
                    f.Tutar as FaturaTutari,
                    f.DovizCinsi as FaturaDovizi,
                    f.Aciklama as FaturaAciklama
             FROM tbl_odeme o
             LEFT JOIN tbl_musteri m ON o.MusteriId = m.Id
+            LEFT JOIN tbl_proje p ON o.ProjeId = p.Id
             LEFT JOIN tbl_fatura f ON o.FaturaId = f.Id
             WHERE o.Sil = 0
             ORDER BY o.Tarih DESC, o.Id DESC
         ";
-        $result = $this->paginatedQuery($Sql, [], $page, $limit);
-        $this->logSelect(['Sil' => 0, 'page' => $page], $result['data']);
-        return $result;
+        $Sonuc = $this->paginatedQuery($Sql, [], $Sayfa, $Limit);
+        $this->logSelect(['Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 }

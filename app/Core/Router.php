@@ -17,8 +17,19 @@ class Router
 
     public function dispatch(string $Metod, string $Yol): void
     {
+        // Method spoofing destegi: POST + _method=PUT/DELETE/PATCH
+        // PHP, PUT/PATCH/DELETE isteklerinde multipart/form-data parse etmez
+        // Bu yuzden frontend formData ile POST gonderiyor ve _method field'i ekliyor
+        $GercekMetod = strtoupper($Metod);
+        if ($GercekMetod === 'POST' && isset($_POST['_method'])) {
+            $SpoofedMetod = strtoupper($_POST['_method']);
+            if (in_array($SpoofedMetod, ['PUT', 'PATCH', 'DELETE'])) {
+                $GercekMetod = $SpoofedMetod;
+            }
+        }
+        
         foreach ($this->Rotalar as $Rota) {
-            if ($Rota['Metod'] !== strtoupper($Metod)) {
+            if ($Rota['Metod'] !== $GercekMetod) {
                 continue;
             }
             if (preg_match($Rota['Desen'], $Yol, $Eslesmeler)) {
@@ -28,7 +39,7 @@ class Router
             }
         }
 
-        // API istekleri için JSON, web sayfaları için HTML 404
+        // API istekleri icin JSON, web sayfalari icin HTML 404
         if (strpos($Yol, '/api/') === 0) {
             Response::json(['error' => 'Not Found'], 404);
         } else {

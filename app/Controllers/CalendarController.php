@@ -9,8 +9,8 @@ use App\Core\Database;
 /**
  * CalendarController
  * 
- * Dashboard takvim sistemi için endpoint'ler.
- * Müşteriye bağlı etkinlikler (proje tarihleri, sözleşme tarihleri, vb.)
+ * Dashboard takvim sistemi icin endpoint'ler.
+ * Musteriye bagli etkinlikler (proje tarihleri, sozlesme tarihleri, vb.)
  */
 class CalendarController
 {
@@ -19,10 +19,10 @@ class CalendarController
      * GET /api/calendar
      * 
      * Query params:
-     * - customerId: Belirli müşteriye ait etkinlikler
+     * - customerId: Belirli musteriye ait etkinlikler
      * - month: Ay (1-12)
-     * - year: Yıl
-     * - includeCompleted: Tamamlanan işleri dahil et (0/1)
+     * - year: Yil
+     * - includeCompleted: Tamamlanan isleri dahil et (0/1)
      */
     public function index(): void
     {
@@ -39,11 +39,11 @@ class CalendarController
 
         $Etkinlikler = [];
 
-        // 1. Proje başlangıç ve bitiş tarihleri
+        // 1. Proje baslangic ve bitis tarihleri
         $ProjeEtkinlikleri = $this->getProjectEvents($MusteriId, $Ay, $Yil, $TamamlananlarDahil);
         $Etkinlikler = array_merge($Etkinlikler, $ProjeEtkinlikleri);
 
-        // 2. Sözleşme başlangıç ve bitiş tarihleri
+        // 2. Sozlesme baslangic ve bitis tarihleri
         $SozlesmeEtkinlikleri = $this->getContractEvents($MusteriId, $Ay, $Yil, $TamamlananlarDahil);
         $Etkinlikler = array_merge($Etkinlikler, $SozlesmeEtkinlikleri);
 
@@ -55,7 +55,11 @@ class CalendarController
         $FaturaEtkinlikleri = $this->getInvoiceEvents($MusteriId, $Ay, $Yil);
         $Etkinlikler = array_merge($Etkinlikler, $FaturaEtkinlikleri);
 
-        // Tarihe göre sırala
+        // 5. Takvim kayitlari (tbl_takvim)
+        $TakvimEtkinlikleri = $this->getTakvimEvents($MusteriId, $Ay, $Yil);
+        $Etkinlikler = array_merge($Etkinlikler, $TakvimEtkinlikleri);
+
+        // Tarihe gore sirala
         usort($Etkinlikler, function($a, $b) {
             return strtotime($a['date']) - strtotime($b['date']);
         });
@@ -73,7 +77,7 @@ class CalendarController
     }
 
     /**
-     * Belirli bir gündeki etkinlikleri getir
+     * Belirli bir gundeki etkinlikleri getir
      * GET /api/calendar/day/{date}
      */
     public function day(string $date): void
@@ -86,7 +90,7 @@ class CalendarController
 
         // Date format: YYYY-MM-DD
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            Response::badRequest('Geçersiz tarih formatı. YYYY-MM-DD olmalı.');
+            Response::badRequest('Gecersiz tarih formati. YYYY-MM-DD olmali.');
             return;
         }
 
@@ -146,7 +150,7 @@ class CalendarController
             
             $Etkinlikler = [];
             foreach ($Projeler as $Proje) {
-                // Başlangıç tarihi
+                // Baslangic tarihi
                 if ($Proje['BaslangicTarihi']) {
                     $BaslangicAy = (int)date('n', strtotime($Proje['BaslangicTarihi']));
                     $BaslangicYil = (int)date('Y', strtotime($Proje['BaslangicTarihi']));
@@ -157,7 +161,7 @@ class CalendarController
                             'category' => 'project',
                             'customerId' => $Proje['MusteriId'],
                             'customer' => $Proje['MusteriUnvan'],
-                            'title' => 'Proje Başlangıç: ' . $Proje['ProjeAdi'],
+                            'title' => 'Proje Baslangic: ' . $Proje['ProjeAdi'],
                             'date' => $Proje['BaslangicTarihi'],
                             'color' => '#198754', // green
                             'completed' => $Proje['Durum'] != 1,
@@ -167,7 +171,7 @@ class CalendarController
                     }
                 }
                 
-                // Bitiş tarihi
+                // Bitis tarihi
                 if ($Proje['BitisTarihi']) {
                     $BitisAy = (int)date('n', strtotime($Proje['BitisTarihi']));
                     $BitisYil = (int)date('Y', strtotime($Proje['BitisTarihi']));
@@ -178,7 +182,7 @@ class CalendarController
                             'category' => 'project',
                             'customerId' => $Proje['MusteriId'],
                             'customer' => $Proje['MusteriUnvan'],
-                            'title' => 'Proje Bitiş: ' . $Proje['ProjeAdi'],
+                            'title' => 'Proje Bitis: ' . $Proje['ProjeAdi'],
                             'date' => $Proje['BitisTarihi'],
                             'color' => '#dc3545', // red
                             'completed' => $Proje['Durum'] != 1,
@@ -196,7 +200,7 @@ class CalendarController
     }
 
     /**
-     * Sözleşme etkinliklerini getir
+     * Sozlesme etkinliklerini getir
      */
     private function getContractEvents(?int $MusteriId, int $Ay, int $Yil, bool $TamamlananlarDahil): array
     {
@@ -250,7 +254,7 @@ class CalendarController
                             'category' => 'contract',
                             'customerId' => $Sozlesme['MusteriId'],
                             'customer' => $Sozlesme['MusteriUnvan'],
-                            'title' => 'Sözleşme Başlangıç: ' . $Sozlesme['SozlesmeNo'],
+                            'title' => 'Sozlesme Baslangic: ' . $Sozlesme['SozlesmeNo'],
                             'date' => $Sozlesme['BaslangicTarihi'],
                             'color' => '#0d6efd', // blue
                             'completed' => $Sozlesme['Durum'] != 1,
@@ -270,7 +274,7 @@ class CalendarController
                             'category' => 'contract',
                             'customerId' => $Sozlesme['MusteriId'],
                             'customer' => $Sozlesme['MusteriUnvan'],
-                            'title' => 'Sözleşme Bitiş: ' . $Sozlesme['SozlesmeNo'],
+                            'title' => 'Sozlesme Bitis: ' . $Sozlesme['SozlesmeNo'],
                             'date' => $Sozlesme['BitisTarihi'],
                             'color' => '#6f42c1', // purple
                             'completed' => $Sozlesme['Durum'] != 1,
@@ -418,7 +422,7 @@ class CalendarController
     }
 
     /**
-     * Belirli bir gündeki etkinlikleri getir
+     * Belirli bir gundeki etkinlikleri getir
      */
     private function getEventsForDay(string $Tarih, ?int $MusteriId): array
     {
@@ -454,7 +458,7 @@ class CalendarController
                 ];
             }
             
-            // Sözleşmeler
+            // Sozlesmeler
             $Sql = "
                 SELECT Id, MusteriId, SozlesmeNo,
                        CASE WHEN CAST(BaslangicTarihi AS DATE) = :date THEN 'start' ELSE 'end' END as EventType
@@ -515,6 +519,94 @@ class CalendarController
                     'eventType' => 'created',
                     'title' => $Fatura['Aciklama'] ?: 'Fatura #' . $Fatura['Id'],
                     'customerId' => $Fatura['MusteriId']
+                ];
+            }
+            
+            // Takvim kayitlari
+            $Sql = "
+                SELECT t.Id, t.MusteriId, t.Ozet, m.Unvan as MusteriUnvan
+                FROM tbl_takvim t
+                LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
+                WHERE t.Sil = 0 
+                  AND CAST(t.BaslangicTarihi AS DATE) = :date
+            ";
+            if ($MusteriId) {
+                $Sql .= " AND t.MusteriId = :customerId";
+            }
+            $Stmt = $Db->prepare($Sql); 
+            $Stmt->execute($Parametreler);
+            $TakvimKayitlari = $Stmt->fetchAll();
+            
+            foreach ($TakvimKayitlari as $Kayit) {
+                $Etkinlikler[] = [
+                    'id' => $Kayit['Id'],
+                    'type' => 'takvim',
+                    'eventType' => 'reminder',
+                    'title' => $Kayit['Ozet'],
+                    'customer' => $Kayit['MusteriUnvan'],
+                    'customerId' => $Kayit['MusteriId']
+                ];
+            }
+            
+            return $Etkinlikler;
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Takvim kayitlarini getir (tbl_takvim)
+     */
+    private function getTakvimEvents(?int $MusteriId, int $Ay, int $Yil): array
+    {
+        try {
+            $Db = Database::connection();
+            
+            $Kosullar = "t.Sil = 0";
+            $Parametreler = ['month' => $Ay, 'year' => $Yil];
+            
+            if ($MusteriId) {
+                $Kosullar .= " AND t.MusteriId = :customerId";
+                $Parametreler['customerId'] = $MusteriId;
+            }
+            
+            $Sql = "
+                SELECT 
+                    t.Id,
+                    t.MusteriId,
+                    m.Unvan as MusteriUnvan,
+                    t.ProjeId,
+                    p.ProjeAdi,
+                    t.BaslangicTarihi,
+                    t.BitisTarihi,
+                    t.Ozet
+                FROM tbl_takvim t
+                LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
+                LEFT JOIN tbl_proje p ON t.ProjeId = p.Id
+                WHERE {$Kosullar}
+                  AND (MONTH(t.BaslangicTarihi) = :month AND YEAR(t.BaslangicTarihi) = :year)
+                ORDER BY t.BaslangicTarihi ASC
+            ";
+            
+            $Stmt = $Db->prepare($Sql); 
+            $Stmt->execute($Parametreler);
+            $TakvimKayitlari = $Stmt->fetchAll();
+            
+            $Etkinlikler = [];
+            foreach ($TakvimKayitlari as $Kayit) {
+                $Etkinlikler[] = [
+                    'id' => 'takvim_' . $Kayit['Id'],
+                    'type' => 'takvim',
+                    'category' => 'takvim',
+                    'customerId' => $Kayit['MusteriId'],
+                    'customer' => $Kayit['MusteriUnvan'],
+                    'title' => $Kayit['Ozet'],
+                    'description' => $Kayit['ProjeAdi'] ? 'Proje: ' . $Kayit['ProjeAdi'] : null,
+                    'date' => $Kayit['BaslangicTarihi'],
+                    'color' => '#198754', // green
+                    'completed' => false,
+                    'relatedId' => $Kayit['Id'],
+                    'relatedType' => 'takvim'
                 ];
             }
             

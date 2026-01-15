@@ -142,7 +142,9 @@ const DashboardModule = {
     async loadCalendar() {
         const container = document.getElementById('dashCalendar');
         try {
-            await NbtCalendar.loadEvents();
+            // Mevcut ay ve yil ile verileri yukle
+            const now = new Date();
+            await NbtCalendar.loadEvents(null, now.getMonth() + 1, now.getFullYear());
         } catch (err) {
             NbtCalendar.events = [];
         }
@@ -2451,9 +2453,11 @@ const CustomerDetailModule = {
             
             // Tamamlandi filtresi
             if (field === 'Tamamlandi') {
+                const bugun = new Date();
+                bugun.setHours(0, 0, 0, 0);
                 filtered = filtered.filter(item => {
-                    const bitisTarihi = item.BitisTarihi;
-                    const tamamlandi = bitisTarihi ? (new Date(bitisTarihi) <= new Date() ? '1' : '0') : '0';
+                    const bitisTarihi = item.BitisTarihi ? new Date(item.BitisTarihi) : null;
+                    const tamamlandi = bitisTarihi && bitisTarihi < bugun ? '1' : '0';
                     return tamamlandi === value;
                 });
                 return;
@@ -3841,6 +3845,24 @@ const InvoiceModule = {
         if (fileInput) {
             fileInput.addEventListener('change', () => this.handleFileSelect(fileInput));
         }
+
+        // Takvim hatirlatma alanini checkbox ile ac/kapa
+        const takvimAktifEl = document.getElementById('invoiceTakvimAktif');
+        const takvimAlani = document.getElementById('takvimAlani');
+        const takvimSureEl = document.getElementById('invoiceTakvimSure');
+        const takvimSureTipiEl = document.getElementById('invoiceTakvimSureTipi');
+        if (takvimAktifEl && takvimAlani) {
+            takvimAktifEl.addEventListener('change', () => {
+                const aktif = takvimAktifEl.checked;
+                takvimAlani.style.display = aktif ? 'block' : 'none';
+                if (!aktif) {
+                    if (takvimSureEl) takvimSureEl.value = '';
+                    if (takvimSureTipiEl) takvimSureTipiEl.value = 'gun';
+                } else if (takvimSureEl && !takvimSureEl.value) {
+                    takvimSureEl.focus({ preventScroll: true });
+                }
+            });
+        }
     }
 };
 
@@ -4918,7 +4940,10 @@ const StampTaxModule = {
                 if (this.removeExistingFile) formData.append('removeFile', '1');
                 
                 const url = id ? `/api/stamp-taxes/${id}` : '/api/stamp-taxes';
-                const method = id ? 'PUT' : 'POST';
+                // PUT isteklerinde multipart/form-data PHP tarafindan parse edilmez
+                // Bu yuzden formData ile gonderirken POST kullaniyoruz
+                const method = 'POST';
+                if (id) formData.append('_method', 'PUT');
                 
                 const response = await fetch(url, {
                     method: method,
@@ -8205,23 +8230,26 @@ const GuaranteeModule = {
 
         let rowsHtml = '';
         if (!data || data.length === 0) {
-            rowsHtml = '<tr><td colspan="8" class="text-center text-muted py-4">Teminat bulunamadı</td></tr>';
+            rowsHtml = `<tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Teminat bulunamadı</td></tr>`;
         } else {
             rowsHtml = data.map(row => {
-                const s = statuses[row.Durum] || ['Bilinmiyor', 'secondary'];
+                const cells = columns.map(c => {
+                    let val = row[c.field];
+                    if (c.render) val = c.render(val, row);
+                    return `<td data-field="${c.field}" class="px-3">${val ?? '-'}</td>`;
+                }).join('');
+                
                 return `
-                    <tr>
-                        <td>${NbtUtils.escapeHtml(row.MusteriUnvan || '')}</td>
-                        <td>${NbtUtils.escapeHtml(row.BelgeNo || '')}</td>
-                        <td>${NbtUtils.escapeHtml(row.Tur || '')}</td>
-                        <td>${NbtUtils.formatMoney(row.Tutar, row.ParaBirimi)}</td>
-                        <td>${NbtUtils.escapeHtml(row.BankaAdi || '')}</td>
-                        <td>${NbtUtils.formatDate(row.VadeTarihi)}</td>
-                        <td><span class="badge bg-${s[1]}">${s[0]}</span></td>
-                        <td>
+                    <tr data-id="${row.Id}">
+                        ${cells}
+                        <td class="text-center px-3">
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary btn-view" data-id="${row.Id}" title="Görüntüle"><i class="bi bi-eye"></i></button>
-                                <a class="btn btn-outline-info" href="/customer/${row.MusteriId}?tab=teminatlar" title="Müşteriye Git"><i class="bi bi-person"></i></a>
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=teminatlar" title="Müşteriye Git">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>`;
@@ -8286,7 +8314,7 @@ const GuaranteeModule = {
     },
 
     bindTableEvents(container) {
-        container.querySelectorAll('.btn-view').forEach(btn => {
+        container.querySelectorAll('[data-action="view"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = parseInt(btn.dataset.id, 10);
                 const guarantee = (this.allData || this.data).find(g => parseInt(g.Id, 10) === id);
@@ -8584,7 +8612,10 @@ const GuaranteeModule = {
                 if (this.removeExistingFile) formData.append('removeFile', '1');
                 
                 const url = id ? `/api/guarantees/${id}` : '/api/guarantees';
-                const method = id ? 'PUT' : 'POST';
+                // PUT isteklerinde multipart/form-data PHP tarafindan parse edilmez
+                // Bu yuzden formData ile gonderirken POST kullaniyoruz
+                const method = 'POST';
+                if (id) formData.append('_method', 'PUT');
                 
                 const response = await fetch(url, {
                     method: method,

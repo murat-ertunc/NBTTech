@@ -38,29 +38,29 @@ class UserController
         // Admin or Superadmin role check
         $Rol = Context::rol();
         if ($Rol !== Rol::SUPERADMIN && $Rol !== Rol::ADMIN) {
-            Response::forbidden('Bu işlem için yetkiniz yok');
+            Response::forbidden('Bu islem icin yetkiniz yok');
             return;
         }
         
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kullanıcı.', 422);
+            Response::error('Gecersiz kullanici.', 422);
             return;
         }
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         if (!array_key_exists('Aktif', $Girdi)) {
-            Response::error('Aktif alanı zorunludur.', 422);
+            Response::error('Aktif alani zorunludur.', 422);
             return;
         }
         $Aktif = (int) $Girdi['Aktif'] === 1 ? 1 : 0;
         $Repo = new UserRepository();
         $Mevcut = $Repo->bul($Id);
         if (!$Mevcut) {
-            Response::error('Kullanıcı bulunamadı.', 404);
+            Response::error('Kullanici bulunamadi.', 404);
             return;
         }
         if (($Mevcut['Rol'] ?? '') === 'superadmin') {
-            Response::error('Süper admin bloklanamaz.', 403);
+            Response::error('Super admin bloklanamaz.', 403);
             return;
         }
         Transaction::wrap(function () use ($Repo, $Id, $Aktif) {
@@ -85,23 +85,23 @@ class UserController
         // Admin or Superadmin role check
         $Rol = Context::rol();
         if ($Rol !== Rol::SUPERADMIN && $Rol !== Rol::ADMIN) {
-            Response::forbidden('Bu işlem için yetkiniz yok');
+            Response::forbidden('Bu islem icin yetkiniz yok');
             return;
         }
         
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kullanıcı.', 422);
+            Response::error('Gecersiz kullanici.', 422);
             return;
         }
         $Repo = new UserRepository();
         $Mevcut = $Repo->bul($Id);
         if (!$Mevcut) {
-            Response::error('Kullanıcı bulunamadı.', 404);
+            Response::error('Kullanici bulunamadi.', 404);
             return;
         }
         if (($Mevcut['Rol'] ?? '') === 'superadmin') {
-            Response::error('Süper admin silinemez.', 403);
+            Response::error('Super admin silinemez.', 403);
             return;
         }
         
@@ -114,7 +114,7 @@ class UserController
                 ActionLogger::delete('tbl_musteri', ['EkleyenUserId' => $Id, 'SilinenAdet' => $SilinenMusteriSayisi]);
             }
 
-            // Delete oncesi yedekleme (ProjeYazimKurallari kurali)
+            // Silme oncesi yedekleme islemi yapilir
             $Repo->yedekle($Id, 'bck_tnm_user', $SilenKullaniciId);
             $Repo->softSil($Id, $SilenKullaniciId);
             ActionLogger::delete('tnm_user', ['Id' => $Id, 'BagliSilinenMusteri' => $SilinenMusteriSayisi]);
@@ -135,7 +135,7 @@ class UserController
         // Admin or Superadmin role check
         $AktifRol = Context::rol();
         if ($AktifRol !== Rol::SUPERADMIN && $AktifRol !== Rol::ADMIN) {
-            Response::forbidden('Bu işlem için yetkiniz yok');
+            Response::forbidden('Bu islem icin yetkiniz yok');
             return;
         }
         
@@ -146,11 +146,11 @@ class UserController
         $Rol = $Girdi['Rol'] ?? 'user';
 
         if (!$AdSoyad || !$KullaniciAdi || !$Sifre) {
-            Response::error('Tüm alanlar zorunludur.', 422);
+            Response::error('Tum alanlar zorunludur.', 422);
             return;
         }
         if (strlen($Sifre) < 6) {
-            Response::error('Şifre en az 6 karakter olmalıdır.', 422);
+            Response::error('Sifre en az 6 karakter olmalidir.', 422);
             return;
         }
         if ($Rol !== 'user') {
@@ -161,7 +161,7 @@ class UserController
         
         $Mevcut = $Repo->kullaniciAdiylaAra($KullaniciAdi);
         if ($Mevcut) {
-            Response::error('Bu kullanıcı adı zaten kullanılıyor.', 422);
+            Response::error('Bu kullanici adi zaten kullaniliyor.', 422);
             return;
         }
 
@@ -185,7 +185,7 @@ class UserController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kullanıcı.', 422);
+            Response::error('Gecersiz kullanici.', 422);
             return;
         }
 
@@ -193,18 +193,18 @@ class UserController
         $Repo = new UserRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
         $Mevcut = $Repo->bul($Id);
         if (!$Mevcut) {
-            Response::error('Kullanıcı bulunamadı.', 404);
+            Response::error('Kullanici bulunamadi.', 404);
             return;
         }
 
         if (($Mevcut['Rol'] ?? '') === 'superadmin' && $Id !== $KullaniciId) {
-            Response::error('Süper admin düzenlenemez.', 403);
+            Response::error('Super admin duzenlenemez.', 403);
             return;
         }
 
@@ -234,7 +234,7 @@ class UserController
     {
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz.', 401);
+            Response::error('Oturum gecersiz.', 401);
             return;
         }
 
@@ -243,11 +243,11 @@ class UserController
         $YeniSifre = $Girdi['NewPassword'] ?? '';
 
         if (!$MevcutSifre || !$YeniSifre) {
-            Response::error('Mevcut ve yeni şifre zorunludur.', 422);
+            Response::error('Mevcut ve yeni sifre zorunludur.', 422);
             return;
         }
         if (strlen($YeniSifre) < 6) {
-            Response::error('Yeni şifre en az 6 karakter olmalıdır.', 422);
+            Response::error('Yeni sifre en az 6 karakter olmalidir.', 422);
             return;
         }
 
@@ -255,12 +255,12 @@ class UserController
         $Kullanici = $Repo->bul($KullaniciId);
         
         if (!$Kullanici) {
-            Response::error('Kullanıcı bulunamadı.', 404);
+            Response::error('Kullanici bulunamadi.', 404);
             return;
         }
 
         if (!password_verify($MevcutSifre, $Kullanici['Parola'])) {
-            Response::error('Mevcut şifre yanlış.', 422);
+            Response::error('Mevcut sifre yanlis.', 422);
             return;
         }
 
@@ -272,6 +272,6 @@ class UserController
             ActionLogger::logla('password_change', 'tnm_user', ['Id' => $KullaniciId], 'ok');
         });
 
-        Response::json(['status' => 'ok', 'message' => 'Şifre değiştirildi.']);
+        Response::json(['status' => 'ok', 'message' => 'Sifre degistirildi.']);
     }
 }

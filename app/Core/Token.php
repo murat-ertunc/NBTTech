@@ -2,10 +2,16 @@
 
 namespace App\Core;
 
+/**
+ * Token Yoneticisi
+ * 
+ * JWT benzeri token olusturma ve dogrulama islemlerini yonetir.
+ * HMAC-SHA256 ile imzalama yapar.
+ */
 class Token
 {
     /**
-     * APP_KEY değerini güvenli şekilde al
+     * APP_KEY degerini guvenli sekilde al
      */
     private static function getKey(): string
     {
@@ -14,7 +20,6 @@ class Token
             if (env('APP_ENV', 'production') === 'production') {
                 throw new \RuntimeException('APP_KEY ortam degiskeni production ortaminda zorunludur');
             }
-            // Development ortamında varsayılan key kullanılabilir
             return 'development-only-key-not-secure';
         }
         return $Anahtar;

@@ -16,18 +16,18 @@ class FileController
         $Repo = new FileRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
+        $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
 
         if ($MusteriId > 0) {
             if (isset($_GET['page']) || isset($_GET['limit'])) {
-                $result = $Repo->musteriDosyalariPaginated($MusteriId, $page, $limit);
-                Response::json($result);
+                $Sonuc = $Repo->musteriDosyalariPaginated($MusteriId, $Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->musteriDosyalari($MusteriId);
                 Response::json(['data' => $Satirlar]);
@@ -42,29 +42,29 @@ class FileController
     {
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
-        // Hem 'file' hem 'dosya' adını kabul et
+        // Hem 'file' hem 'dosya' adini kabul et
         $fileKey = isset($_FILES['file']) ? 'file' : (isset($_FILES['dosya']) ? 'dosya' : null);
         if (!$fileKey || $_FILES[$fileKey]['error'] !== UPLOAD_ERR_OK) {
             $errorMessages = [
-                UPLOAD_ERR_INI_SIZE => 'Dosya boyutu sunucu limitini aşıyor.',
-                UPLOAD_ERR_FORM_SIZE => 'Dosya boyutu form limitini aşıyor.',
-                UPLOAD_ERR_PARTIAL => 'Dosya kısmen yüklendi.',
-                UPLOAD_ERR_NO_FILE => 'Dosya seçilmedi.',
-                UPLOAD_ERR_NO_TMP_DIR => 'Geçici klasör bulunamadı.',
-                UPLOAD_ERR_CANT_WRITE => 'Dosya yazılamadı.',
-                UPLOAD_ERR_EXTENSION => 'Dosya uzantısı engellendi.'
+                UPLOAD_ERR_INI_SIZE => 'Dosya boyutu sunucu limitini asiyor.',
+                UPLOAD_ERR_FORM_SIZE => 'Dosya boyutu form limitini asiyor.',
+                UPLOAD_ERR_PARTIAL => 'Dosya kismen yuklendi.',
+                UPLOAD_ERR_NO_FILE => 'Dosya secilmedi.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Gecici klasor bulunamadi.',
+                UPLOAD_ERR_CANT_WRITE => 'Dosya yazilamadi.',
+                UPLOAD_ERR_EXTENSION => 'Dosya uzantisi engellendi.'
             ];
             $errorCode = $_FILES[$fileKey]['error'] ?? UPLOAD_ERR_NO_FILE;
-            $errorMsg = $errorMessages[$errorCode] ?? 'Dosya yüklenemedi.';
+            $errorMsg = $errorMessages[$errorCode] ?? 'Dosya yuklenemedi.';
             Response::error($errorMsg, 422);
             return;
         }
 
-        // FaturaId varsa MusteriId zorunlu değil (fatura üzerinden müşteri bulunur)
+        // FaturaId varsa MusteriId zorunlu degil (fatura uzerinden musteri bulunur)
         $FaturaId = isset($_POST['FaturaId']) ? (int)$_POST['FaturaId'] : null;
         $MusteriId = isset($_POST['MusteriId']) ? (int)$_POST['MusteriId'] : 0;
         
@@ -78,7 +78,7 @@ class FileController
         }
         
         if ($MusteriId <= 0) {
-            Response::error('MusteriId alanı zorunludur.', 422);
+            Response::error('MusteriId alani zorunludur.', 422);
             return;
         }
 
@@ -91,7 +91,7 @@ class FileController
         $maxSize = 10 * 1024 * 1024;
         if ($FileSize > $maxSize) {
             $sizeMB = round($FileSize / (1024 * 1024), 2);
-            Response::error("Dosya boyutu çok büyük ({$sizeMB}MB). Maksimum 10MB yüklenebilir.", 422);
+            Response::error("Dosya boyutu cok buyuk ({$sizeMB}MB). Maksimum 10MB yuklenebilir.", 422);
             return;
         }
 
@@ -114,7 +114,7 @@ class FileController
         $Extension = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
         
         if (!in_array($Extension, $allowedExtensions)) {
-            Response::error('Bu dosya türü desteklenmiyor. İzin verilen türler: PDF, Word, Excel, Resimler, TXT, ZIP, RAR', 422);
+            Response::error('Bu dosya turu desteklenmiyor. Izin verilen turler: PDF, Word, Excel, Resimler, TXT, ZIP, RAR', 422);
             return;
         }
 
@@ -154,11 +154,32 @@ class FileController
         }
     }
 
+    public static function show(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Gecersiz kayit.', 404);
+            return;
+        }
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+        $Repo = new FileRepository();
+        $Dosya = $Repo->bul($Id);
+        if (!$Dosya) {
+            Response::error('Dosya bulunamadi.', 404);
+            return;
+        }
+        Response::json(['data' => $Dosya]);
+    }
+
     public static function update(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
@@ -166,7 +187,7 @@ class FileController
         $Repo = new FileRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -186,18 +207,18 @@ class FileController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
         $Repo = new FileRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
-        // Dosyayı fiziksel olarak silmiyoruz, sadece soft delete
+        // Dosyayi fiziksel olarak silmiyoruz, sadece soft delete
         Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
             $Repo->softSil($Id, $KullaniciId);
         });
@@ -209,7 +230,7 @@ class FileController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
@@ -217,14 +238,14 @@ class FileController
         $Dosya = $Repo->bul($Id);
         
         if (!$Dosya) {
-            Response::error('Dosya bulunamadı.', 404);
+            Response::error('Dosya bulunamadi.', 404);
             return;
         }
 
         $FilePath = __DIR__ . '/../../' . $Dosya['DosyaYolu'];
         
         if (!file_exists($FilePath)) {
-            Response::error('Dosya bulunamadı.', 404);
+            Response::error('Dosya bulunamadi.', 404);
             return;
         }
 

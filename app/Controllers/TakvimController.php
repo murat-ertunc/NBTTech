@@ -9,7 +9,7 @@ use App\Repositories\CalendarRepository;
 /**
  * TakvimController
  * 
- * Müşteri detay sayfasındaki takvim kayıtları için endpoint'ler
+ * Musteri detay sayfasindaki takvim kayitlari icin endpoint'ler
  */
 class TakvimController
 {
@@ -18,18 +18,18 @@ class TakvimController
         $Repo = new CalendarRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
+        $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
 
         if ($MusteriId > 0) {
             if (isset($_GET['page']) || isset($_GET['limit'])) {
-                $result = $Repo->musteriTakvimleriPaginated($MusteriId, $page, $limit);
-                Response::json($result);
+                $Sonuc = $Repo->musteriTakvimleriPaginated($MusteriId, $Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->musteriTakvimleri($MusteriId);
                 Response::json(['data' => $Satirlar]);
@@ -40,26 +40,54 @@ class TakvimController
         }
     }
 
+    /**
+     * Tek Takvim Kaydi Detayi Getir
+     */
+    public static function show(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Gecersiz kayit.', 404);
+            return;
+        }
+
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Repo = new CalendarRepository();
+        $Takvim = $Repo->bul($Id);
+
+        if (!$Takvim) {
+            Response::error('Takvim kaydi bulunamadi.', 404);
+            return;
+        }
+
+        Response::json(['data' => $Takvim]);
+    }
+
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         $Zorunlu = ['MusteriId', 'ProjeId', 'BaslangicTarihi', 'BitisTarihi', 'Ozet'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
-                Response::error("$Alan alanı zorunludur.", 422);
+                Response::error("$Alan alani zorunludur.", 422);
                 return;
             }
         }
 
-        // Özet 255 karakteri geçemez
+        // Ozet 255 karakteri gecemez
         if (strlen($Girdi['Ozet']) > 255) {
-            Response::error('Özet 255 karakteri geçemez.', 422);
+            Response::error('Ozet 255 karakteri gecemez.', 422);
             return;
         }
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -81,7 +109,7 @@ class TakvimController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
@@ -89,7 +117,7 @@ class TakvimController
         $Repo = new CalendarRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -98,7 +126,7 @@ class TakvimController
         if (isset($Girdi['BitisTarihi'])) $Guncellenecek['BitisTarihi'] = $Girdi['BitisTarihi'];
         if (isset($Girdi['Ozet'])) {
             if (strlen($Girdi['Ozet']) > 255) {
-                Response::error('Özet 255 karakteri geçemez.', 422);
+                Response::error('Ozet 255 karakteri gecemez.', 422);
                 return;
             }
             $Guncellenecek['Ozet'] = trim((string)$Girdi['Ozet']);
@@ -116,14 +144,14 @@ class TakvimController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
         $Repo = new CalendarRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 

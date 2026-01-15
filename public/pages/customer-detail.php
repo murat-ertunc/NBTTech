@@ -1,13 +1,13 @@
 <?php
 /**
- * Müşteri Detay Sayfası - Server-Rendered
+ * Musteri Detay Sayfasi - Server-Rendered
  * URL: /customer/{id}
  * 
- * NOT: Tab değiştirme URL'yi DEĞİŞTİRMEZ, sadece JS state'i değiştirir
+ * Tab degistirme URL'yi degistirmiyor, sadece JS state'i degisiyor
  */
 
-// Müşteri ID'si URL'den alınır
-$customerId = $customerId ?? 0;
+// Musteri Id'si URL'den router tarafindan aktariliyor
+$MusteriId = $MusteriId ?? 0;
 
 $pageTitle = 'Müşteri Detay';
 $activeNav = 'customers';
@@ -17,7 +17,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: MÜŞTERİ DETAY ===== -->
-    <div id="view-customer-detail" data-customer-id="<?= (int)$customerId ?>">
+    <div id="view-customer-detail" data-customer-id="<?= (int)$MusteriId ?>">
       <div class="row">
         
         <!-- Sol Sidebar: Müşteri Listesi -->

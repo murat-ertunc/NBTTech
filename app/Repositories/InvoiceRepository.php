@@ -2,6 +2,8 @@
 
 namespace App\Repositories;
 
+use App\Core\Transaction;
+
 class InvoiceRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_fatura';
@@ -34,10 +36,12 @@ class InvoiceRepository extends BaseRepository
         $Sql = "
             SELECT f.*, 
                    m.Unvan as MusteriUnvan,
+                   p.ProjeAdi,
                    (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as OdenenTutar,
                    f.Tutar - (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as Kalan
             FROM tbl_fatura f
             LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
+            LEFT JOIN tbl_proje p ON f.ProjeId = p.Id
             WHERE f.Sil = 0 AND f.MusteriId = :MId 
             ORDER BY f.Tarih DESC, f.Id DESC
         ";
@@ -48,21 +52,23 @@ class InvoiceRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    public function musteriyeGorePaginated(int $MusteriId, int $page = 1, int $limit = 10): array
+    public function musteriyeGorePaginated(int $MusteriId, int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "
             SELECT f.*, 
                    m.Unvan as MusteriUnvan,
+                   p.ProjeAdi,
                    (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as OdenenTutar,
                    f.Tutar - (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as Kalan
             FROM tbl_fatura f
             LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
+            LEFT JOIN tbl_proje p ON f.ProjeId = p.Id
             WHERE f.Sil = 0 AND f.MusteriId = :MId 
             ORDER BY f.Tarih DESC, f.Id DESC
         ";
-        $result = $this->paginatedQuery($Sql, ['MId' => $MusteriId], $page, $limit);
-        $this->logSelect(['Sil' => 0, 'MusteriId' => $MusteriId, 'page' => $page], $result['data']);
-        return $result;
+        $Sonuc = $this->paginatedQuery($Sql, ['MId' => $MusteriId], $Sayfa, $Limit);
+        $this->logSelect(['Sil' => 0, 'MusteriId' => $MusteriId, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 
     public function tumAktifler(): array
@@ -70,10 +76,12 @@ class InvoiceRepository extends BaseRepository
         $Sql = "
             SELECT f.*, 
                    m.Unvan as MusteriUnvan,
+                   p.ProjeAdi,
                    (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as OdenenTutar,
                    f.Tutar - (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as Kalan
             FROM tbl_fatura f
             LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
+            LEFT JOIN tbl_proje p ON f.ProjeId = p.Id
             WHERE f.Sil = 0
             ORDER BY f.Tarih DESC, f.Id DESC
         ";
@@ -83,25 +91,27 @@ class InvoiceRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    public function tumAktiflerPaginated(int $page = 1, int $limit = 10): array
+    public function tumAktiflerPaginated(int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "
             SELECT f.*, 
                    m.Unvan as MusteriUnvan,
+                   p.ProjeAdi,
                    (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as OdenenTutar,
                    f.Tutar - (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0) as Kalan
             FROM tbl_fatura f
             LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
+            LEFT JOIN tbl_proje p ON f.ProjeId = p.Id
             WHERE f.Sil = 0
             ORDER BY f.Tarih DESC, f.Id DESC
         ";
-        $result = $this->paginatedQuery($Sql, [], $page, $limit);
-        $this->logSelect(['Sil' => 0, 'page' => $page], $result['data']);
-        return $result;
+        $Sonuc = $this->paginatedQuery($Sql, [], $Sayfa, $Limit);
+        $this->logSelect(['Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 
     /*
-     * Vadesi geçmiş (ödenmemiş) faturaları, ilerideki takvim/alarm logic'inde kullanmak üzere çekebileceğimiz
+     * Vadesi gecmis (odenmemis) faturalari, ilerideki takvim/alarm logic'inde kullanmak uzere cekebilecegimiz
      * ek metod.
     */
     public function odenmemisFaturalar(): array
@@ -122,43 +132,46 @@ class InvoiceRepository extends BaseRepository
     }
 
     /**
-     * Fatura kalemlerini kaydet (önce mevcut kalemleri sil, sonra yenilerini ekle)
+     * Fatura kalemlerini kaydediyoruz - once mevcut kalemleri soft delete yapip sonra yenilerini ekliyoruz
+     * Birden fazla INSERT/UPDATE islemi yaptigimiz icin Transaction::wrap() kullaniyoruz
      */
     public function kaydetKalemler(int $FaturaId, array $Kalemler, int $KullaniciId): void
     {
-        // Mevcut kalemleri soft delete yap
-        $SqlSil = "UPDATE tbl_fatura_kalem SET Sil = 1, DegisiklikZamani = GETDATE(), DegistirenUserId = :UserId WHERE FaturaId = :FaturaId";
-        $StmtSil = $this->Db->prepare($SqlSil);
-        $StmtSil->execute(['FaturaId' => $FaturaId, 'UserId' => $KullaniciId]);
-        
-        // Yeni kalemleri ekle
-        foreach ($Kalemler as $Kalem) {
-            $Miktar = isset($Kalem['Miktar']) ? (float)$Kalem['Miktar'] : 0;
-            $Aciklama = isset($Kalem['Aciklama']) ? trim((string)$Kalem['Aciklama']) : null;
-            $KdvOran = isset($Kalem['KdvOran']) ? (float)$Kalem['KdvOran'] : 0;
-            $BirimFiyat = isset($Kalem['BirimFiyat']) ? (float)$Kalem['BirimFiyat'] : 0;
-            $Tutar = isset($Kalem['Tutar']) ? (float)$Kalem['Tutar'] : 0;
-            $Sira = isset($Kalem['Sira']) ? (int)$Kalem['Sira'] : 1;
+        Transaction::wrap(function() use ($FaturaId, $Kalemler, $KullaniciId) {
+            // Mevcut kalemleri soft delete yapiyoruz
+            $SqlSil = "UPDATE tbl_fatura_kalem SET Sil = 1, DegisiklikZamani = GETDATE(), DegistirenUserId = :UserId WHERE FaturaId = :FaturaId";
+            $StmtSil = $this->Db->prepare($SqlSil);
+            $StmtSil->execute(['FaturaId' => $FaturaId, 'UserId' => $KullaniciId]);
             
-            // Boş kalemleri atla
-            if ($Miktar <= 0 && empty($Aciklama) && $BirimFiyat <= 0) {
-                continue;
+            // Yeni kalemleri ekliyoruz
+            foreach ($Kalemler as $Kalem) {
+                $Miktar = isset($Kalem['Miktar']) ? (float)$Kalem['Miktar'] : 0;
+                $Aciklama = isset($Kalem['Aciklama']) ? trim((string)$Kalem['Aciklama']) : null;
+                $KdvOran = isset($Kalem['KdvOran']) ? (float)$Kalem['KdvOran'] : 0;
+                $BirimFiyat = isset($Kalem['BirimFiyat']) ? (float)$Kalem['BirimFiyat'] : 0;
+                $Tutar = isset($Kalem['Tutar']) ? (float)$Kalem['Tutar'] : 0;
+                $Sira = isset($Kalem['Sira']) ? (int)$Kalem['Sira'] : 1;
+                
+                // Bos kalemleri atliyoruz
+                if ($Miktar <= 0 && empty($Aciklama) && $BirimFiyat <= 0) {
+                    continue;
+                }
+                
+                $SqlEkle = "INSERT INTO tbl_fatura_kalem (FaturaId, Sira, Miktar, Aciklama, KdvOran, BirimFiyat, Tutar, EklemeZamani, EkleyenUserId, Sil)
+                            VALUES (:FaturaId, :Sira, :Miktar, :Aciklama, :KdvOran, :BirimFiyat, :Tutar, GETDATE(), :UserId, 0)";
+                $StmtEkle = $this->Db->prepare($SqlEkle);
+                $StmtEkle->execute([
+                    'FaturaId' => $FaturaId,
+                    'Sira' => $Sira,
+                    'Miktar' => $Miktar,
+                    'Aciklama' => $Aciklama,
+                    'KdvOran' => $KdvOran,
+                    'BirimFiyat' => $BirimFiyat,
+                    'Tutar' => $Tutar,
+                    'UserId' => $KullaniciId
+                ]);
             }
-            
-            $SqlEkle = "INSERT INTO tbl_fatura_kalem (FaturaId, Sira, Miktar, Aciklama, KdvOran, BirimFiyat, Tutar, OlusturmaZamani, OlusturanUserId, Sil)
-                        VALUES (:FaturaId, :Sira, :Miktar, :Aciklama, :KdvOran, :BirimFiyat, :Tutar, GETDATE(), :UserId, 0)";
-            $StmtEkle = $this->Db->prepare($SqlEkle);
-            $StmtEkle->execute([
-                'FaturaId' => $FaturaId,
-                'Sira' => $Sira,
-                'Miktar' => $Miktar,
-                'Aciklama' => $Aciklama,
-                'KdvOran' => $KdvOran,
-                'BirimFiyat' => $BirimFiyat,
-                'Tutar' => $Tutar,
-                'UserId' => $KullaniciId
-            ]);
-        }
+        });
     }
 
     /**
@@ -173,58 +186,107 @@ class InvoiceRepository extends BaseRepository
     }
 
     /**
-     * Fatura ile ilişkili dosyaları getir
+     * Fatura ile iliskili dosyalari getir
      */
     public function getDosyalar(int $FaturaId): array
     {
-        $Sql = "SELECT * FROM tbl_dosya WHERE FaturaId = :FaturaId AND Sil = 0 ORDER BY OlusturmaZamani DESC";
+        $Sql = "SELECT * FROM tbl_dosya WHERE FaturaId = :FaturaId AND Sil = 0 ORDER BY EklemeZamani DESC";
         $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute(['FaturaId' => $FaturaId]);
         return $Stmt->fetchAll();
     }
 
     /**
-     * Fatura için takvim hatırlatması oluştur
+     * Fatura icin takvim kayitlari olusturur
+     * - Her zaman fatura gunu icin temel kayit ekler
+     * - Hatirlatma aktif ise ek sure kadar ileri tarih icin ikinci kayit ekler
+     */
+    public function takvimKayitlariniOlustur(int $FaturaId, int $MusteriId, ?int $ProjeId, string $Tarih, ?int $Sure, ?string $SureTipi, bool $HatirlatmaAktif, int $KullaniciId): void
+    {
+        $FaturaTarihi = (new \DateTime($Tarih))->format('Y-m-d');
+        $this->ekleTakvimKaydi($MusteriId, $ProjeId, $FaturaTarihi, $FaturaTarihi, "Fatura #{$FaturaId} - Tarih: {$FaturaTarihi}", $KullaniciId);
+
+        if ($HatirlatmaAktif && $Sure !== null && $Sure > 0) {
+            $SureTipi = $SureTipi ?: 'gun';
+            $HatirlatmaTarih = new \DateTime($Tarih);
+            switch ($SureTipi) {
+                case 'hafta':
+                    $HatirlatmaTarih->modify("+{$Sure} weeks");
+                    break;
+                case 'ay':
+                    $HatirlatmaTarih->modify("+{$Sure} months");
+                    break;
+                case 'yil':
+                    $HatirlatmaTarih->modify("+{$Sure} years");
+                    break;
+                default:
+                    $HatirlatmaTarih->modify("+{$Sure} days");
+                    break;
+            }
+            $HatirlatmaTarihi = $HatirlatmaTarih->format('Y-m-d');
+            $Ozet = "Fatura #{$FaturaId} Hatırlatması - Tarih: {$FaturaTarihi}";
+            $this->ekleTakvimKaydi($MusteriId, $ProjeId, $HatirlatmaTarihi, $HatirlatmaTarihi, $Ozet, $KullaniciId);
+        }
+    }
+
+    /**
+     * Geriye donuk uyumluluk icin eski imza: yalnizca hatirlatma kaydi ekler (temel kaydi eklemez)
      */
     public function takvimHatirlatmaOlustur(int $FaturaId, int $MusteriId, ?int $ProjeId, string $Tarih, int $Sure, string $SureTipi, int $KullaniciId): void
     {
-        // Takvim tarihini hesapla
-        $BaslangicTarih = new \DateTime($Tarih);
-        switch ($SureTipi) {
-            case 'gun':
-                $BaslangicTarih->modify("+{$Sure} days");
-                break;
-            case 'hafta':
-                $BaslangicTarih->modify("+{$Sure} weeks");
-                break;
-            case 'ay':
-                $BaslangicTarih->modify("+{$Sure} months");
-                break;
-            case 'yil':
-                $BaslangicTarih->modify("+{$Sure} years");
-                break;
-        }
-        
-        $HatirlatmaTarihi = $BaslangicTarih->format('Y-m-d');
-        $Ozet = "Fatura #{$FaturaId} hatırlatması - Tarih: {$Tarih}";
-        
-        // tbl_takvim'e kaydet
-        $Sql = "INSERT INTO tbl_takvim (MusteriId, ProjeId, BaslangicTarihi, BitisTarihi, Ozet, OlusturmaZamani, OlusturanUserId, Sil)
-                VALUES (:MusteriId, :ProjeId, :BaslangicTarihi, :BitisTarihi, :Ozet, GETDATE(), :UserId, 0)";
+        $this->takvimKayitlariniOlustur($FaturaId, $MusteriId, $ProjeId, $Tarih, $Sure, $SureTipi, true, $KullaniciId);
+    }
+
+    /**
+     * Fatura ile iliskili takvim kayitlarini soft delete yap
+     * Update islemlerinde mevcut takvim kayitlarini silmek icin kullanilir
+     */
+    public function takvimKayitlariniSil(int $FaturaId, int $KullaniciId): void
+    {
+        // Fatura ID'si ile iliskili tum takvim kayitlarini bul ve soft delete yap
+        // Ozet alaninda "Fatura #ID" iceren kayitlari sil
+        $Sql = "UPDATE tbl_takvim 
+                SET Sil = 1, DegisiklikZamani = GETDATE(), DegistirenUserId = :UserId 
+                WHERE Ozet LIKE :OzetPattern AND Sil = 0";
         $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute([
-            'MusteriId' => $MusteriId,
-            'ProjeId' => $ProjeId,
-            'BaslangicTarihi' => $HatirlatmaTarihi,
-            'BitisTarihi' => $HatirlatmaTarihi,
-            'Ozet' => $Ozet,
-            'UserId' => $KullaniciId
+            'UserId' => $KullaniciId,
+            'OzetPattern' => "Fatura #$FaturaId%"
         ]);
     }
 
     /**
-     * Müşteriye ait yıl ve döviz bazlı cari özet
-     * Yıl bazlı fatura toplamlarını döviz cinsine göre gruplandırır
+     * Tekil takvim kaydi ekleme helper'i
+     */
+    private function ekleTakvimKaydi(int $MusteriId, ?int $ProjeId, string $BaslangicTarihi, string $BitisTarihi, string $Ozet, int $KullaniciId): void
+    {
+        // Guid olustur
+        $Guid = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+            mt_rand(0, 0xffff),
+            mt_rand(0, 0x0fff) | 0x4000,
+            mt_rand(0, 0x3fff) | 0x8000,
+            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+        );
+        
+        $Sql = "INSERT INTO tbl_takvim (Guid, MusteriId, ProjeId, BaslangicTarihi, BitisTarihi, Ozet, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil)
+            VALUES (:Guid, :MusteriId, :ProjeId, :BaslangicTarihi, :BitisTarihi, :Ozet, GETDATE(), :UserId, GETDATE(), :UserId2, 0)";
+        $Stmt = $this->Db->prepare($Sql);
+        $Stmt->execute([
+            'Guid' => $Guid,
+            'MusteriId' => $MusteriId,
+            'ProjeId' => $ProjeId,
+            'BaslangicTarihi' => $BaslangicTarihi,
+            'BitisTarihi' => $BitisTarihi,
+            'Ozet' => $Ozet,
+            'UserId' => $KullaniciId,
+            'UserId2' => $KullaniciId
+        ]);
+    }
+
+    /**
+     * Musteriye ait yil ve doviz bazli cari ozet
+     * Yil bazli fatura toplamlarini doviz cinsine gore gruplandirir
      */
     public function cariOzet(int $MusteriId): array
     {

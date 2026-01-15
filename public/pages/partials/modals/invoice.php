@@ -44,13 +44,13 @@
               </div>
             </div>
             <div class="row mb-2">
-              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Tarih</label>
+              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Tarih <span class="text-danger">*</span></label>
               <div class="col-8">
                 <input type="date" class="form-control form-control-sm" id="invoiceTarih" value="<?= date('Y-m-d') ?>">
               </div>
             </div>
             <div class="row mb-2">
-              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Tutar</label>
+              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Tutar <span class="text-danger">*</span></label>
               <div class="col-8">
                 <div class="input-group input-group-sm">
                   <input type="number" step="0.01" class="form-control" id="invoiceTutar">

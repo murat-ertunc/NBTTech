@@ -14,27 +14,27 @@ class GuaranteeController
         $Repo = new GuaranteeRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
+        $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
 
         if ($MusteriId > 0) {
             if (isset($_GET['page']) || isset($_GET['limit'])) {
-                $result = $Repo->musteriTeminatlariPaginated($MusteriId, $page, $limit);
-                Response::json($result);
+                $Sonuc = $Repo->musteriTeminatlariPaginated($MusteriId, $Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->musteriTeminatlari($MusteriId);
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            // Standalone sayfa - pagination ile tüm teminatlar
+            // Standalone sayfa - pagination ile tum teminatlar
             if (isset($_GET['page']) || isset($_GET['limit'])) {
-                $result = $Repo->tumAktiflerPaginated($page, $limit);
-                Response::json($result);
+                $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->tumAktifler();
                 Response::json(['data' => $Satirlar]);
@@ -42,9 +42,37 @@ class GuaranteeController
         }
     }
 
+    /**
+     * Tek Teminat Detayi Getir
+     */
+    public static function show(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Gecersiz kayit.', 404);
+            return;
+        }
+
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Repo = new GuaranteeRepository();
+        $Teminat = $Repo->bul($Id);
+
+        if (!$Teminat) {
+            Response::error('Teminat bulunamadi.', 404);
+            return;
+        }
+
+        Response::json(['data' => $Teminat]);
+    }
+
     public static function store(): void
     {
-        // Hem JSON hem FormData desteği
+        // Hem JSON hem FormData destegi
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($contentType, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -56,18 +84,18 @@ class GuaranteeController
         $Zorunlu = ['MusteriId', 'Tur', 'Tutar'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
-                Response::error("$Alan alanı zorunludur.", 422);
+                Response::error("$Alan alani zorunludur.", 422);
                 return;
             }
         }
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
-        // Dosya yükleme işlemi
+        // Dosya yukleme islemi
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
@@ -113,30 +141,38 @@ class GuaranteeController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
-        // Hem JSON hem FormData desteği
+        // Hem JSON hem FormData destegi
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($contentType, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } elseif (strpos($contentType, 'multipart/form-data') !== false) {
+            // PUT isteklerinde $_POST bos kalir, bu yuzden $_POST kullaniyoruz
+            // Ancak PHP multipart/form-data'yi PUT icin otomatik parse etmez
+            // Frontend POST gibi davranir ve $_POST dolar
+            $Girdi = $_POST;
+        } elseif (strpos($contentType, 'application/x-www-form-urlencoded') !== false) {
+            // PUT icin urlencoded veri parse ediliyor
+            parse_str(file_get_contents('php://input'), $Girdi);
         } else {
-            // multipart/form-data
+            // Diger durumlar icin $_POST kullan
             $Girdi = $_POST;
         }
         
         $Repo = new GuaranteeRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
-        // Dosya silme veya güncelleme işlemi (Transaction dışında)
+        // Dosya silme veya guncelleme islemi (Transaction disinda)
         $DosyaGuncellemesi = [];
         if (!empty($Girdi['removeFile'])) {
-            // Mevcut dosyayı sil
+            // Mevcut dosyayi sil
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = __DIR__ . '/../../' . $Mevcut['DosyaYolu'];
@@ -148,9 +184,9 @@ class GuaranteeController
             $DosyaGuncellemesi['DosyaYolu'] = null;
         }
 
-        // Yeni dosya yüklendiyse
+        // Yeni dosya yuklendiyse
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
-            // Eski dosyayı sil
+            // Eski dosyayi sil
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = __DIR__ . '/../../' . $Mevcut['DosyaYolu'];
@@ -186,7 +222,7 @@ class GuaranteeController
             if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
             if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = !empty($Girdi['ProjeId']) ? (int)$Girdi['ProjeId'] : null;
 
-            // Dosya güncellemesi varsa ekle
+            // Dosya guncellemesi varsa ekle
             $Guncellenecek = array_merge($Guncellenecek, $DosyaGuncellemesi);
 
             if (!empty($Guncellenecek)) {
@@ -201,14 +237,14 @@ class GuaranteeController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
         $Repo = new GuaranteeRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
@@ -223,7 +259,7 @@ class GuaranteeController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
@@ -231,19 +267,19 @@ class GuaranteeController
         $Kayit = $Repo->bul($Id);
         
         if (!$Kayit) {
-            Response::error('Kayıt bulunamadı.', 404);
+            Response::error('Kayit bulunamadi.', 404);
             return;
         }
 
         if (empty($Kayit['DosyaYolu'])) {
-            Response::error('Bu kayıta ait dosya bulunamadı.', 404);
+            Response::error('Bu kayita ait dosya bulunamadi.', 404);
             return;
         }
 
         $FilePath = __DIR__ . '/../../' . $Kayit['DosyaYolu'];
         
         if (!file_exists($FilePath)) {
-            Response::error('Dosya bulunamadı.', 404);
+            Response::error('Dosya bulunamadi.', 404);
             return;
         }
 

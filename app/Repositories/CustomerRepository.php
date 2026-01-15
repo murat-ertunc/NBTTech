@@ -80,7 +80,7 @@ class CustomerRepository extends BaseRepository
     }
 
     /**
-     * Sayfalama ile tüm aktif müşterileri getirir (superadmin/admin için)
+     * Sayfalama ile tum aktif musterileri getirir (superadmin/admin icin)
      */
     public function tumAktiflerSiraliPaginated(int $Page = 1, int $Limit = 10): array
     {
@@ -117,7 +117,7 @@ class CustomerRepository extends BaseRepository
     }
 
     /**
-     * Sayfalama ile kullanıcıya ait aktif müşterileri getirir
+     * Sayfalama ile kullaniciya ait aktif musterileri getirir
      */
     public function kullaniciyaGoreAktiflerPaginated(int $KullaniciId, int $Page = 1, int $Limit = 10): array
     {

@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Core\Transaction;
 use App\Services\Logger\ActionLogger;
 
 class ProjectRepository extends BaseRepository
@@ -9,7 +10,7 @@ class ProjectRepository extends BaseRepository
     protected string $Tablo = 'tbl_proje';
 
     /**
-     * Tüm aktif projeleri müşteri adı ile birlikte getir
+     * Tum aktif projeleri musteri adi ile birlikte getir
      */
     public function tumAktifler(): array
     {
@@ -33,71 +34,74 @@ class ProjectRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    public function musteriProjeleriPaginated(int $MusteriId, int $page = 1, int $limit = 10): array
+    public function musteriProjeleriPaginated(int $MusteriId, int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "SELECT * FROM {$this->Tablo} WHERE MusteriId = :Mid AND Sil = 0 ORDER BY Id DESC";
-        $result = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $page, $limit);
-        $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0, 'page' => $page], $result['data']);
-        return $result;
+        $Sonuc = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $Sayfa, $Limit);
+        $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 
     /**
-     * Tüm aktif projeleri sayfalı olarak getir
+     * Tum aktif projeleri sayfali olarak getiriyoruz
      */
-    public function tumAktiflerPaginated(int $page = 1, int $limit = 10): array
+    public function tumAktiflerPaginated(int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan 
                 FROM {$this->Tablo} p 
                 LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id 
                 WHERE p.Sil = 0 
                 ORDER BY p.Id DESC";
-        $result = $this->paginatedQuery($Sql, [], $page, $limit);
-        $this->logSelect(['Sil' => 0, 'page' => $page], $result['data']);
-        return $result;
+        $Sonuc = $this->paginatedQuery($Sql, [], $Sayfa, $Limit);
+        $this->logSelect(['Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 
     /**
-     * Proje silme ile birlikte ilişkili kayıtları da soft delete yapar
-     * Kurallar.txt: Bağlı kayıtlar da Sil=1 yapılır
+     * Proje silme ile birlikte iliskili kayitlari da soft delete yapiyoruz
+     * kurallar.txt: Bagli kayitlar da Sil=1 yapilir
+     * Birden fazla UPDATE islemi yaptigimiz icin Transaction::wrap() kullaniyoruz
      * 
-     * İlişkili tablolar: tbl_fatura, tbl_odeme, tbl_teklif, tbl_sozlesme, 
+     * Iliskili tablolar: tbl_fatura, tbl_odeme, tbl_teklif, tbl_sozlesme, 
      * tbl_teminat, tbl_gorusme, tbl_kisi, tbl_damgavergisi, tbl_dosya
      */
     public function cascadeSoftSil(int $Id, int $KullaniciId): void
     {
-        // Önce projeyi soft delete
-        $this->softSil($Id, $KullaniciId);
+        Transaction::wrap(function() use ($Id, $KullaniciId) {
+            // Once projeyi soft delete yapiyoruz
+            $this->softSil($Id, $KullaniciId);
 
-        // İlişkili tabloları soft delete (ProjeId foreign key ile bağlı)
-        $IliskiliTablolar = [
-            'tbl_fatura',
-            'tbl_odeme', 
-            'tbl_teklif',
-            'tbl_sozlesme',
-            'tbl_teminat',
-            'tbl_gorusme',
-            'tbl_kisi',
-            'tbl_damgavergisi',
-            'tbl_dosya'
-        ];
+            // Iliskili tablolari soft delete yapiyoruz (ProjeId foreign key ile bagli)
+            $IliskiliTablolar = [
+                'tbl_fatura',
+                'tbl_odeme', 
+                'tbl_teklif',
+                'tbl_sozlesme',
+                'tbl_teminat',
+                'tbl_gorusme',
+                'tbl_kisi',
+                'tbl_damgavergisi',
+                'tbl_dosya'
+            ];
 
-        foreach ($IliskiliTablolar as $Tablo) {
-            $Sql = "UPDATE {$Tablo} SET 
-                    Sil = 1, 
-                    DegisiklikZamani = GETDATE(), 
-                    DegistirenUserId = :UserId 
-                    WHERE ProjeId = :ProjeId AND Sil = 0";
-            $Stmt = $this->Db->prepare($Sql);
-            $Stmt->execute(['ProjeId' => $Id, 'UserId' => $KullaniciId]);
-            
-            // Silinen kayıt sayısını logla
-            $SilinenSayisi = $Stmt->rowCount();
-            if ($SilinenSayisi > 0) {
-                ActionLogger::logla('CASCADE_DELETE', $Tablo, null, [
-                    'ProjeId' => $Id,
-                    'SilinenKayitSayisi' => $SilinenSayisi
-                ]);
+            foreach ($IliskiliTablolar as $Tablo) {
+                $Sql = "UPDATE {$Tablo} SET 
+                        Sil = 1, 
+                        DegisiklikZamani = GETDATE(), 
+                        DegistirenUserId = :UserId 
+                        WHERE ProjeId = :ProjeId AND Sil = 0";
+                $Stmt = $this->Db->prepare($Sql);
+                $Stmt->execute(['ProjeId' => $Id, 'UserId' => $KullaniciId]);
+                
+                // Silinen kayit sayisini logluyoruz
+                $SilinenSayisi = $Stmt->rowCount();
+                if ($SilinenSayisi > 0) {
+                    ActionLogger::logla('CASCADE_DELETE', $Tablo, null, [
+                        'ProjeId' => $Id,
+                        'SilinenKayitSayisi' => $SilinenSayisi
+                    ]);
+                }
             }
-        }
+        });
     }
 }

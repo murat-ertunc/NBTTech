@@ -15,27 +15,27 @@ class InvoiceController
         $Repo = new InvoiceRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
+        $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
 
         if ($MusteriId > 0) {
             if (isset($_GET['page']) || isset($_GET['limit'])) {
-                $result = $Repo->musteriyeGorePaginated($MusteriId, $page, $limit);
-                Response::json($result);
+                $Sonuc = $Repo->musteriyeGorePaginated($MusteriId, $Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->musteriyeGore($MusteriId);
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            // Standalone sayfa - pagination ile tüm faturalar
+            // Standalone sayfa - pagination ile tum faturalar
             if (isset($_GET['page']) || isset($_GET['limit'])) {
-                $result = $Repo->tumAktiflerPaginated($page, $limit);
-                Response::json($result);
+                $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->tumAktifler();
                 Response::json(['data' => $Satirlar]);
@@ -47,27 +47,27 @@ class InvoiceController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
         $Repo = new InvoiceRepository();
         $Fatura = $Repo->bul($Id);
         if (!$Fatura) {
-            Response::error('Fatura bulunamadı.', 404);
+            Response::error('Fatura bulunamadi.', 404);
             return;
         }
 
         // Fatura kalemlerini ekle
         $Fatura['Kalemler'] = $Repo->getKalemler($Id);
         
-        // Fatura ile ilişkili dosyaları ekle
+        // Fatura ile iliskili dosyalari ekle
         $Fatura['Dosyalar'] = $Repo->getDosyalar($Id);
 
         Response::json($Fatura);
@@ -79,7 +79,7 @@ class InvoiceController
         $Zorunlu = ['MusteriId', 'Tarih', 'Tutar'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
-                Response::error("$Alan alanı zorunludur.", 422);
+                Response::error("$Alan alani zorunludur.", 422);
                 return;
             }
         }
@@ -97,21 +97,25 @@ class InvoiceController
         $TevkifatAktif = isset($Girdi['TevkifatAktif']) ? (int)$Girdi['TevkifatAktif'] : 0;
         $TevkifatOran1 = isset($Girdi['TevkifatOran1']) ? (float)$Girdi['TevkifatOran1'] : null;
         $TevkifatOran2 = isset($Girdi['TevkifatOran2']) ? (float)$Girdi['TevkifatOran2'] : null;
-        $TakvimAktif = isset($Girdi['TakvimAktif']) ? (int)$Girdi['TakvimAktif'] : 0;
+        // Takvim hatirlatma alanlari (backend'de de sanitize et)
+        $TakvimAktif = !empty($Girdi['TakvimAktif']) ? 1 : 0;
         $TakvimSure = isset($Girdi['TakvimSure']) ? (int)$Girdi['TakvimSure'] : null;
+        $TakvimSure = $TakvimSure > 0 ? $TakvimSure : null;
+        $AllowedSureTipleri = ['gun', 'hafta', 'ay', 'yil'];
         $TakvimSureTipi = isset($Girdi['TakvimSureTipi']) ? trim((string)$Girdi['TakvimSureTipi']) : null;
+        $TakvimSureTipi = $TakvimSureTipi && in_array($TakvimSureTipi, $AllowedSureTipleri, true) ? $TakvimSureTipi : null;
+        // Checkbox degerine bagli kalmadan, sure girildiyse hatirlatma aktif say (UI'da secili olsa da olmasa da kullanici niyeti korunur)
+        $HatirlatmaAktif = ($TakvimSure !== null) ? 1 : $TakvimAktif;
         $Kalemler = isset($Girdi['Kalemler']) && is_array($Girdi['Kalemler']) ? $Girdi['Kalemler'] : [];
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
         $Repo = new InvoiceRepository();
-        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $Tarih, $Tutar, $Doviz, $Aciklama, 
-                                                   $FaturaNo, $SupheliAlacak, $TevkifatAktif, $TevkifatOran1, $TevkifatOran2,
-                                                   $TakvimAktif, $TakvimSure, $TakvimSureTipi, $Kalemler, $KullaniciId) {
+        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $Tarih, $Tutar, $Doviz, $Aciklama, $FaturaNo, $SupheliAlacak, $TevkifatAktif, $TevkifatOran1, $TevkifatOran2, $HatirlatmaAktif, $TakvimSure, $TakvimSureTipi, $Kalemler, $KullaniciId) {
             $FaturaId = $Repo->ekle([
                 'MusteriId' => $MusteriId,
                 'ProjeId' => $ProjeId,
@@ -124,7 +128,7 @@ class InvoiceController
                 'TevkifatAktif' => $TevkifatAktif,
                 'TevkifatOran1' => $TevkifatOran1,
                 'TevkifatOran2' => $TevkifatOran2,
-                'TakvimAktif' => $TakvimAktif,
+                'TakvimAktif' => $HatirlatmaAktif,
                 'TakvimSure' => $TakvimSure,
                 'TakvimSureTipi' => $TakvimSureTipi
             ], $KullaniciId);
@@ -134,10 +138,20 @@ class InvoiceController
                 $Repo->kaydetKalemler($FaturaId, $Kalemler, $KullaniciId);
             }
             
-            // Takvim hatırlatması oluştur
-            if ($TakvimAktif && $TakvimSure && $TakvimSureTipi) {
-                $Repo->takvimHatirlatmaOlustur($FaturaId, $MusteriId, $ProjeId, $Tarih, $TakvimSure, $TakvimSureTipi, $KullaniciId);
-            }
+            // Takvim kayitlarini olustur:
+            // - Her zaman fatura tarihi icin ana kayit olusturulur
+            // - TakvimAktif=1 VE TakvimSure VE TakvimSureTipi varsa, ek hatirlatma kaydi olusturulur
+            //   (Fatura tarihi + TakvimSure kadar ileriki tarih icin)
+            $Repo->takvimKayitlariniOlustur(
+                $FaturaId,
+                $MusteriId,
+                $ProjeId,
+                $Tarih,
+                $TakvimSure,
+                $TakvimSureTipi,
+                $HatirlatmaAktif === 1,
+                $KullaniciId
+            );
             
             return $FaturaId;
         });
@@ -149,7 +163,7 @@ class InvoiceController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
@@ -157,19 +171,19 @@ class InvoiceController
         $Repo = new InvoiceRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
         $Mevcut = $Repo->bul($Id);
         if (!$Mevcut) {
-            Response::error('Fatura bulunamadı.', 404);
+            Response::error('Fatura bulunamadi.', 404);
             return;
         }
 
         // Basit validasyonlar eklenebilir.
 
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
+        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId, $Mevcut) {
             $Guncellenecek = [];
             if (isset($Girdi['Tarih'])) $Guncellenecek['Tarih'] = $Girdi['Tarih'];
             if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
@@ -191,9 +205,37 @@ class InvoiceController
                 $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
             }
             
-            // Fatura kalemlerini güncelle
+            // Fatura kalemlerini guncelle
             if (isset($Girdi['Kalemler']) && is_array($Girdi['Kalemler'])) {
                 $Repo->kaydetKalemler($Id, $Girdi['Kalemler'], $KullaniciId);
+            }
+            
+            // Takvim hatirlatma guncelleme:
+            // Eger TakvimAktif, TakvimSure veya TakvimSureTipi degistiyse, mevcut takvim kayitlarini sil ve yeniden olustur
+            $TakvimDegisti = isset($Girdi['TakvimAktif']) || isset($Girdi['TakvimSure']) || isset($Girdi['TakvimSureTipi']) || isset($Girdi['Tarih']);
+            if ($TakvimDegisti) {
+                // Mevcut fatura ile iliskili takvim kayitlarini soft delete yap
+                $Repo->takvimKayitlariniSil($Id, $KullaniciId);
+                
+                // Guncel degerlerle yeni takvim kayitlari olustur
+                $GuncelTarih = $Girdi['Tarih'] ?? $Mevcut['Tarih'];
+                $GuncelTakvimAktif = isset($Girdi['TakvimAktif']) ? (int)$Girdi['TakvimAktif'] : (int)($Mevcut['TakvimAktif'] ?? 0);
+                $GuncelTakvimSure = isset($Girdi['TakvimSure']) ? ((int)$Girdi['TakvimSure'] > 0 ? (int)$Girdi['TakvimSure'] : null) : ($Mevcut['TakvimSure'] ?? null);
+                $GuncelTakvimSureTipi = isset($Girdi['TakvimSureTipi']) ? $Girdi['TakvimSureTipi'] : ($Mevcut['TakvimSureTipi'] ?? null);
+                
+                // Hatirlatma aktif mi hesapla
+                $HatirlatmaAktif = ($GuncelTakvimSure !== null) ? 1 : $GuncelTakvimAktif;
+                
+                $Repo->takvimKayitlariniOlustur(
+                    $Id,
+                    (int)$Mevcut['MusteriId'],
+                    $Mevcut['ProjeId'] ? (int)$Mevcut['ProjeId'] : null,
+                    $GuncelTarih,
+                    $GuncelTakvimSure,
+                    $GuncelTakvimSureTipi,
+                    $HatirlatmaAktif === 1,
+                    $KullaniciId
+                );
             }
         });
 
@@ -204,20 +246,20 @@ class InvoiceController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
 
         $Repo = new InvoiceRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
 
         $Mevcut = $Repo->bul($Id);
         if (!$Mevcut) {
-            Response::error('Fatura bulunamadı.', 404);
+            Response::error('Fatura bulunamadi.', 404);
             return;
         }
 

@@ -15,34 +15,66 @@ class CustomerController
         $Repo = new CustomerRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         $Rol = Context::rol();
         
         // Pagination parametreleri
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
-        $usePagination = isset($_GET['page']) || isset($_GET['limit']);
+        $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
+        $SayfalamaAktif = isset($_GET['page']) || isset($_GET['limit']);
         
         if ($Rol === 'superadmin') {
-            // Superadmin ve admin tüm müşterileri ekleyen kullanıcı bilgisiyle görsün
-            if ($usePagination) {
-                $result = $Repo->tumAktiflerSiraliPaginated($page, $limit);
-                Response::json($result);
+            // Superadmin ve admin tum musterileri ekleyen kullanici bilgisiyle gorsun
+            if ($SayfalamaAktif) {
+                $Sonuc = $Repo->tumAktiflerSiraliPaginated($Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->tumAktiflerSiraliKullaniciBilgisiIle();
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            if ($usePagination) {
-                $result = $Repo->kullaniciyaGoreAktiflerPaginated($KullaniciId, $page, $limit);
-                Response::json($result);
+            if ($SayfalamaAktif) {
+                $Sonuc = $Repo->kullaniciyaGoreAktiflerPaginated($KullaniciId, $Sayfa, $Limit);
+                Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->kullaniciyaGoreAktifler($KullaniciId);
                 Response::json(['data' => $Satirlar]);
             }
         }
+    }
+
+    /**
+     * Tek Musteri Detayi Getir
+     */
+    public static function show(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Gecersiz kayit.', 404);
+            return;
+        }
+
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Repo = new CustomerRepository();
+        $Rol = Context::rol();
+
+        $Musteri = $Rol === 'superadmin'
+            ? $Repo->bul($Id)
+            : $Repo->sahipliKayitBul($Id, $KullaniciId);
+
+        if (!$Musteri) {
+            Response::error('Musteri bulunamadi.', 404);
+            return;
+        }
+
+        Response::json(['data' => $Musteri]);
     }
 
     // Karakter limitleri
@@ -77,21 +109,21 @@ class CustomerController
         $Zorunlu = ['Unvan'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
-                Response::error('Ünvan zorunludur.', 422);
+                Response::error('Unvan zorunludur.', 422);
                 return;
             }
         }
         $Unvan = trim((string) $Girdi['Unvan']);
         if (mb_strlen($Unvan) < 2) {
-            Response::error('Ünvan en az 2 karakter olmalıdır.', 422);
+            Response::error('Unvan en az 2 karakter olmalidir.', 422);
             return;
         }
         if (mb_strlen($Unvan) > self::LIMITLER['Unvan']) {
-            Response::error('Ünvan en fazla ' . self::LIMITLER['Unvan'] . ' karakter olabilir.', 422);
+            Response::error('Unvan en fazla ' . self::LIMITLER['Unvan'] . ' karakter olabilir.', 422);
             return;
         }
 
-        // Alan validasyonları
+        // Alan validasyonlari
         $Alanlar = ['MusteriKodu', 'VergiDairesi', 'VergiNo', 'MersisNo', 'Telefon', 'Faks', 'Web', 'Adres', 'Aciklama'];
         foreach ($Alanlar as $Alan) {
             $Deger = isset($Girdi[$Alan]) ? trim((string) $Girdi[$Alan]) : null;
@@ -104,7 +136,7 @@ class CustomerController
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         $Repo = new CustomerRepository();
@@ -130,27 +162,27 @@ class CustomerController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         if (isset($Girdi['Unvan'])) {
             $Girdi['Unvan'] = trim((string) $Girdi['Unvan']);
             if ($Girdi['Unvan'] === '') {
-                Response::error('Ünvan zorunludur.', 422);
+                Response::error('Unvan zorunludur.', 422);
                 return;
             }
             if (mb_strlen($Girdi['Unvan']) < 2) {
-                Response::error('Ünvan en az 2 karakter olmalıdır.', 422);
+                Response::error('Unvan en az 2 karakter olmalidir.', 422);
                 return;
             }
             if (mb_strlen($Girdi['Unvan']) > self::LIMITLER['Unvan']) {
-                Response::error('Ünvan en fazla ' . self::LIMITLER['Unvan'] . ' karakter olabilir.', 422);
+                Response::error('Unvan en fazla ' . self::LIMITLER['Unvan'] . ' karakter olabilir.', 422);
                 return;
             }
         }
 
-        // Alan validasyonları
+        // Alan validasyonlari
         $Alanlar = ['MusteriKodu', 'VergiDairesi', 'VergiNo', 'MersisNo', 'Telefon', 'Faks', 'Web', 'Adres', 'Aciklama'];
         foreach ($Alanlar as $Alan) {
             if (array_key_exists($Alan, $Girdi)) {
@@ -166,7 +198,7 @@ class CustomerController
         $Repo = new CustomerRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         $Rol = Context::rol();
@@ -174,7 +206,7 @@ class CustomerController
             ? $Repo->bul($Id)
             : $Repo->sahipliKayitBul($Id, $KullaniciId);
         if (!$Mevcut) {
-            Response::error('Müşteri bulunamadı.', 404);
+            Response::error('Musteri bulunamadi.', 404);
             return;
         }
         Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId, $Rol, $Mevcut) {
@@ -218,19 +250,19 @@ class CustomerController
     }
 
     /**
-     * Müşteri cari özeti - yıl ve döviz bazlı fatura toplamları
+     * Musteri cari ozeti - yil ve doviz bazli fatura toplamlari
      */
     public static function cariOzet(array $Parametreler): void
     {
         $MusteriId = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($MusteriId <= 0) {
-            Response::error('Geçersiz müşteri ID.', 422);
+            Response::error('Gecersiz musteri ID.', 422);
             return;
         }
         
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         
@@ -244,13 +276,13 @@ class CustomerController
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Geçersiz kayıt.', 422);
+            Response::error('Gecersiz kayit.', 422);
             return;
         }
         $Repo = new CustomerRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
-            Response::error('Oturum geçersiz veya süresi dolmuş.', 401);
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         $Rol = Context::rol();
@@ -258,7 +290,7 @@ class CustomerController
             ? $Repo->bul($Id)
             : $Repo->sahipliKayitBul($Id, $KullaniciId);
         if (!$Mevcut) {
-            Response::error('Müşteri bulunamadı.', 404);
+            Response::error('Musteri bulunamadi.', 404);
             return;
         }
         Transaction::wrap(function () use ($Repo, $Id, $KullaniciId, $Rol, $Mevcut) {

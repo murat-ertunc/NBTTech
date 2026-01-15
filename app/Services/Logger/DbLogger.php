@@ -10,7 +10,7 @@ use PDO;
  * Veritabani Loglayici
  * 
  * Log kayitlarini log_action tablosuna yazar.
- * NbtYazilimKurallari'na gore tum CRUD islemleri loglanmalidir.
+ * Tum CRUD islemleri bu sinif araciligiyla loglanir.
  */
 class DbLogger implements LoggerInterface
 {

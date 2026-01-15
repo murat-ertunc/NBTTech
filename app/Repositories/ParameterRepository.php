@@ -11,7 +11,7 @@ class ParameterRepository extends BaseRepository
     protected string $Tablo = 'tbl_parametre';
 
     /**
-     * Tüm aktif parametreleri grup bazında getirir
+     * Tum aktif parametreleri grup bazinda getirir
      */
     public function tumAktifler(): array
     {
@@ -22,7 +22,7 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Grup bazında parametreleri getirir
+     * Grup bazinda parametreleri getirir
      */
     public function grubaGore(string $Grup): array
     {
@@ -34,7 +34,7 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Tüm parametreleri getirir (admin için - aktif/pasif dahil)
+     * Tum parametreleri getirir (admin icin - aktif/pasif dahil)
      */
     public function tumParametreler(): array
     {
@@ -45,7 +45,7 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Grup bazında gruplanmış parametreleri getirir
+     * Grup bazinda gruplanmis parametreleri getirir
      */
     public function grupluGetir(): array
     {
@@ -62,7 +62,7 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Varsayılan dövizi getirir
+     * Varsayilan dovizi getirir
      */
     public function varsayilanDoviz(): ?array
     {
@@ -73,7 +73,7 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Aktif dövizleri getirir
+     * Aktif dovizleri getirir
      */
     public function aktifDovizler(): array
     {
@@ -81,7 +81,7 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Genel parametre değerini getirir
+     * Genel parametre degerini getirir
      */
     public function genelParametre(string $Kod): ?string
     {
@@ -92,7 +92,7 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Pagination default değerini getirir
+     * Pagination default degerini getirir
      */
     public function paginationDefault(): int
     {
@@ -101,13 +101,13 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Yeni parametre ekler (tbl_parametre özel alan adları ile)
+     * Yeni parametre ekler (tbl_parametre ozel alan adlari ile)
      */
     public function ekle(array $Veri, ?int $KullaniciId = null): int
     {
         $Simdi = date('Y-m-d H:i:s');
         
-        // tbl_parametre için özel standart alanlar (Guid yok, farklı kolon isimleri)
+        // tbl_parametre icin ozel standart alanlar (Guid yok, farkli kolon isimleri)
         $Yukleme = array_merge([
             'EklemeZamani' => $Simdi,
             'EkleyenUserId' => $KullaniciId,
@@ -135,7 +135,7 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Parametre yedekleme (tbl_parametre özel kolon yapısı ile)
+     * Parametre yedekleme (tbl_parametre ozel kolon yapisi ile)
      */
     public function yedekle(int $Id, string $YedekTablo, ?int $KullaniciId = null): void
     {
@@ -144,9 +144,13 @@ class ParameterRepository extends BaseRepository
             return;
         }
         
-        // bck_tbl_parametre için özel kolon isimleri: YedekZamani, YedekleyenUserId
-        $Kayit['YedekZamani'] = date('Y-m-d H:i:s');
-        $Kayit['YedekleyenUserId'] = $KullaniciId;
+        // Ana tablo ID'sini KaynakId olarak sakla, kendi Id'sini sil
+        $Kayit['KaynakId'] = $Kayit['Id'];
+        unset($Kayit['Id']);
+        
+        // Backup icin standart kolon isimleri: BackupZamani, BackupUserId
+        $Kayit['BackupZamani'] = date('Y-m-d H:i:s');
+        $Kayit['BackupUserId'] = $KullaniciId;
 
         $Kolonlar = array_keys($Kayit);
         $Tutucular = array_map(fn($K) => ':' . $K, $Kolonlar);
@@ -164,38 +168,37 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Parametre soft delete (tbl_parametre özel kolon yapısı ile)
+     * Parametre soft delete (basit sil flag)
      */
     public function softSil(int $Id, ?int $KullaniciId = null, array $EkKosul = []): void
     {
-        $Simdi = date('Y-m-d H:i:s');
-        $Sql = "UPDATE {$this->Tablo} SET Sil = 1, SilenUserId = :Uid, SilmeZamani = :Simdi WHERE Id = :Id";
+        $Sql = "UPDATE {$this->Tablo} SET Sil = 1, DegistirenUserId = :Uid, DegisiklikZamani = GETDATE() WHERE Id = :Id";
         
-        Transaction::wrap(function () use ($Sql, $Id, $KullaniciId, $Simdi) {
+        Transaction::wrap(function () use ($Sql, $Id, $KullaniciId) {
             $Stmt = $this->Db->prepare($Sql);
-            $Stmt->execute(['Id' => $Id, 'Uid' => $KullaniciId, 'Simdi' => $Simdi]);
+            $Stmt->execute(['Id' => $Id, 'Uid' => $KullaniciId]);
             ActionLogger::delete($this->Tablo, ['Id' => $Id]);
         });
     }
 
     /**
-     * Varsayılan parametreyi değiştirir (aynı gruptaki diğerlerini sıfırlar)
+     * Varsayilan parametreyi degistirir (ayni gruptaki digerlerini sifirlar)
      */
     public function varsayilanYap(int $Id, int $KullaniciId): void
     {
-        // Önce mevcut parametreyi bul ve grubunu al
+        // Once mevcut parametreyi bul ve grubunu al
         $Mevcut = $this->bul($Id);
         if (!$Mevcut) return;
 
         $Grup = $Mevcut['Grup'];
 
         Transaction::wrap(function () use ($Id, $Grup, $KullaniciId) {
-            // Aynı gruptaki tüm varsayılanları kaldır
-            $Stmt = $this->Db->prepare("UPDATE {$this->Tablo} SET Varsayilan = 0, GuncelleyenUserId = :Uid, GuncellemeZamani = GETDATE() WHERE Grup = :Grup AND Sil = 0");
+            // Ayni gruptaki tum varsayilanlari kaldir
+            $Stmt = $this->Db->prepare("UPDATE {$this->Tablo} SET Varsayilan = 0, DegistirenUserId = :Uid, DegisiklikZamani = GETDATE() WHERE Grup = :Grup AND Sil = 0");
             $Stmt->execute(['Grup' => $Grup, 'Uid' => $KullaniciId]);
 
-            // Seçilen parametreyi varsayılan yap
-            $Stmt2 = $this->Db->prepare("UPDATE {$this->Tablo} SET Varsayilan = 1, GuncelleyenUserId = :Uid, GuncellemeZamani = GETDATE() WHERE Id = :Id");
+            // Secilen parametreyi varsayilan yap
+            $Stmt2 = $this->Db->prepare("UPDATE {$this->Tablo} SET Varsayilan = 1, DegistirenUserId = :Uid, DegisiklikZamani = GETDATE() WHERE Id = :Id");
             $Stmt2->execute(['Id' => $Id, 'Uid' => $KullaniciId]);
             
             ActionLogger::update($this->Tablo, ['Id' => $Id], ['Varsayilan' => 1, 'Grup' => $Grup]);
@@ -203,15 +206,15 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Aktif/Pasif durumunu değiştirir
+     * Aktif/Pasif durumunu degistirir
      */
     public function aktiflikDegistir(int $Id, bool $Aktif, int $KullaniciId): void
     {
         Transaction::wrap(function () use ($Id, $Aktif, $KullaniciId) {
-            // Önce yedekle
+            // Once yedekle
             $this->yedekle($Id, 'bck_tbl_parametre', $KullaniciId);
             
-            $Stmt = $this->Db->prepare("UPDATE {$this->Tablo} SET Aktif = :Aktif, GuncelleyenUserId = :Uid, GuncellemeZamani = GETDATE() WHERE Id = :Id");
+            $Stmt = $this->Db->prepare("UPDATE {$this->Tablo} SET Aktif = :Aktif, DegistirenUserId = :Uid, DegisiklikZamani = GETDATE() WHERE Id = :Id");
             $Stmt->execute(['Id' => $Id, 'Aktif' => $Aktif ? 1 : 0, 'Uid' => $KullaniciId]);
             
             ActionLogger::update($this->Tablo, ['Id' => $Id], ['Aktif' => $Aktif]);
@@ -219,13 +222,13 @@ class ParameterRepository extends BaseRepository
     }
 
     /**
-     * Parametre güncelleme (tbl_parametre özel alan adları ile)
+     * Parametre guncelleme (tbl_parametre ozel alan adlari ile)
      */
     public function guncelle(int $Id, array $Veri, ?int $KullaniciId = null, array $EkKosul = []): void
     {
-        // tbl_parametre farklı kolon isimleri kullandığı için özel güncelleme
-        $Veri['GuncellemeZamani'] = date('Y-m-d H:i:s');
-        $Veri['GuncelleyenUserId'] = $KullaniciId;
+        // tbl_parametre standart kolon isimleri kullanir
+        $Veri['DegisiklikZamani'] = date('Y-m-d H:i:s');
+        $Veri['DegistirenUserId'] = $KullaniciId;
 
         $Yukleme = $Veri;
         $Yukleme['Id'] = $Id;

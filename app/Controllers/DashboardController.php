@@ -11,7 +11,7 @@ class DashboardController
     public static function index(): void
     {
         if (!Context::kullaniciId()) {
-            Response::error('Yetkisiz erişim.', 401);
+            Response::error('Yetkisiz erisim.', 401);
             return;
         }
 
@@ -34,7 +34,7 @@ class DashboardController
                 'MusteriId' => $Inv['MusteriId'],
                 'RecordId' => $Inv['Id'],
                 'Type' => 'invoice',
-                'Title' => 'Ödenmemiş Fatura',
+                'Title' => 'Odenmemis Fatura',
                 'Detail' => 'Ref: #' . $Inv['Id'] . ' - Kalan: ' . number_format($Kalan, 2) . ' ' . $Inv['DovizCinsi'],
                 'Date' => $Inv['Tarih'],
                 'IsUrgent' => $Gecikmis

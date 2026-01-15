@@ -30,6 +30,11 @@ $Router->add('GET', '/api/customers', function () {
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
 	CustomerController::index();
 });
+$Router->add('GET', '/api/customers/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'user'])) return;
+	CustomerController::show($Parametreler);
+});
 $Router->add('POST', '/api/customers', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -86,6 +91,11 @@ $Router->add('GET', '/api/payments', function () {
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
 	PaymentController::index();
 });
+$Router->add('GET', '/api/payments/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'user'])) return;
+	PaymentController::show($Parametreler);
+});
 $Router->add('POST', '/api/payments', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -109,6 +119,11 @@ $Router->add('GET', '/api/projects', function () {
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
 	App\Controllers\ProjectController::index();
 });
+$Router->add('GET', '/api/projects/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'user'])) return;
+	App\Controllers\ProjectController::show($Parametreler);
+});
 $Router->add('POST', '/api/projects', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -130,6 +145,11 @@ $Router->add('GET', '/api/offers', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
 	App\Controllers\OfferController::index();
+});
+$Router->add('GET', '/api/offers/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'user'])) return;
+	App\Controllers\OfferController::show($Parametreler);
 });
 $Router->add('POST', '/api/offers', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
@@ -153,6 +173,11 @@ $Router->add('GET', '/api/contracts', function () {
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
 	App\Controllers\ContractController::index();
 });
+$Router->add('GET', '/api/contracts/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'user'])) return;
+	App\Controllers\ContractController::show($Parametreler);
+});
 $Router->add('POST', '/api/contracts', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -174,6 +199,11 @@ $Router->add('GET', '/api/guarantees', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
 	if (!Role::rolGerekli(['superadmin', 'user'])) return;
 	App\Controllers\GuaranteeController::index();
+});
+$Router->add('GET', '/api/guarantees/{id}', function ($Parametreler) {
+	if (!Auth::yetkilendirmeGerekli()) return;
+	if (!Role::rolGerekli(['superadmin', 'user'])) return;
+	App\Controllers\GuaranteeController::show($Parametreler);
 });
 $Router->add('POST', '/api/guarantees', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
@@ -273,6 +303,11 @@ $Router->add('GET', '/api/meetings', function () {
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
     App\Controllers\MeetingController::index();
 });
+$Router->add('GET', '/api/meetings/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'user'])) return;
+    App\Controllers\MeetingController::show($Parametreler);
+});
 $Router->add('POST', '/api/meetings', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -294,6 +329,11 @@ $Router->add('GET', '/api/takvim', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
     App\Controllers\TakvimController::index();
+});
+$Router->add('GET', '/api/takvim/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'user'])) return;
+    App\Controllers\TakvimController::show($Parametreler);
 });
 $Router->add('POST', '/api/takvim', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
@@ -317,6 +357,11 @@ $Router->add('GET', '/api/contacts', function () {
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
     App\Controllers\ContactController::index();
 });
+$Router->add('GET', '/api/contacts/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'user'])) return;
+    App\Controllers\ContactController::show($Parametreler);
+});
 $Router->add('POST', '/api/contacts', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
@@ -338,6 +383,11 @@ $Router->add('GET', '/api/stamp-taxes', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
     App\Controllers\StampTaxController::index();
+});
+$Router->add('GET', '/api/stamp-taxes/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'user'])) return;
+    App\Controllers\StampTaxController::show($Parametreler);
 });
 $Router->add('POST', '/api/stamp-taxes', function () {
     if (!Auth::yetkilendirmeGerekli()) return;
@@ -385,6 +435,11 @@ $Router->add('GET', '/api/files/{id}/download', function ($Parametreler) {
     if (!Auth::yetkilendirmeGerekli()) return;
     if (!Role::rolGerekli(['superadmin', 'user'])) return;
     App\Controllers\FileController::download($Parametreler);
+});
+$Router->add('GET', '/api/files/{id}', function ($Parametreler) {
+    if (!Auth::yetkilendirmeGerekli()) return;
+    if (!Role::rolGerekli(['superadmin', 'user'])) return;
+    App\Controllers\FileController::show($Parametreler);
 });
 
 // Parametre islemleri endpointleri

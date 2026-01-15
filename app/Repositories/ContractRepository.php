@@ -7,13 +7,14 @@ class ContractRepository extends BaseRepository
     protected string $Tablo = 'tbl_sozlesme';
 
     /**
-     * Tüm aktif sözleşmeleri müşteri adı ile birlikte getir
+     * Tum aktif sozlesmeleri musteri adi ile birlikte getir
      */
     public function tumAktifler(): array
     {
-        $Sql = "SELECT s.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT s.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} s 
                 LEFT JOIN tbl_musteri m ON s.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON s.ProjeId = p.Id 
                 WHERE s.Sil = 0 
                 ORDER BY s.Id DESC";
         $Stmt = $this->Db->query($Sql);
@@ -24,30 +25,40 @@ class ContractRepository extends BaseRepository
 
     public function musteriSozlesmeleri(int $MusteriId): array
     {
-        $Stmt = $this->Db->prepare("SELECT * FROM {$this->Tablo} WHERE MusteriId = :Mid AND Sil = 0 ORDER BY Id DESC");
+        $Sql = "SELECT s.*, p.ProjeAdi AS ProjeAdi 
+                FROM {$this->Tablo} s 
+                LEFT JOIN tbl_proje p ON s.ProjeId = p.Id 
+                WHERE s.MusteriId = :Mid AND s.Sil = 0 
+                ORDER BY s.Id DESC";
+        $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute(['Mid' => $MusteriId]);
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0], $Sonuclar);
         return $Sonuclar;
     }
 
-    public function musteriSozlesmeleriPaginated(int $MusteriId, int $page = 1, int $limit = 10): array
+    public function musteriSozlesmeleriPaginated(int $MusteriId, int $Sayfa = 1, int $Limit = 10): array
     {
-        $Sql = "SELECT * FROM {$this->Tablo} WHERE MusteriId = :Mid AND Sil = 0 ORDER BY Id DESC";
-        $result = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $page, $limit);
-        $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0, 'page' => $page], $result['data']);
-        return $result;
+        $Sql = "SELECT s.*, p.ProjeAdi AS ProjeAdi 
+                FROM {$this->Tablo} s 
+                LEFT JOIN tbl_proje p ON s.ProjeId = p.Id 
+                WHERE s.MusteriId = :Mid AND s.Sil = 0 
+                ORDER BY s.Id DESC";
+        $Sonuc = $this->paginatedQuery($Sql, ['Mid' => $MusteriId], $Sayfa, $Limit);
+        $this->logSelect(['MusteriId' => $MusteriId, 'Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 
-    public function tumAktiflerPaginated(int $page = 1, int $limit = 10): array
+    public function tumAktiflerPaginated(int $Sayfa = 1, int $Limit = 10): array
     {
-        $Sql = "SELECT s.*, m.Unvan AS MusteriUnvan 
+        $Sql = "SELECT s.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} s 
                 LEFT JOIN tbl_musteri m ON s.MusteriId = m.Id 
+                LEFT JOIN tbl_proje p ON s.ProjeId = p.Id 
                 WHERE s.Sil = 0 
                 ORDER BY s.Id DESC";
-        $result = $this->paginatedQuery($Sql, [], $page, $limit);
-        $this->logSelect(['Sil' => 0, 'page' => $page], $result['data']);
-        return $result;
+        $Sonuc = $this->paginatedQuery($Sql, [], $Sayfa, $Limit);
+        $this->logSelect(['Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
+        return $Sonuc;
     }
 }
