@@ -226,35 +226,35 @@ $Router->add('GET', '/api/guarantees/{id}/download', function ($Parametreler) {
 	App\Controllers\GuaranteeController::download($Parametreler);
 });
 
-// Kullanici yonetimi endpointleri (sadece superadmin)
+// Kullanici yonetimi endpointleri (superadmin ve admin)
 $Router->add('GET', '/api/users', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin'])) return;
+	if (!Role::rolGerekli(['superadmin', 'admin'])) return;
 	App\Controllers\UserController::index();
 });
 
 $Router->add('PUT', '/api/users/{id}/block', function ($Parametreler) {
 	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin'])) return;
+	if (!Role::rolGerekli(['superadmin', 'admin'])) return;
 	App\Controllers\UserController::block($Parametreler);
 });
 
 $Router->add('PUT', '/api/users/{id}', function ($Parametreler) {
 	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin'])) return;
+	if (!Role::rolGerekli(['superadmin', 'admin'])) return;
 	App\Controllers\UserController::update($Parametreler);
 });
 
 $Router->add('DELETE', '/api/users/{id}', function ($Parametreler) {
 	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin'])) return;
+	if (!Role::rolGerekli(['superadmin', 'admin'])) return;
 	App\Controllers\UserController::delete($Parametreler);
 });
 
-// Kullanici ekleme endpoint (sadece superadmin)
+// Kullanici ekleme endpoint (superadmin ve admin)
 $Router->add('POST', '/api/users', function () {
 	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin'])) return;
+	if (!Role::rolGerekli(['superadmin', 'admin'])) return;
 	App\Controllers\UserController::store();
 });
 

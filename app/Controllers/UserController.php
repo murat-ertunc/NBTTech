@@ -175,7 +175,7 @@ class UserController
                 'Rol' => $Rol,
                 'Aktif' => 1
             ], Context::kullaniciId());
-            ActionLogger::create('tnm_user', ['Id' => $YeniId, 'KullaniciAdi' => $KullaniciAdi, 'Rol' => $Rol]);
+            ActionLogger::insert('tnm_user', ['Id' => $YeniId], ['KullaniciAdi' => $KullaniciAdi, 'Rol' => $Rol]);
         });
 
         Response::json(['status' => 'ok']);
