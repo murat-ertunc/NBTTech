@@ -38,8 +38,8 @@ class AlarmController
                 'id' => 'unpaid_invoices',
                 'type' => 'invoice',
                 'priority' => 'high',
-                'title' => 'Odenmemis Faturalar',
-                'description' => $OdenmemisFaturalar['count'] . ' adet fatura odeme bekliyor',
+                'title' => 'Ödenmemiş Faturalar',
+                'description' => $OdenmemisFaturalar['count'] . ' adet fatura ödeme bekliyor',
                 'total' => $OdenmemisFaturalar['total'],
                 'count' => $OdenmemisFaturalar['count'],
                 'items' => $OdenmemisFaturalar['items']
