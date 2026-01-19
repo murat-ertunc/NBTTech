@@ -55,7 +55,7 @@
           <label class="col-12 col-md-4 col-form-label">Tutar <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
             <div class="input-group">
-              <input type="number" step="0.01" class="form-control" id="guaranteeAmount">
+              <input type="number" step="0.01" class="form-control nbt-money-input" id="guaranteeAmount" placeholder="0,00">
               <select class="form-select" id="guaranteeCurrency" style="max-width: 90px;">
               </select>
             </div>

@@ -40,7 +40,7 @@
           <label class="col-12 col-md-4 col-form-label">Tutar <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
             <div class="input-group">
-              <input type="number" step="0.01" class="form-control" id="offerAmount" required>
+              <input type="number" step="0.01" class="form-control nbt-money-input" id="offerAmount" placeholder="0,00" required>
               <select class="form-select" id="offerCurrency" style="max-width: 90px;">
               </select>
             </div>

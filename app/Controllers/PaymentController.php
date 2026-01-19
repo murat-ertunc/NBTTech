@@ -7,6 +7,7 @@ use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\PaymentRepository;
 use App\Services\Logger\ActionLogger;
+use App\Services\CalendarService;
 
 class PaymentController
 {
@@ -107,6 +108,19 @@ class PaymentController
             ], $KullaniciId);
         });
 
+        // Takvim hatirlatmasi olustur - tarih varsa
+        if (!empty($Tarih)) {
+            $OdemeAciklama = !empty($Aciklama) ? $Aciklama : 'Ödeme';
+            CalendarService::createOrUpdateReminder(
+                $MusteriId,
+                'odeme',
+                $Id,
+                $Tarih,
+                'Ödeme: ' . $OdemeAciklama,
+                $KullaniciId
+            );
+        }
+
         Response::json(['id' => $Id], 201);
     }
 
@@ -145,6 +159,22 @@ class PaymentController
             }
         });
 
+        // Takvim hatirlatmasi guncelle - tarih varsa
+        if (isset($Girdi['Tarih'])) {
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut) {
+                $Aciklama = isset($Girdi['Aciklama']) ? $Girdi['Aciklama'] : ($Mevcut['Aciklama'] ?? 'Ödeme');
+                CalendarService::createOrUpdateReminder(
+                    (int)$Mevcut['MusteriId'],
+                    'odeme',
+                    $Id,
+                    $Girdi['Tarih'],
+                    'Ödeme: ' . $Aciklama,
+                    $KullaniciId
+                );
+            }
+        }
+
         Response::json(['status' => 'success']);
     }
 
@@ -174,6 +204,9 @@ class PaymentController
             $Repo->softSil($Id, $KullaniciId);
             ActionLogger::delete('tbl_odeme', ['Id' => $Id]);
         });
+
+        // Takvim hatirlatmasini sil
+        CalendarService::deleteReminder('odeme', $Id);
 
         Response::json(['status' => 'success']);
     }

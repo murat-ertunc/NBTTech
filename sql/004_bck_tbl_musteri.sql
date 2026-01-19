@@ -14,7 +14,7 @@ CREATE TABLE bck_tbl_musteri (
     Sil BIT NOT NULL,
     
     -- Temel Bilgiler
-    MusteriKodu NVARCHAR(5) NULL,
+    MusteriKodu NVARCHAR(10) NULL,
     Unvan NVARCHAR(150) NOT NULL,
     Aciklama NVARCHAR(500) NULL,
     

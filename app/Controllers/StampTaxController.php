@@ -6,6 +6,7 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\StampTaxRepository;
+use App\Services\CalendarService;
 
 class StampTaxController
 {
@@ -124,6 +125,19 @@ class StampTaxController
 
         $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
 
+        // Takvim hatirlatmasi olustur - tarih varsa
+        if (!empty($YuklenecekVeri['Tarih'])) {
+            $Aciklama = !empty($YuklenecekVeri['Aciklama']) ? $YuklenecekVeri['Aciklama'] : 'Damga Vergisi';
+            CalendarService::createOrUpdateReminder(
+                (int)$YuklenecekVeri['MusteriId'],
+                'damgavergisi',
+                $Id,
+                $YuklenecekVeri['Tarih'],
+                'Damga Vergisi: ' . $Aciklama,
+                $KullaniciId
+            );
+        }
+
         Response::json(['id' => $Id], 201);
     }
 
@@ -210,6 +224,22 @@ class StampTaxController
 
         if (!empty($Guncellenecek)) {
             $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+            
+            // Takvim hatirlatmasi guncelle - tarih varsa
+            if (isset($Guncellenecek['Tarih'])) {
+                $Mevcut = $Repo->bul($Id);
+                if ($Mevcut) {
+                    $Aciklama = isset($Guncellenecek['Aciklama']) ? $Guncellenecek['Aciklama'] : ($Mevcut['Aciklama'] ?? 'Damga Vergisi');
+                    CalendarService::createOrUpdateReminder(
+                        (int)$Mevcut['MusteriId'],
+                        'damgavergisi',
+                        $Id,
+                        $Guncellenecek['Tarih'],
+                        'Damga Vergisi: ' . $Aciklama,
+                        $KullaniciId
+                    );
+                }
+            }
         }
 
         Response::json(['status' => 'success']);
@@ -231,6 +261,9 @@ class StampTaxController
         }
 
         $Repo->softSil($Id, $KullaniciId);
+
+        // Takvim hatirlatmasini sil
+        CalendarService::deleteReminder('damgavergisi', $Id);
 
         Response::json(['status' => 'success']);
     }

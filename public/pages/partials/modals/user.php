@@ -1,6 +1,9 @@
 <?php
 /**
  * Kullanıcı Modal - Ekle/Düzenle
+ * 
+ * RBAC entegreli: Çoklu rol seçimi destekler.
+ * Roller API'den yüklenir ve subset constraint'e uygun filtrelenir.
  */
 ?>
 <!-- Kullanıcı Ekle Modal -->
@@ -28,10 +31,13 @@
           <small class="text-muted">Düzenlemede boş bırakırsanız şifre değişmez.</small>
         </div>
         <div class="mb-3">
-          <label class="form-label">Rol</label>
-          <select class="form-select" id="userRol">
-            <option value="user">Kullanıcı</option>
-          </select>
+          <label class="form-label">Roller <span class="text-muted">(Atayabileceğiniz roller)</span></label>
+          <div id="userRolesContainer" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+            <div class="text-center text-muted py-2">
+              <div class="spinner-border spinner-border-sm"></div> Roller yükleniyor...
+            </div>
+          </div>
+          <small class="text-muted">Birden fazla rol seçebilirsiniz. Yalnızca kendi rollerinize eşit veya alt seviyedeki rolleri atayabilirsiniz.</small>
         </div>
       </div>
       <div class="modal-footer">

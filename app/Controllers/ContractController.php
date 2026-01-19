@@ -6,6 +6,7 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\ContractRepository;
+use App\Services\CalendarService;
 
 class ContractController
 {
@@ -103,6 +104,18 @@ class ContractController
             return $Repo->ekle($YuklenecekVeri, $KullaniciId);
         });
 
+        // Takvim hatirlatmasi olustur - sozlesme tarihi varsa
+        if (!empty($YuklenecekVeri['SozlesmeTarihi'])) {
+            CalendarService::createOrUpdateReminder(
+                (int)$YuklenecekVeri['MusteriId'],
+                'sozlesme',
+                $Id,
+                $YuklenecekVeri['SozlesmeTarihi'],
+                'Sözleşme Hatırlatma',
+                $KullaniciId
+            );
+        }
+
         Response::json(['id' => $Id], 201);
     }
 
@@ -137,6 +150,21 @@ class ContractController
             }
         });
 
+        // Takvim hatirlatmasi guncelle - sozlesme tarihi varsa
+        if (isset($Girdi['SozlesmeTarihi'])) {
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut) {
+                CalendarService::createOrUpdateReminder(
+                    (int)$Mevcut['MusteriId'],
+                    'sozlesme',
+                    $Id,
+                    $Girdi['SozlesmeTarihi'],
+                    'Sözleşme Hatırlatma',
+                    $KullaniciId
+                );
+            }
+        }
+
         Response::json(['status' => 'success']);
     }
 
@@ -158,6 +186,9 @@ class ContractController
         Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
             $Repo->softSil($Id, $KullaniciId);
         });
+
+        // Takvim hatirlatmasini sil
+        CalendarService::deleteReminder('sozlesme', $Id);
 
         Response::json(['status' => 'success']);
     }

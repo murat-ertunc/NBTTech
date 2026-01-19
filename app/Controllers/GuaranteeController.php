@@ -6,6 +6,7 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\GuaranteeRepository;
+use App\Services\CalendarService;
 
 class GuaranteeController
 {
@@ -133,6 +134,19 @@ class GuaranteeController
             return $Repo->ekle($YuklenecekVeri, $KullaniciId);
         });
 
+        // Takvim hatirlatmasi olustur - termin tarihi varsa
+        if (!empty($YuklenecekVeri['TerminTarihi'])) {
+            $Tur = !empty($YuklenecekVeri['Tur']) ? $YuklenecekVeri['Tur'] : 'Teminat';
+            CalendarService::createOrUpdateReminder(
+                (int)$YuklenecekVeri['MusteriId'],
+                'teminat',
+                $Id,
+                $YuklenecekVeri['TerminTarihi'],
+                'Teminat Termin: ' . $Tur,
+                $KullaniciId
+            );
+        }
+
         Response::json(['id' => $Id], 201);
     }
 
@@ -228,6 +242,22 @@ class GuaranteeController
             }
         });
 
+        // Takvim hatirlatmasi guncelle - termin tarihi varsa
+        if (isset($Girdi['TerminTarihi'])) {
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut) {
+                $Tur = isset($Girdi['Tur']) ? $Girdi['Tur'] : ($Mevcut['Tur'] ?? 'Teminat');
+                CalendarService::createOrUpdateReminder(
+                    (int)$Mevcut['MusteriId'],
+                    'teminat',
+                    $Id,
+                    $Girdi['TerminTarihi'],
+                    'Teminat Termin: ' . $Tur,
+                    $KullaniciId
+                );
+            }
+        }
+
         Response::json(['status' => 'success']);
     }
 
@@ -249,6 +279,9 @@ class GuaranteeController
         Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
             $Repo->softSil($Id, $KullaniciId);
         });
+
+        // Takvim hatirlatmasini sil
+        CalendarService::deleteReminder('teminat', $Id);
 
         Response::json(['status' => 'success']);
     }

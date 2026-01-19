@@ -7,6 +7,7 @@ use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\InvoiceRepository;
 use App\Services\Logger\ActionLogger;
+use App\Services\CalendarService;
 
 class InvoiceController
 {
@@ -136,23 +137,21 @@ class InvoiceController
                 $Repo->kaydetKalemler($FaturaId, $Kalemler, $KullaniciId);
             }
             
-            // Takvim kayitlarini olustur:
-            // - Her zaman fatura tarihi icin ana kayit olusturulur
-            // - TakvimAktif=1 VE TakvimSure VE TakvimSureTipi varsa, ek hatirlatma kaydi olusturulur
-            //   (Fatura tarihi + TakvimSure kadar ileriki tarih icin)
-            $Repo->takvimKayitlariniOlustur(
-                $FaturaId,
-                $MusteriId,
-                $ProjeId,
-                $Tarih,
-                $TakvimSure,
-                $TakvimSureTipi,
-                $HatirlatmaAktif === 1,
-                $KullaniciId
-            );
-            
             return $FaturaId;
         });
+
+        // Takvim hatirlatmasi olustur - tarih varsa
+        if (!empty($Tarih)) {
+            $FaturaAciklama = !empty($FaturaNo) ? 'Fatura No: ' . $FaturaNo : 'Fatura';
+            CalendarService::createOrUpdateReminder(
+                $MusteriId,
+                'fatura',
+                $Id,
+                $Tarih,
+                $FaturaAciklama,
+                $KullaniciId
+            );
+        }
 
         Response::json(['id' => $Id], 201);
     }
@@ -206,35 +205,24 @@ class InvoiceController
             if (isset($Girdi['Kalemler']) && is_array($Girdi['Kalemler'])) {
                 $Repo->kaydetKalemler($Id, $Girdi['Kalemler'], $KullaniciId);
             }
-            
-            // Takvim hatirlatma guncelleme:
-            // Eger TakvimAktif, TakvimSure veya TakvimSureTipi degistiyse, mevcut takvim kayitlarini sil ve yeniden olustur
-            $TakvimDegisti = isset($Girdi['TakvimAktif']) || isset($Girdi['TakvimSure']) || isset($Girdi['TakvimSureTipi']) || isset($Girdi['Tarih']);
-            if ($TakvimDegisti) {
-                // Mevcut fatura ile iliskili takvim kayitlarini soft delete yap
-                $Repo->takvimKayitlariniSil($Id, $KullaniciId);
-                
-                // Guncel degerlerle yeni takvim kayitlari olustur
-                $GuncelTarih = $Girdi['Tarih'] ?? $Mevcut['Tarih'];
-                $GuncelTakvimAktif = isset($Girdi['TakvimAktif']) ? (int)$Girdi['TakvimAktif'] : (int)($Mevcut['TakvimAktif'] ?? 0);
-                $GuncelTakvimSure = isset($Girdi['TakvimSure']) ? ((int)$Girdi['TakvimSure'] > 0 ? (int)$Girdi['TakvimSure'] : null) : ($Mevcut['TakvimSure'] ?? null);
-                $GuncelTakvimSureTipi = isset($Girdi['TakvimSureTipi']) ? $Girdi['TakvimSureTipi'] : ($Mevcut['TakvimSureTipi'] ?? null);
-                
-                // Hatirlatma aktif mi hesapla
-                $HatirlatmaAktif = ($GuncelTakvimSure !== null) ? 1 : $GuncelTakvimAktif;
-                
-                $Repo->takvimKayitlariniOlustur(
-                    $Id,
+        });
+
+        // Takvim hatirlatmasi guncelle - tarih varsa
+        if (isset($Girdi['Tarih'])) {
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut) {
+                $FaturaNo = isset($Girdi['FaturaNo']) ? $Girdi['FaturaNo'] : ($Mevcut['FaturaNo'] ?? '');
+                $FaturaAciklama = !empty($FaturaNo) ? 'Fatura No: ' . $FaturaNo : 'Fatura';
+                CalendarService::createOrUpdateReminder(
                     (int)$Mevcut['MusteriId'],
-                    $Mevcut['ProjeId'] ? (int)$Mevcut['ProjeId'] : null,
-                    $GuncelTarih,
-                    $GuncelTakvimSure,
-                    $GuncelTakvimSureTipi,
-                    $HatirlatmaAktif === 1,
+                    'fatura',
+                    $Id,
+                    $Girdi['Tarih'],
+                    $FaturaAciklama,
                     $KullaniciId
                 );
             }
-        });
+        }
 
         Response::json(['status' => 'success']);
     }
@@ -265,6 +253,9 @@ class InvoiceController
             $Repo->softSil($Id, $KullaniciId);
             ActionLogger::delete('tbl_fatura', ['Id' => $Id]);
         });
+
+        // Takvim hatirlatmasini sil
+        CalendarService::deleteReminder('fatura', $Id);
 
         Response::json(['status' => 'success']);
     }

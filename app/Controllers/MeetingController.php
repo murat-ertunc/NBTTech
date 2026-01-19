@@ -6,6 +6,7 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\MeetingRepository;
+use App\Services\CalendarService;
 
 class MeetingController
 {
@@ -93,6 +94,18 @@ class MeetingController
 
         $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
 
+        // Takvim hatirlatmasi olustur
+        if (!empty($YuklenecekVeri['Tarih'])) {
+            CalendarService::createOrUpdateReminder(
+                (int)$YuklenecekVeri['MusteriId'],
+                'gorusme',
+                $Id,
+                $YuklenecekVeri['Tarih'],
+                'Görüşme: ' . $YuklenecekVeri['Konu'],
+                $KullaniciId
+            );
+        }
+
         Response::json(['id' => $Id], 201);
     }
 
@@ -121,6 +134,22 @@ class MeetingController
 
         if (!empty($Guncellenecek)) {
             $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+            
+            // Takvim hatirlatmasi guncelle - tarih varsa
+            if (isset($Guncellenecek['Tarih'])) {
+                $Mevcut = $Repo->bul($Id);
+                if ($Mevcut) {
+                    $Konu = isset($Guncellenecek['Konu']) ? $Guncellenecek['Konu'] : ($Mevcut['Konu'] ?? 'Görüşme');
+                    CalendarService::createOrUpdateReminder(
+                        (int)$Mevcut['MusteriId'],
+                        'gorusme',
+                        $Id,
+                        $Guncellenecek['Tarih'],
+                        'Görüşme: ' . $Konu,
+                        $KullaniciId
+                    );
+                }
+            }
         }
 
         Response::json(['status' => 'success']);
@@ -142,6 +171,9 @@ class MeetingController
         }
 
         $Repo->softSil($Id, $KullaniciId);
+        
+        // Takvim hatirlatmasini sil
+        CalendarService::deleteReminder('gorusme', $Id);
 
         Response::json(['status' => 'success']);
     }

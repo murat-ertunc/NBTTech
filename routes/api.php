@@ -1,484 +1,235 @@
 <?php
+/**
+ * API Route Tanimlamalari (Refactored)
+ * 
+ * Resource pattern ile CRUD tekrari minimize edilmistir.
+ * 
+ * @package Routes
+ */
 
-use App\Controllers\AuthController;
-use App\Controllers\CustomerController;
-use App\Controllers\DashboardController;
-use App\Controllers\InvoiceController;
-use App\Controllers\PaymentController;
 use App\Core\Response;
 use App\Middleware\Auth;
-use App\Middleware\Role;
+use App\Middleware\Permission;
 
-// Saglik kontrolu endpoint
-$Router->add('GET', '/health', function () {
-	Response::json([
-		'status' => 'ok',
-		'app' => config('app.name'),
-		'time' => date('c'),
-	]);
-});
+// =============================================
+// HELPER FONKSIYONLARI
+// =============================================
 
-// Kimlik dogrulama endpointleri
-$Router->add('POST', '/api/login', fn() => AuthController::login());
-$Router->add('POST', '/api/logout', fn() => AuthController::logout());
-$Router->add('POST', '/api/refresh', fn() => AuthController::refresh());
+/**
+ * Korunmus route - Auth + Permission kontrolu tek satirda
+ * 
+ * @param string $PermissionKodu 'modul.aksiyon' formatinda (bossa sadece auth)
+ * @param callable $Handler
+ * @return callable
+ */
+function guard(string $PermissionKodu, callable $Handler): callable
+{
+    return function ($Params = []) use ($PermissionKodu, $Handler) {
+        if (!Auth::yetkilendirmeGerekli()) return;
+        if ($PermissionKodu && !Permission::izinGerekli($PermissionKodu)) return;
+        $Handler($Params);
+    };
+}
 
-// Musteri islemleri endpointleri
-$Router->add('GET', '/api/customers', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	CustomerController::index();
-});
-$Router->add('GET', '/api/customers/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	CustomerController::show($Parametreler);
-});
-$Router->add('POST', '/api/customers', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	CustomerController::store();
-});
-$Router->add('PUT', '/api/customers/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	CustomerController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/customers/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	CustomerController::delete($Parametreler);
-});
+/**
+ * CRUD resource route'lari otomatik olusturur
+ * 
+ * GET    /api/{res}         -> index   (res.read)
+ * GET    /api/{res}/{id}    -> show    (res.read)
+ * POST   /api/{res}         -> store   (res.create)
+ * PUT    /api/{res}/{id}    -> update  (res.update)
+ * DELETE /api/{res}/{id}    -> delete  (res.delete)
+ * 
+ * @param string $Kaynak 'customers', 'invoices' vb.
+ * @param string $Controller Tam sinif adi
+ * @param array $Ayarlar ['only'=>[], 'except'=>[], 'extra'=>[]]
+ */
+function resource(string $Kaynak, string $Controller, array $Ayarlar = []): void
+{
+    global $Router;
+    
+    $Only = $Ayarlar['only'] ?? null;
+    $Except = $Ayarlar['except'] ?? [];
+    
+    $Aksiyonlar = [
+        'index'  => ['GET', "/api/{$Kaynak}", 'read'],
+        'show'   => ['GET', "/api/{$Kaynak}/{id}", 'read'],
+        'store'  => ['POST', "/api/{$Kaynak}", 'create'],
+        'update' => ['PUT', "/api/{$Kaynak}/{id}", 'update'],
+        'delete' => ['DELETE', "/api/{$Kaynak}/{id}", 'delete'],
+    ];
+    
+    foreach ($Aksiyonlar as $Metod => [$HttpMetod, $Yol, $Aksiyon]) {
+        // only varsa sadece onlari ekle
+        if ($Only !== null && !in_array($Metod, $Only)) continue;
+        // except varsa onlari atla
+        if (in_array($Metod, $Except)) continue;
+        
+        $PermKodu = "{$Kaynak}.{$Aksiyon}";
+        $Router->add($HttpMetod, $Yol, guard($PermKodu, fn($P) => $Controller::$Metod($P)));
+    }
+    
+    // Extra route'lar
+    if (!empty($Ayarlar['extra'])) {
+        foreach ($Ayarlar['extra'] as $Extra) {
+            [$HttpMetod, $Yol, $Perm, $ControllerMetod] = $Extra;
+            $Router->add($HttpMetod, $Yol, guard($Perm, fn($P) => $Controller::$ControllerMetod($P)));
+        }
+    }
+}
 
-// Musteri Cari Ozet endpoint
-$Router->add('GET', '/api/customers/{id}/cari-ozet', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	CustomerController::cariOzet($Parametreler);
-});
+/**
+ * Sadece read (index + show) olan resource
+ */
+function resourceReadOnly(string $Kaynak, string $Controller): void
+{
+    resource($Kaynak, $Controller, ['only' => ['index', 'show']]);
+}
 
-// Fatura islemleri endpointleri
-$Router->add('GET', '/api/invoices', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	InvoiceController::index();
-});
-$Router->add('GET', '/api/invoices/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	InvoiceController::show($Parametreler);
-});
-$Router->add('POST', '/api/invoices', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	InvoiceController::store();
-});
-$Router->add('PUT', '/api/invoices/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	InvoiceController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/invoices/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	InvoiceController::delete($Parametreler);
-});
+/**
+ * Instance gerektiren controller icin resource
+ */
+function resourceInstance(string $Kaynak, string $Controller, array $Ayarlar = []): void
+{
+    global $Router;
+    
+    $Only = $Ayarlar['only'] ?? null;
+    $Except = $Ayarlar['except'] ?? [];
+    
+    $Aksiyonlar = [
+        'index'  => ['GET', "/api/{$Kaynak}", 'read'],
+        'show'   => ['GET', "/api/{$Kaynak}/{id}", 'read'],
+        'store'  => ['POST', "/api/{$Kaynak}", 'create'],
+        'update' => ['PUT', "/api/{$Kaynak}/{id}", 'update'],
+        'delete' => ['DELETE', "/api/{$Kaynak}/{id}", 'delete'],
+    ];
+    
+    foreach ($Aksiyonlar as $Metod => [$HttpMetod, $Yol, $Aksiyon]) {
+        if ($Only !== null && !in_array($Metod, $Only)) continue;
+        if (in_array($Metod, $Except)) continue;
+        
+        $PermKodu = "{$Kaynak}.{$Aksiyon}";
+        $Router->add($HttpMetod, $Yol, guard($PermKodu, fn($P) => (new $Controller())->$Metod($P)));
+    }
+}
 
-// Odeme islemleri endpointleri
-$Router->add('GET', '/api/payments', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	PaymentController::index();
-});
-$Router->add('GET', '/api/payments/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	PaymentController::show($Parametreler);
-});
-$Router->add('POST', '/api/payments', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	PaymentController::store();
-});
-$Router->add('PUT', '/api/payments/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	PaymentController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/payments/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	PaymentController::delete($Parametreler);
-});
+// =============================================
+// PUBLIC ENDPOINTLER (Auth gerektirmez)
+// =============================================
 
+$Router->add('GET', '/health', fn() => Response::json([
+    'status' => 'ok',
+    'app' => config('app.name'),
+    'time' => date('c'),
+]));
 
-// Proje islemleri endpointleri
-$Router->add('GET', '/api/projects', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\ProjectController::index();
-});
-$Router->add('GET', '/api/projects/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\ProjectController::show($Parametreler);
-});
-$Router->add('POST', '/api/projects', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\ProjectController::store();
-});
-$Router->add('PUT', '/api/projects/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\ProjectController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/projects/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\ProjectController::delete($Parametreler);
-});
+$Router->add('POST', '/api/login', fn() => App\Controllers\AuthController::login());
+$Router->add('POST', '/api/logout', fn() => App\Controllers\AuthController::logout());
+$Router->add('POST', '/api/refresh', fn() => App\Controllers\AuthController::refresh());
 
-// Teklif islemleri endpointleri
-$Router->add('GET', '/api/offers', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\OfferController::index();
-});
-$Router->add('GET', '/api/offers/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\OfferController::show($Parametreler);
-});
-$Router->add('POST', '/api/offers', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\OfferController::store();
-});
-$Router->add('PUT', '/api/offers/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\OfferController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/offers/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\OfferController::delete($Parametreler);
-});
+// =============================================
+// AUTH-ONLY ENDPOINTLER (Permission gerektirmez)
+// =============================================
 
-// Sozlesme islemleri endpointleri
-$Router->add('GET', '/api/contracts', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\ContractController::index();
-});
-$Router->add('GET', '/api/contracts/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\ContractController::show($Parametreler);
-});
-$Router->add('POST', '/api/contracts', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\ContractController::store();
-});
-$Router->add('PUT', '/api/contracts/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\ContractController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/contracts/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\ContractController::delete($Parametreler);
-});
+$Router->add('GET', '/api/auth/permissions', guard('', fn() => App\Controllers\RoleController::myPermissions()));
+$Router->add('GET', '/api/roles/assignable', guard('', fn() => App\Controllers\RoleController::assignableRoles()));
+$Router->add('POST', '/api/users/change-password', guard('', fn() => App\Controllers\UserController::changePassword()));
+$Router->add('GET', '/api/parameters/currencies', guard('', fn() => App\Controllers\ParameterController::currencies()));
+$Router->add('GET', '/api/parameters/statuses', guard('', fn() => App\Controllers\ParameterController::statuses()));
+$Router->add('GET', '/api/parameters/settings', guard('', fn() => App\Controllers\ParameterController::settings()));
 
-// Teminat islemleri endpointleri
-$Router->add('GET', '/api/guarantees', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\GuaranteeController::index();
-});
-$Router->add('GET', '/api/guarantees/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\GuaranteeController::show($Parametreler);
-});
-$Router->add('POST', '/api/guarantees', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\GuaranteeController::store();
-});
-$Router->add('PUT', '/api/guarantees/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\GuaranteeController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/guarantees/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\GuaranteeController::delete($Parametreler);
-});
-$Router->add('GET', '/api/guarantees/{id}/download', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'user'])) return;
-	App\Controllers\GuaranteeController::download($Parametreler);
-});
+// =============================================
+// RBAC - ROL YONETIMI
+// =============================================
 
-// Kullanici yonetimi endpointleri (superadmin ve admin)
-$Router->add('GET', '/api/users', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'admin'])) return;
-	App\Controllers\UserController::index();
-});
+resource('roles', App\Controllers\RoleController::class, [
+    'extra' => [
+        ['GET', '/api/roles/{id}/permissions', 'roles.read', 'getPermissions'],
+        ['POST', '/api/roles/{id}/permissions', 'roles.update', 'assignPermissions'],
+    ]
+]);
+$Router->add('GET', '/api/permissions', guard('roles.read', fn() => App\Controllers\RoleController::allPermissions()));
 
-$Router->add('PUT', '/api/users/{id}/block', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'admin'])) return;
-	App\Controllers\UserController::block($Parametreler);
-});
+// =============================================
+// KULLANICI YONETIMI
+// =============================================
 
-$Router->add('PUT', '/api/users/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'admin'])) return;
-	App\Controllers\UserController::update($Parametreler);
-});
+resource('users', App\Controllers\UserController::class, [
+    'extra' => [
+        ['GET', '/api/users/{id}/roles', 'users.read', 'getRoles'],
+        ['POST', '/api/users/{id}/roles', 'users.update', 'assignRoles'],
+        ['PUT', '/api/users/{id}/block', 'users.update', 'block'],
+    ]
+]);
 
-$Router->add('DELETE', '/api/users/{id}', function ($Parametreler) {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'admin'])) return;
-	App\Controllers\UserController::delete($Parametreler);
-});
+// =============================================
+// IS MODULLERI - CRUD RESOURCES
+// =============================================
 
-// Kullanici ekleme endpoint (superadmin ve admin)
-$Router->add('POST', '/api/users', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	if (!Role::rolGerekli(['superadmin', 'admin'])) return;
-	App\Controllers\UserController::store();
-});
+resource('customers', App\Controllers\CustomerController::class, [
+    'extra' => [
+        ['GET', '/api/customers/{id}/cari-ozet', 'customers.read', 'cariOzet'],
+    ]
+]);
 
-// Sifre degistirme endpoint (her kullanici kendi sifresini degistirebilir)
-$Router->add('POST', '/api/users/change-password', function () {
-	if (!Auth::yetkilendirmeGerekli()) return;
-	App\Controllers\UserController::changePassword();
-});
+resource('invoices', App\Controllers\InvoiceController::class);
+resource('payments', App\Controllers\PaymentController::class);
+resource('projects', App\Controllers\ProjectController::class);
+resource('offers', App\Controllers\OfferController::class);
+resource('contracts', App\Controllers\ContractController::class);
+resource('meetings', App\Controllers\MeetingController::class);
+resource('contacts', App\Controllers\ContactController::class);
 
-// Dashboard endpoint
-$Router->add('GET', '/api/dashboard', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    DashboardController::index();
-});
+resource('guarantees', App\Controllers\GuaranteeController::class, [
+    'extra' => [
+        ['GET', '/api/guarantees/{id}/download', 'guarantees.read', 'download'],
+    ]
+]);
 
-// Log kayitlari endpoint (sadece superadmin)
-$Router->add('GET', '/api/logs', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin'])) return;
-    App\Controllers\LogController::index();
-});
+// Damga Vergisi (stamp-taxes URL tireli, permission underscore: stamp_taxes.*)
+$Router->add('GET', '/api/stamp-taxes', guard('stamp_taxes.read', fn($P) => App\Controllers\StampTaxController::index($P)));
+$Router->add('GET', '/api/stamp-taxes/{id}', guard('stamp_taxes.read', fn($P) => App\Controllers\StampTaxController::show($P)));
+$Router->add('POST', '/api/stamp-taxes', guard('stamp_taxes.create', fn($P) => App\Controllers\StampTaxController::store($P)));
+$Router->add('PUT', '/api/stamp-taxes/{id}', guard('stamp_taxes.update', fn($P) => App\Controllers\StampTaxController::update($P)));
+$Router->add('DELETE', '/api/stamp-taxes/{id}', guard('stamp_taxes.delete', fn($P) => App\Controllers\StampTaxController::delete($P)));
+$Router->add('GET', '/api/stamp-taxes/{id}/download', guard('stamp_taxes.read', fn($P) => App\Controllers\StampTaxController::download($P)));
 
-// Alarm API endpointleri
-$Router->add('GET', '/api/alarms', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    (new App\Controllers\AlarmController())->index();
-});
+resource('files', App\Controllers\FileController::class, [
+    'extra' => [
+        ['GET', '/api/files/{id}/download', 'files.read', 'download'],
+    ]
+]);
 
-// Takvim API endpointleri
-$Router->add('GET', '/api/calendar', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    (new App\Controllers\CalendarController())->index();
-});
+// =============================================
+// TAKVIM MODULLERI
+// =============================================
 
-$Router->add('GET', '/api/calendar/day/{date}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    (new App\Controllers\CalendarController())->day($Parametreler['date']);
-});
+resourceInstance('calendar', App\Controllers\CalendarController::class, ['only' => ['index']]);
+$Router->add('GET', '/api/calendar/day/{date}', guard('calendar.read', fn($P) => (new App\Controllers\CalendarController())->day($P['date'])));
 
-// Gorusme islemleri endpointleri
-$Router->add('GET', '/api/meetings', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\MeetingController::index();
-});
-$Router->add('GET', '/api/meetings/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\MeetingController::show($Parametreler);
-});
-$Router->add('POST', '/api/meetings', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\MeetingController::store();
-});
-$Router->add('PUT', '/api/meetings/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\MeetingController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/meetings/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\MeetingController::delete($Parametreler);
-});
+resource('takvim', App\Controllers\TakvimController::class);
 
-// Takvim islemleri endpointleri (Musteri detay sayfasi takvim tabi)
-$Router->add('GET', '/api/takvim', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\TakvimController::index();
-});
-$Router->add('GET', '/api/takvim/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\TakvimController::show($Parametreler);
-});
-$Router->add('POST', '/api/takvim', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\TakvimController::store();
-});
-$Router->add('PUT', '/api/takvim/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\TakvimController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/takvim/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\TakvimController::delete($Parametreler);
-});
+// =============================================
+// READ-ONLY MODULLER
+// =============================================
 
-// Kisi (Iletisim) islemleri endpointleri
-$Router->add('GET', '/api/contacts', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\ContactController::index();
-});
-$Router->add('GET', '/api/contacts/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\ContactController::show($Parametreler);
-});
-$Router->add('POST', '/api/contacts', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\ContactController::store();
-});
-$Router->add('PUT', '/api/contacts/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\ContactController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/contacts/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\ContactController::delete($Parametreler);
-});
+// Dashboard sadece index
+$Router->add('GET', '/api/dashboard', guard('dashboard.read', fn() => App\Controllers\DashboardController::index()));
 
-// Damga vergisi islemleri endpointleri
-$Router->add('GET', '/api/stamp-taxes', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\StampTaxController::index();
-});
-$Router->add('GET', '/api/stamp-taxes/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\StampTaxController::show($Parametreler);
-});
-$Router->add('POST', '/api/stamp-taxes', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\StampTaxController::store();
-});
-$Router->add('PUT', '/api/stamp-taxes/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\StampTaxController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/stamp-taxes/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\StampTaxController::delete($Parametreler);
-});
-$Router->add('GET', '/api/stamp-taxes/{id}/download', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\StampTaxController::download($Parametreler);
-});
+// Logs sadece index  
+$Router->add('GET', '/api/logs', guard('logs.read', fn() => App\Controllers\LogController::index()));
 
-// Dosya islemleri endpointleri
-$Router->add('GET', '/api/files', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\FileController::index();
-});
-$Router->add('POST', '/api/files', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\FileController::store();
-});
-$Router->add('PUT', '/api/files/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\FileController::update($Parametreler);
-});
-$Router->add('DELETE', '/api/files/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\FileController::delete($Parametreler);
-});
-$Router->add('GET', '/api/files/{id}/download', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\FileController::download($Parametreler);
-});
-$Router->add('GET', '/api/files/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\FileController::show($Parametreler);
-});
+// Alarms sadece index (instance)
+$Router->add('GET', '/api/alarms', guard('alarms.read', fn() => (new App\Controllers\AlarmController())->index()));
 
-// Parametre islemleri endpointleri
-$Router->add('GET', '/api/parameters', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin'])) return;
-    App\Controllers\ParameterController::index();
-});
-$Router->add('GET', '/api/parameters/currencies', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\ParameterController::currencies();
-});
-$Router->add('GET', '/api/parameters/statuses', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\ParameterController::statuses();
-});
-$Router->add('GET', '/api/parameters/settings', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin', 'user'])) return;
-    App\Controllers\ParameterController::settings();
-});
-$Router->add('POST', '/api/parameters', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin'])) return;
-    App\Controllers\ParameterController::store();
-});
-$Router->add('PUT', '/api/parameters/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin'])) return;
-    App\Controllers\ParameterController::update($Parametreler);
-});
-$Router->add('POST', '/api/parameters/bulk', function () {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin'])) return;
-    App\Controllers\ParameterController::bulkUpdate();
-});
-$Router->add('DELETE', '/api/parameters/{id}', function ($Parametreler) {
-    if (!Auth::yetkilendirmeGerekli()) return;
-    if (!Role::rolGerekli(['superadmin'])) return;
-    App\Controllers\ParameterController::delete($Parametreler);
-});
+// =============================================
+// PARAMETRE YONETIMI
+// =============================================
+
+resource('parameters', App\Controllers\ParameterController::class, [
+    'extra' => [
+        ['PUT', '/api/parameters/bulk', 'parameters.update', 'bulkUpdate'],
+        ['GET', '/api/parameters/reminder-settings', 'parameters.read', 'reminderSettings'],
+        ['PUT', '/api/parameters/reminder-settings', 'parameters.update', 'updateReminderSettings'],
+    ]
+]);

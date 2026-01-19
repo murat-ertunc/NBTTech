@@ -9,7 +9,7 @@ CREATE TABLE tbl_musteri (
     Sil BIT NOT NULL DEFAULT 0,
     
     -- Temel Bilgiler
-    MusteriKodu NVARCHAR(5) NULL,
+    MusteriKodu NVARCHAR(10) NULL,
     Unvan NVARCHAR(150) NOT NULL,
     Aciklama NVARCHAR(500) NULL,
     

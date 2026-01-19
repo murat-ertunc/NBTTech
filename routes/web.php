@@ -31,9 +31,7 @@ $Router->add('GET', '/dashboard', function () {
 });
 
 // ===== MUSTERILER =====
-$Router->add('GET', '/customers', function () {
-	require __DIR__ . '/../public/pages/customers.php';
-});
+// /customers kaldırıldı - müşteri listesi artık sol sidebar'da global olarak gösteriliyor
 
 $Router->add('GET', '/customer/{id}', function ($Parametreler) {
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -73,6 +71,11 @@ $Router->add('GET', '/guarantees', function () {
 // ===== KULLANICILAR =====
 $Router->add('GET', '/users', function () {
 	require __DIR__ . '/../public/pages/users.php';
+});
+
+// ===== ROLLER =====
+$Router->add('GET', '/roles', function () {
+	require __DIR__ . '/../public/pages/roles.php';
 });
 
 // ===== LOGLAR =====

@@ -8,6 +8,29 @@ use PDOException;
 class Database
 {
     private static ?PDO $Baglanti = null;
+    private static ?Database $instance = null;
+    private PDO $pdo;
+
+    private function __construct()
+    {
+        $this->pdo = self::connection();
+    }
+
+    public static function getInstance(): Database
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    /**
+     * PDO connection'ı döndürür
+     */
+    public function getConnection(): PDO
+    {
+        return $this->pdo;
+    }
 
     public static function connection(): PDO
     {
@@ -38,5 +61,59 @@ class Database
         } catch (PDOException $Hata) {
             throw new \RuntimeException('Veritabani baglantisi basarisiz: ' . $Hata->getMessage());
         }
+    }
+
+    /**
+     * SQL sorgusu çalıştır ve sonucu döndür
+     */
+    public function execute(string $sql, array $params = []): bool
+    {
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            return $stmt->execute($params);
+        } catch (PDOException $e) {
+            error_log("Database execute error: " . $e->getMessage() . " SQL: " . $sql);
+            return false;
+        }
+    }
+
+    /**
+     * Tek satır getir
+     */
+    public function fetchOne(string $sql, array $params = []): ?array
+    {
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result ?: null;
+        } catch (PDOException $e) {
+            error_log("Database fetchOne error: " . $e->getMessage() . " SQL: " . $sql);
+            return null;
+        }
+    }
+
+    /**
+     * Tüm satırları getir
+     */
+    public function fetchAll(string $sql, array $params = []): array
+    {
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Database fetchAll error: " . $e->getMessage() . " SQL: " . $sql);
+            return [];
+        }
+    }
+
+    /**
+     * Son eklenen ID'yi al
+     */
+    public function lastInsertId(): ?int
+    {
+        $result = $this->fetchOne("SELECT SCOPE_IDENTITY() as id");
+        return $result ? (int)$result['id'] : null;
     }
 }

@@ -263,4 +263,34 @@ class ParameterRepository extends BaseRepository
             ActionLogger::update($this->Tablo, array_merge(['Id' => $Id], $EkKosul), $Veri);
         });
     }
+
+    /**
+     * Parametre koduna gore deger gunceller veya yeni parametre olusturur
+     */
+    public function degerGuncelle(string $ParametreKod, string $Deger, ?int $KullaniciId = null): void
+    {
+        // Once parametreyi bul (Kod alanini kullan)
+        $Stmt = $this->Db->prepare("SELECT Id FROM {$this->Tablo} WHERE Kod = :Kod AND Sil = 0");
+        $Stmt->execute(['Kod' => $ParametreKod]);
+        $Mevcut = $Stmt->fetch();
+
+        if ($Mevcut) {
+            // Mevcut parametreyi guncelle
+            $Sql = "UPDATE {$this->Tablo} SET Deger = :Deger, DegistirenUserId = :Uid, DegisiklikZamani = GETDATE() WHERE Id = :Id";
+            $Stmt = $this->Db->prepare($Sql);
+            $Stmt->execute(['Id' => $Mevcut['Id'], 'Deger' => $Deger, 'Uid' => $KullaniciId]);
+            ActionLogger::update($this->Tablo, ['Kod' => $ParametreKod], ['Deger' => $Deger]);
+        } else {
+            // Yeni parametre olustur
+            $Grup = 'genel';
+            
+            $this->ekle([
+                'Grup' => $Grup,
+                'Kod' => $ParametreKod,
+                'Deger' => $Deger,
+                'Etiket' => $ParametreKod,
+                'Aktif' => 1
+            ], $KullaniciId);
+        }
+    }
 }

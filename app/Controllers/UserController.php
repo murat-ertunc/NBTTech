@@ -5,67 +5,126 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
-use App\Core\Rol;
 use App\Repositories\CustomerRepository;
+use App\Repositories\RoleRepository;
 use App\Repositories\UserRepository;
+use App\Services\Authorization\AuthorizationService;
 use App\Services\Logger\ActionLogger;
 
+/**
+ * Kullanici Controller
+ * 
+ * Kullanici CRUD islemleri ve rol atamalari.
+ * Yeni RBAC sistemi ile entegre.
+ * 
+ * @package App\Controllers
+ */
 class UserController
 {
+    /**
+     * Kullanici listesi
+     * GET /api/users
+     */
     public static function index(): void
     {
-        // Authentication check
-        $KullaniciId = Context::kullaniciId();
-        if (!$KullaniciId) {
-            Response::unauthorized('Oturum gerekli');
+        $Repo = new UserRepository();
+        
+        // Pagination parametreleri
+        $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
+        
+        // Filtre parametreleri
+        $Filtreler = [];
+        if (!empty($_GET['adsoyad'])) {
+            $Filtreler['adsoyad'] = $_GET['adsoyad'];
+        }
+        if (!empty($_GET['kullaniciadi'])) {
+            $Filtreler['kullaniciadi'] = $_GET['kullaniciadi'];
+        }
+        if (isset($_GET['aktif']) && $_GET['aktif'] !== '') {
+            $Filtreler['aktif'] = $_GET['aktif'];
+        }
+        
+        // Pagination veya filtre varsa paginated sonuc dondur
+        if (isset($_GET['page']) || isset($_GET['limit']) || !empty($Filtreler)) {
+            $Sonuc = $Repo->tumKullanicilarPaginated($Sayfa, $Limit, $Filtreler);
+            Response::json($Sonuc);
+        } else {
+            $Satirlar = $Repo->tumKullanicilar();
+            Response::json(['data' => $Satirlar]);
+        }
+    }
+    
+    /**
+     * Kullanici detayi
+     * GET /api/users/{id}
+     */
+    public static function show(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        
+        if ($Id <= 0) {
+            Response::error('Gecersiz kullanici ID.', 400);
             return;
         }
         
         $Repo = new UserRepository();
-        $Satirlar = $Repo->tumKullanicilar();
-        Response::json(['data' => $Satirlar]);
+        $Kullanici = $Repo->bul($Id);
+        
+        if (!$Kullanici) {
+            Response::error('Kullanici bulunamadi.', 404);
+            return;
+        }
+        
+        // Kullanicinin rollerini getir
+        $RoleRepo = new RoleRepository();
+        $Kullanici['Roller'] = $RoleRepo->kullaniciRolleriGetir($Id);
+        
+        // Parola gizle
+        unset($Kullanici['Parola']);
+        
+        Response::json(['data' => $Kullanici]);
     }
 
+    /**
+     * Kullanici bloklama/aktiflestime
+     * PUT /api/users/{id}/block
+     */
     public static function block(array $Parametreler): void
     {
-        // Authentication check
-        $AktifKullaniciId = Context::kullaniciId();
-        if (!$AktifKullaniciId) {
-            Response::unauthorized('Oturum gerekli');
-            return;
-        }
-        
-        // Admin or Superadmin role check
-        $Rol = Context::rol();
-        if ($Rol !== Rol::SUPERADMIN && $Rol !== Rol::ADMIN) {
-            Response::forbidden('Bu islem icin yetkiniz yok');
-            return;
-        }
-        
+        $KullaniciId = Context::kullaniciId();
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        
         if ($Id <= 0) {
             Response::error('Gecersiz kullanici.', 422);
             return;
         }
+        
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         if (!array_key_exists('Aktif', $Girdi)) {
             Response::error('Aktif alani zorunludur.', 422);
             return;
         }
+        
         $Aktif = (int) $Girdi['Aktif'] === 1 ? 1 : 0;
         $Repo = new UserRepository();
         $Mevcut = $Repo->bul($Id);
+        
         if (!$Mevcut) {
             Response::error('Kullanici bulunamadi.', 404);
             return;
         }
-        if (($Mevcut['Rol'] ?? '') === 'superadmin') {
+        
+        // Superadmin kullanicisi bloklanamaz
+        $AuthService = AuthorizationService::getInstance();
+        if ($AuthService->superadminMi($Id)) {
             Response::error('Super admin bloklanamaz.', 403);
             return;
         }
-        Transaction::wrap(function () use ($Repo, $Id, $Aktif) {
-            $Repo->yedekle($Id, 'bck_tnm_user', Context::kullaniciId());
-            $Repo->guncelle($Id, ['Aktif' => $Aktif], Context::kullaniciId());
+        
+        Transaction::wrap(function () use ($Repo, $Id, $Aktif, $KullaniciId) {
+            $Repo->yedekle($Id, 'bck_tnm_user', $KullaniciId);
+            $Repo->guncelle($Id, ['Aktif' => $Aktif], $KullaniciId);
             $Islem = $Aktif === 1 ? 'unblock' : 'block';
             ActionLogger::logla($Islem, 'tnm_user', ['Id' => $Id, 'Aktif' => $Aktif], 'ok');
         });
@@ -73,78 +132,74 @@ class UserController
         Response::json(['status' => 'ok']);
     }
 
+    /**
+     * Kullanici silme
+     * DELETE /api/users/{id}
+     */
     public static function delete(array $Parametreler): void
     {
-        // Authentication check
-        $AktifKullaniciId = Context::kullaniciId();
-        if (!$AktifKullaniciId) {
-            Response::unauthorized('Oturum gerekli');
-            return;
-        }
-        
-        // Admin or Superadmin role check
-        $Rol = Context::rol();
-        if ($Rol !== Rol::SUPERADMIN && $Rol !== Rol::ADMIN) {
-            Response::forbidden('Bu islem icin yetkiniz yok');
-            return;
-        }
-        
+        $SilenKullaniciId = Context::kullaniciId();
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        
         if ($Id <= 0) {
             Response::error('Gecersiz kullanici.', 422);
             return;
         }
+        
         $Repo = new UserRepository();
         $Mevcut = $Repo->bul($Id);
+        
         if (!$Mevcut) {
             Response::error('Kullanici bulunamadi.', 404);
             return;
         }
-        if (($Mevcut['Rol'] ?? '') === 'superadmin') {
+        
+        // Superadmin silinemez
+        $AuthService = AuthorizationService::getInstance();
+        if ($AuthService->superadminMi($Id)) {
             Response::error('Super admin silinemez.', 403);
             return;
         }
         
-        $SilenKullaniciId = Context::kullaniciId();
-        
         Transaction::wrap(function () use ($Id, $SilenKullaniciId, $Repo) {
+            // Bagli musterileri sil
             $MusteriRepo = new CustomerRepository();
             $SilinenMusteriSayisi = $MusteriRepo->kullanicininMusterileriniSil($Id, $SilenKullaniciId);
             if ($SilinenMusteriSayisi > 0) {
                 ActionLogger::delete('tbl_musteri', ['EkleyenUserId' => $Id, 'SilinenAdet' => $SilinenMusteriSayisi]);
             }
-
-            // Silme oncesi yedekleme islemi yapilir
+            
+            // Kullanici rollerini sil
+            $RoleRepo = new RoleRepository();
+            $RoleRepo->kullaniciRolleriniTemizle($Id, $SilenKullaniciId);
+            
+            // Kullaniciyi sil
             $Repo->yedekle($Id, 'bck_tnm_user', $SilenKullaniciId);
             $Repo->softSil($Id, $SilenKullaniciId);
             ActionLogger::delete('tnm_user', ['Id' => $Id, 'BagliSilinenMusteri' => $SilinenMusteriSayisi]);
+            
+            // Cache temizle
+            AuthorizationService::getInstance()->kullaniciCacheTemizle($Id);
         });
 
         Response::json(['status' => 'ok']);
     }
 
+    /**
+     * Yeni kullanici olustur
+     * POST /api/users
+     */
     public static function store(): void
     {
-        // Authentication check
-        $AktifKullaniciId = Context::kullaniciId();
-        if (!$AktifKullaniciId) {
-            Response::unauthorized('Oturum gerekli');
-            return;
-        }
-        
-        // Admin or Superadmin role check
-        $AktifRol = Context::rol();
-        if ($AktifRol !== Rol::SUPERADMIN && $AktifRol !== Rol::ADMIN) {
-            Response::forbidden('Bu islem icin yetkiniz yok');
-            return;
-        }
-        
+        $EkleyenKullaniciId = Context::kullaniciId();
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        
         $AdSoyad = trim($Girdi['AdSoyad'] ?? '');
         $KullaniciAdi = trim($Girdi['KullaniciAdi'] ?? '');
         $Sifre = $Girdi['Sifre'] ?? '';
-        $Rol = $Girdi['Rol'] ?? 'user';
-
+        $RolIdler = $Girdi['RolIdler'] ?? []; // Yeni RBAC: rol ID listesi
+        
+        // Validasyon
         if (!$AdSoyad || !$KullaniciAdi || !$Sifre) {
             Response::error('Tum alanlar zorunludur.', 422);
             return;
@@ -153,37 +208,62 @@ class UserController
             Response::error('Sifre en az 6 karakter olmalidir.', 422);
             return;
         }
-        if ($Rol !== 'user') {
-            $Rol = 'user';
-        }
 
         $Repo = new UserRepository();
         
+        // Kullanici adi kontrolu
         $Mevcut = $Repo->kullaniciAdiylaAra($KullaniciAdi);
         if ($Mevcut) {
             Response::error('Bu kullanici adi zaten kullaniliyor.', 422);
             return;
         }
+        
+        // Rol atama subset kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        $RoleRepo = new RoleRepository();
+        
+        if (!empty($RolIdler)) {
+            foreach ($RolIdler as $RolId) {
+                if (!$AuthService->rolAtayabilirMi($EkleyenKullaniciId, (int)$RolId)) {
+                    Response::error('Bu rolu atama yetkiniz yok. Sadece kendi seviyenizden dusuk rolleri atayabilirsiniz.', 403);
+                    return;
+                }
+            }
+        }
 
         $SifreHash = password_hash($Sifre, PASSWORD_BCRYPT);
         
-        Transaction::wrap(function () use ($Repo, $AdSoyad, $KullaniciAdi, $SifreHash, $Rol) {
+        Transaction::wrap(function () use ($Repo, $RoleRepo, $AdSoyad, $KullaniciAdi, $SifreHash, $RolIdler, $EkleyenKullaniciId) {
+            // Kullanici olustur
             $YeniId = $Repo->ekle([
                 'AdSoyad' => $AdSoyad,
                 'KullaniciAdi' => $KullaniciAdi,
                 'Parola' => $SifreHash,
-                'Rol' => $Rol,
                 'Aktif' => 1
-            ], Context::kullaniciId());
-            ActionLogger::insert('tnm_user', ['Id' => $YeniId], ['KullaniciAdi' => $KullaniciAdi, 'Rol' => $Rol]);
+            ], $EkleyenKullaniciId);
+            
+            // Rolleri ata
+            if (!empty($RolIdler)) {
+                foreach ($RolIdler as $RolId) {
+                    $RoleRepo->kullaniciyaRolAta($YeniId, (int)$RolId, $EkleyenKullaniciId);
+                }
+            }
+            
+            ActionLogger::insert('tnm_user', ['Id' => $YeniId], ['KullaniciAdi' => $KullaniciAdi, 'RolSayisi' => count($RolIdler)]);
         });
 
-        Response::json(['status' => 'ok']);
+        Response::json(['status' => 'ok', 'message' => 'Kullanici olusturuldu.']);
     }
 
+    /**
+     * Kullanici guncelle
+     * PUT /api/users/{id}
+     */
     public static function update(array $Parametreler): void
     {
+        $GuncelleyenKullaniciId = Context::kullaniciId();
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        
         if ($Id <= 0) {
             Response::error('Gecersiz kullanici.', 422);
             return;
@@ -191,45 +271,145 @@ class UserController
 
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         $Repo = new UserRepository();
-        $KullaniciId = Context::kullaniciId();
-        if (!$KullaniciId) {
-            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
-            return;
-        }
 
         $Mevcut = $Repo->bul($Id);
         if (!$Mevcut) {
             Response::error('Kullanici bulunamadi.', 404);
             return;
         }
-
-        if (($Mevcut['Rol'] ?? '') === 'superadmin' && $Id !== $KullaniciId) {
+        
+        // Superadmin sadece kendini duzenleyebilir
+        $AuthService = AuthorizationService::getInstance();
+        if ($AuthService->superadminMi($Id) && $Id !== $GuncelleyenKullaniciId) {
             Response::error('Super admin duzenlenemez.', 403);
             return;
         }
 
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
+        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $GuncelleyenKullaniciId, $AuthService) {
             $Guncellenecek = [];
+            
             if (isset($Girdi['AdSoyad']) && trim($Girdi['AdSoyad'])) {
                 $Guncellenecek['AdSoyad'] = trim($Girdi['AdSoyad']);
-            }
-            if (isset($Girdi['Rol']) && $Girdi['Rol'] === 'user') {
-                $Guncellenecek['Rol'] = 'user';
             }
             if (isset($Girdi['Sifre']) && strlen($Girdi['Sifre']) >= 6) {
                 $Guncellenecek['Parola'] = password_hash($Girdi['Sifre'], PASSWORD_BCRYPT);
             }
 
             if (!empty($Guncellenecek)) {
-                $Repo->yedekle($Id, 'bck_tnm_user', $KullaniciId);
-                $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+                $Repo->yedekle($Id, 'bck_tnm_user', $GuncelleyenKullaniciId);
+                $Repo->guncelle($Id, $Guncellenecek, $GuncelleyenKullaniciId);
                 ActionLogger::update('tnm_user', ['Id' => $Id], array_keys($Guncellenecek));
             }
+            
+            // Rol guncelleme ayri endpoint'te yapilacak
         });
 
         Response::json(['status' => 'success']);
     }
+    
+    /**
+     * Kullaniciya rol atama
+     * POST /api/users/{id}/roles
+     * 
+     * KRITIK KISIT: Sadece auth user'in sahip oldugu rollerden daha dusuk 
+     * seviyedeki roller atanabilir.
+     */
+    public static function assignRoles(array $Parametreler): void
+    {
+        $AtayanKullaniciId = Context::kullaniciId();
+        $HedefKullaniciId = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        
+        if ($HedefKullaniciId <= 0) {
+            Response::error('Gecersiz kullanici ID.', 400);
+            return;
+        }
+        
+        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        $RolIdler = $Girdi['RolIdler'] ?? [];
+        
+        if (!is_array($RolIdler)) {
+            Response::error('RolIdler array olmalidir.', 422);
+            return;
+        }
+        
+        $Repo = new UserRepository();
+        $RoleRepo = new RoleRepository();
+        $AuthService = AuthorizationService::getInstance();
+        
+        // Hedef kullanici mevcut mu?
+        $HedefKullanici = $Repo->bul($HedefKullaniciId);
+        if (!$HedefKullanici) {
+            Response::error('Kullanici bulunamadi.', 404);
+            return;
+        }
+        
+        // Superadmin'in rolleri degistirilemez
+        if ($AuthService->superadminMi($HedefKullaniciId)) {
+            Response::error('Super admin kullanicisinin rolleri degistirilemez.', 403);
+            return;
+        }
+        
+        // SUBSET CONSTRAINT: Her rol icin kontrol
+        $AtanamayanRoller = [];
+        foreach ($RolIdler as $RolId) {
+            if (!$AuthService->rolAtayabilirMi($AtayanKullaniciId, (int)$RolId)) {
+                $Rol = $RoleRepo->bul((int)$RolId);
+                $AtanamayanRoller[] = $Rol ? $Rol['RolAdi'] : "ID:{$RolId}";
+            }
+        }
+        
+        if (!empty($AtanamayanRoller)) {
+            Response::error('Su rolleri atama yetkiniz yok: ' . implode(', ', $AtanamayanRoller) . '. Sadece kendi seviyenizden dusuk rolleri atayabilirsiniz.', 403);
+            return;
+        }
+        
+        Transaction::wrap(function () use ($RoleRepo, $HedefKullaniciId, $RolIdler, $AtayanKullaniciId, $AuthService) {
+            // Mevcut rolleri temizle
+            $RoleRepo->kullaniciRolleriniTemizle($HedefKullaniciId, $AtayanKullaniciId);
+            
+            // Yeni rolleri ata
+            foreach ($RolIdler as $RolId) {
+                $RoleRepo->kullaniciyaRolAta($HedefKullaniciId, (int)$RolId, $AtayanKullaniciId);
+            }
+            
+            // Cache invalidation
+            $AuthService->kullaniciCacheTemizle($HedefKullaniciId);
+            
+            ActionLogger::logla('role_assign', 'tnm_user_rol', [
+                'UserId' => $HedefKullaniciId,
+                'RolIdler' => $RolIdler
+            ], 'ok');
+        });
+        
+        Response::json([
+            'status' => 'ok',
+            'message' => 'Roller basariyla atandi.'
+        ]);
+    }
+    
+    /**
+     * Kullanicinin rollerini getir
+     * GET /api/users/{id}/roles
+     */
+    public static function getRoles(array $Parametreler): void
+    {
+        $HedefKullaniciId = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        
+        if ($HedefKullaniciId <= 0) {
+            Response::error('Gecersiz kullanici ID.', 400);
+            return;
+        }
+        
+        $RoleRepo = new RoleRepository();
+        $Roller = $RoleRepo->kullaniciRolleriGetir($HedefKullaniciId);
+        
+        Response::json(['data' => $Roller]);
+    }
 
+    /**
+     * Sifre degistirme (kullanici kendi sifresini degistirir)
+     * POST /api/users/change-password
+     */
     public static function changePassword(): void
     {
         $KullaniciId = Context::kullaniciId();

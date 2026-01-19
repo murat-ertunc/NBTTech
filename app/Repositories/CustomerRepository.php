@@ -81,29 +81,44 @@ class CustomerRepository extends BaseRepository
 
     /**
      * Sayfalama ile tum aktif musterileri getirir (superadmin/admin icin)
+     * Arama: MusteriKodu veya Unvan icinde buyuk/kucuk harf ve Turkce karakter duyarsiz arama
      */
-    public function tumAktiflerSiraliPaginated(int $Page = 1, int $Limit = 10): array
+    public function tumAktiflerSiraliPaginated(int $Page = 1, int $Limit = 10, string $Arama = ''): array
     {
         $Offset = ($Page - 1) * $Limit;
+        $AramaKosulu = '';
+        $Parametreler = [];
+        
+        if ($Arama !== '' && mb_strlen($Arama) >= 2) {
+            // SQL Server COLLATE ile Turkce karakter duyarsiz arama
+            $AramaKosulu = " AND (MusteriKodu COLLATE Turkish_CI_AI LIKE :arama OR Unvan COLLATE Turkish_CI_AI LIKE :arama2)";
+            $Parametreler['arama'] = '%' . $Arama . '%';
+            $Parametreler['arama2'] = '%' . $Arama . '%';
+        }
         
         // Total count
-        $CountStmt = $this->Db->query("SELECT COUNT(*) FROM {$this->Tablo} WHERE Sil = 0");
+        $CountSql = "SELECT COUNT(*) FROM {$this->Tablo} WHERE Sil = 0" . $AramaKosulu;
+        $CountStmt = $this->Db->prepare($CountSql);
+        $CountStmt->execute($Parametreler);
         $Total = (int) $CountStmt->fetchColumn();
         
         // Data with user info
         $Sql = "SELECT m.*, u.AdSoyad AS EkleyenAdSoyad, u.KullaniciAdi AS EkleyenKullaniciAdi 
                 FROM {$this->Tablo} m 
                 LEFT JOIN tnm_user u ON m.EkleyenUserId = u.Id 
-                WHERE m.Sil = 0 
+                WHERE m.Sil = 0" . str_replace(['MusteriKodu', 'Unvan'], ['m.MusteriKodu', 'm.Unvan'], $AramaKosulu) . "
                 ORDER BY m.Id DESC 
                 OFFSET :Offset ROWS FETCH NEXT :Limit ROWS ONLY";
         $Stmt = $this->Db->prepare($Sql);
+        foreach ($Parametreler as $key => $val) {
+            $Stmt->bindValue(':' . $key, $val);
+        }
         $Stmt->bindValue(':Offset', $Offset, \PDO::PARAM_INT);
         $Stmt->bindValue(':Limit', $Limit, \PDO::PARAM_INT);
         $Stmt->execute();
         $Sonuclar = $Stmt->fetchAll();
         
-        $this->logSelect(['Sil' => 0, 'page' => $Page, 'limit' => $Limit], $Sonuclar);
+        $this->logSelect(['Sil' => 0, 'page' => $Page, 'limit' => $Limit, 'arama' => $Arama], $Sonuclar);
         
         return [
             'data' => $Sonuclar,
@@ -118,29 +133,42 @@ class CustomerRepository extends BaseRepository
 
     /**
      * Sayfalama ile kullaniciya ait aktif musterileri getirir
+     * Arama: MusteriKodu veya Unvan icinde buyuk/kucuk harf ve Turkce karakter duyarsiz arama
      */
-    public function kullaniciyaGoreAktiflerPaginated(int $KullaniciId, int $Page = 1, int $Limit = 10): array
+    public function kullaniciyaGoreAktiflerPaginated(int $KullaniciId, int $Page = 1, int $Limit = 10, string $Arama = ''): array
     {
         $Offset = ($Page - 1) * $Limit;
+        $AramaKosulu = '';
+        $Parametreler = ['Uid' => $KullaniciId];
+        
+        if ($Arama !== '' && mb_strlen($Arama) >= 2) {
+            // SQL Server COLLATE ile Turkce karakter duyarsiz arama
+            $AramaKosulu = " AND (MusteriKodu COLLATE Turkish_CI_AI LIKE :arama OR Unvan COLLATE Turkish_CI_AI LIKE :arama2)";
+            $Parametreler['arama'] = '%' . $Arama . '%';
+            $Parametreler['arama2'] = '%' . $Arama . '%';
+        }
         
         // Total count
-        $CountStmt = $this->Db->prepare("SELECT COUNT(*) FROM {$this->Tablo} WHERE Sil = 0 AND EkleyenUserId = :Uid");
-        $CountStmt->execute(['Uid' => $KullaniciId]);
+        $CountSql = "SELECT COUNT(*) FROM {$this->Tablo} WHERE Sil = 0 AND EkleyenUserId = :Uid" . $AramaKosulu;
+        $CountStmt = $this->Db->prepare($CountSql);
+        $CountStmt->execute($Parametreler);
         $Total = (int) $CountStmt->fetchColumn();
         
         // Data
         $Sql = "SELECT * FROM {$this->Tablo} 
-                WHERE Sil = 0 AND EkleyenUserId = :Uid 
+                WHERE Sil = 0 AND EkleyenUserId = :Uid" . $AramaKosulu . "
                 ORDER BY Id DESC 
                 OFFSET :Offset ROWS FETCH NEXT :Limit ROWS ONLY";
         $Stmt = $this->Db->prepare($Sql);
-        $Stmt->bindValue(':Uid', $KullaniciId, \PDO::PARAM_INT);
+        foreach ($Parametreler as $key => $val) {
+            $Stmt->bindValue(':' . $key, $val);
+        }
         $Stmt->bindValue(':Offset', $Offset, \PDO::PARAM_INT);
         $Stmt->bindValue(':Limit', $Limit, \PDO::PARAM_INT);
         $Stmt->execute();
         $Sonuclar = $Stmt->fetchAll();
         
-        $this->logSelect(['Sil' => 0, 'EkleyenUserId' => $KullaniciId, 'page' => $Page, 'limit' => $Limit], $Sonuclar);
+        $this->logSelect(['Sil' => 0, 'EkleyenUserId' => $KullaniciId, 'page' => $Page, 'limit' => $Limit, 'arama' => $Arama], $Sonuclar);
         
         return [
             'data' => $Sonuclar,

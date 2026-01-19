@@ -12,34 +12,11 @@ require __DIR__ . '/partials/header.php';
 
     <!-- ===== VIEW: DASHBOARD ===== -->
     <div id="view-dashboard">
-      <!-- Dashboard Grid: 3 Panel -->
+      <!-- Dashboard Grid: 2 Panel -->
       <div class="row g-2 mb-3">
         
-        <!-- PANEL 1: MÜŞTERİLER -->
-        <div class="col-lg-4">
-          <div class="card h-100" id="panelCustomers">
-            <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
-              <span class="fw-semibold"><i class="bi bi-people-fill me-2"></i>Müşteriler</span>
-              <span>
-                <a href="/customers" class="btn btn-sm btn-light" title="Müşteriler">
-                  <i class="bi bi-people-fill"></i>
-                </a>
-                <button type="button" class="btn btn-sm btn-light" data-action="add-customer" title="Yeni Müşteri">
-                  <i class="bi bi-plus-lg"></i>
-                </button>
-              </span>
-            </div>
-            <div class="bg-light border-bottom px-2 py-1">
-              <input type="text" class="form-control form-control-sm" id="dashCustomerSearch" placeholder="Müşteri ara..." autocomplete="off">
-            </div>
-            <div class="card-body p-2 overflow-auto" id="dashCustomerList" style="max-height:280px;">
-              <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- PANEL 2: ALARMLAR -->
-        <div class="col-lg-4">
+        <!-- PANEL 1: ALARMLAR -->
+        <div class="col-lg-4 col-sm-12">
           <div class="card h-100" id="panelAlarms">
             <div class="card-header bg-warning text-dark py-2 d-flex justify-content-between align-items-center">
               <span class="fw-semibold"><i class="bi bi-bell-fill me-2"></i>Alarmlar</span>
@@ -51,8 +28,8 @@ require __DIR__ . '/partials/header.php';
           </div>
         </div>
 
-        <!-- PANEL 3: TAKVİM -->
-        <div class="col-lg-4">
+        <!-- PANEL 2: TAKVİM -->
+        <div class="col-lg-8 col-sm-12">
           <div class="card h-100" id="panelCalendar">
             <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
               <span class="fw-semibold"><i class="bi bi-calendar3 me-2"></i>Takvim</span>
@@ -106,6 +83,5 @@ require __DIR__ . '/partials/header.php';
       </div>
     </div>
 
-<?php require __DIR__ . '/partials/modals/customer.php'; ?>
 <?php require __DIR__ . '/partials/modals/calendar-day.php'; ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>

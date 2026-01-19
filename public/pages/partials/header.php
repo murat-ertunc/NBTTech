@@ -92,8 +92,10 @@ $currentPage = $currentPage ?? $activeNav; // Varsayılan: activeNav ile aynı
               <li>
                 <hr class="dropdown-divider border-secondary">
               </li>
-              <li><a class="dropdown-item py-2" href="/users" data-nav-group="sistem"><i
+              <li><a class="dropdown-item py-2" href="/users" data-nav-group="sistem" data-permission="users.read"><i
                     class="bi bi-person-gear me-2 text-warning"></i>Kullanıcılar</a></li>
+              <li><a class="dropdown-item py-2" href="/roles" data-nav-group="sistem" data-permission="roles.read"><i
+                    class="bi bi-shield-lock me-2 text-danger"></i>Roller</a></li>
             </ul>
           </li>
 
@@ -200,3 +202,24 @@ $currentPage = $currentPage ?? $activeNav; // Varsayılan: activeNav ile aynı
   </style>
 
   <main class="container-fluid py-3" style="margin-top:60px; margin-bottom:40px; min-height:calc(100vh - 100px);">
+    <div class="row">
+      <!-- Sol Sidebar: Müşteri Listesi (Global) -->
+      <div class="col-lg-3 mb-3 mb-lg-0" id="globalCustomerSidebar">
+        <div class="card shadow-sm" id="globalCustomerPanel">
+          <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-semibold"><i class="bi bi-people-fill me-2"></i>Müşteriler</span>
+            <button type="button" class="btn btn-sm btn-light" data-action="add-customer" title="Yeni Müşteri">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+          </div>
+          <div class="bg-light border-bottom px-2 py-1">
+            <input type="text" class="form-control form-control-sm" id="globalCustomerSearch" placeholder="Müşteri ara..." autocomplete="off">
+          </div>
+          <div class="card-body p-2 overflow-auto" id="globalCustomerList" style="max-height: calc(100vh - 220px);">
+            <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Sağ İçerik: Sayfa İçeriği -->
+      <div class="col-lg-9" id="mainContent">

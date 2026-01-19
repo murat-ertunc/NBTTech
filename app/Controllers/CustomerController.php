@@ -25,10 +25,13 @@ class CustomerController
         $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
         $SayfalamaAktif = isset($_GET['page']) || isset($_GET['limit']);
         
+        // Arama parametresi
+        $Arama = isset($_GET['search']) ? trim((string)$_GET['search']) : '';
+        
         if ($Rol === 'superadmin') {
             // Superadmin ve admin tum musterileri ekleyen kullanici bilgisiyle gorsun
             if ($SayfalamaAktif) {
-                $Sonuc = $Repo->tumAktiflerSiraliPaginated($Sayfa, $Limit);
+                $Sonuc = $Repo->tumAktiflerSiraliPaginated($Sayfa, $Limit, $Arama);
                 Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->tumAktiflerSiraliKullaniciBilgisiIle();
@@ -36,7 +39,7 @@ class CustomerController
             }
         } else {
             if ($SayfalamaAktif) {
-                $Sonuc = $Repo->kullaniciyaGoreAktiflerPaginated($KullaniciId, $Sayfa, $Limit);
+                $Sonuc = $Repo->kullaniciyaGoreAktiflerPaginated($KullaniciId, $Sayfa, $Limit, $Arama);
                 Response::json($Sonuc);
             } else {
                 $Satirlar = $Repo->kullaniciyaGoreAktifler($KullaniciId);

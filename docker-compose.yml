@@ -15,6 +15,7 @@ services:
       - ./storage:/var/www/html/storage
       - ./database:/var/www/html/database
       - ./sql:/var/www/html/sql
+      - ./tests:/var/www/html/tests
 
   nginx:
     image: nginx:1.27

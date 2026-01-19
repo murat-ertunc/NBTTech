@@ -101,45 +101,6 @@
           </div>
         </div>
 
-        <!-- Takvim Hatırlatma Alanı -->
-        <div class="card mb-3">
-          <div class="card-header py-2 bg-light d-flex align-items-center">
-            <div class="form-check mb-0">
-              <input type="checkbox" class="form-check-input" id="invoiceTakvimAktif">
-              <label class="form-check-label fw-semibold" for="invoiceTakvimAktif">
-                <i class="bi bi-calendar-event me-1"></i>Takvim Hatırlatması Oluştur
-              </label>
-            </div>
-          </div>
-          <div class="card-body py-3" id="takvimAlani" style="display: none;">
-            <div class="row mb-2">
-              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Süre</label>
-              <div class="col-8">
-                <input type="number" class="form-control form-control-sm" id="invoiceTakvimSure" min="1" max="999" maxlength="3" placeholder="Süre">
-              </div>
-            </div>
-            <div class="row mb-2">
-              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Süre Tipi</label>
-              <div class="col-8">
-                <select class="form-select form-select-sm" id="invoiceTakvimSureTipi">
-                  <option value="gun">Gün</option>
-                  <option value="hafta">Hafta</option>
-                  <option value="ay">Ay</option>
-                  <option value="yil">Yıl</option>
-                </select>
-              </div>
-            </div>
-            <div class="row">
-              <div class="col-4"></div>
-              <div class="col-8">
-                <small class="text-muted">
-                  <i class="bi bi-info-circle me-1"></i>Fatura tarihinden itibaren hesaplanır
-                </small>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Fatura Kalemleri Tablosu -->
         <div class="card">
           <div class="card-header py-2 bg-light d-flex justify-content-between align-items-center">
@@ -255,15 +216,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Takvim toggle
-    const takvimCheckbox = document.getElementById('invoiceTakvimAktif');
-    const takvimAlani = document.getElementById('takvimAlani');
-    if (takvimCheckbox && takvimAlani) {
-        takvimCheckbox.addEventListener('change', function() {
-            takvimAlani.style.display = this.checked ? 'block' : 'none';
-        });
-    }
-
     // Tevkifat Oranı 1 değiştiğinde Tevkifat Oranı 2'yi otomatik hesapla
     const tevkifatOran1 = document.getElementById('invoiceTevkifatOran1');
     const tevkifatOran2 = document.getElementById('invoiceTevkifatOran2');
@@ -352,7 +304,7 @@ function addInvoiceItemRow(data = null) {
           ${rowNum}
         </td>
         <td>
-          <input type="number" class="form-control form-control-sm item-miktar" value="${formatNum(data?.Miktar, 0)}" min="0">
+          <input type="number" class="form-control form-control-sm item-miktar nbt-money-input" value="${data?.Miktar ? formatNum(data.Miktar, 0) : ''}" min="0" placeholder="0">
         </td>
         <td>
           <input type="text" class="form-control form-control-sm item-aciklama" value="${data?.Aciklama || ''}" placeholder="Açıklama girin...">
@@ -366,7 +318,7 @@ function addInvoiceItemRow(data = null) {
           </select>
         </td>
         <td>
-          <input type="number" class="form-control form-control-sm item-birimfiyat" value="${formatNum(data?.BirimFiyat)}" step="0.01" min="0">
+          <input type="number" class="form-control form-control-sm item-birimfiyat nbt-money-input" value="${data?.BirimFiyat ? formatNum(data.BirimFiyat) : ''}" step="0.01" min="0" placeholder="0,00">
         </td>
         <td>
           <input type="number" class="form-control form-control-sm item-tutar bg-light" value="${formatNum(data?.Tutar)}" readonly>

@@ -45,5 +45,5 @@ GO
 -- Varsayılan genel parametreler
 INSERT INTO tbl_parametre (Grup, Kod, Deger, Etiket, Sira, Aktif, Varsayilan) VALUES
 ('genel', 'pagination_default', '10', N'Sayfa Başına Kayıt', 1, 1, 1),
-('genel', 'termin_hatirlatma_gun', '7', N'Termin Tarihi Öncesi Hatırlatma Günü', 2, 1, 0);
+('genel', 'teminat_termin_hatirlatma_gun', '7', N'Teminat Termin Tarihi Öncesi Hatırlatma Günü', 2, 1, 0);
 GO

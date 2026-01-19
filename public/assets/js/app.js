@@ -78,13 +78,17 @@ const NbtUtils = {
     /**
      * Oturum ac
      */
-    setSession(token, user) {
+    setSession(token, user, permissions = null) {
         localStorage.setItem(NBT.TOKEN_KEY, token);
         if (user) {
             localStorage.setItem(NBT.USER_KEY, JSON.stringify(user));
             if (user.role) {
                 localStorage.setItem(NBT.ROLE_KEY, user.role);
             }
+        }
+        // Permission bilgilerini kaydet
+        if (permissions) {
+            localStorage.setItem('nbt_permissions', JSON.stringify(permissions));
         }
     },
 
@@ -95,6 +99,7 @@ const NbtUtils = {
         localStorage.removeItem(NBT.TOKEN_KEY);
         localStorage.removeItem(NBT.ROLE_KEY);
         localStorage.removeItem(NBT.USER_KEY);
+        localStorage.removeItem('nbt_permissions');
     },
 
     /**
@@ -194,6 +199,42 @@ const NbtUtils = {
     formatNumber(amount) {
         const num = parseFloat(amount) || 0;
         return num.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    },
+
+    /**
+     * Para degerini normalize et - 0, 0.00, 0,00, '' degerleri null olarak doner
+     * Diger degerler parseFloat olarak doner
+     * @param {string|number} value - Normalize edilecek para degeri
+     * @returns {number|null} - Normalize edilmis deger veya null
+     */
+    normalizeMoneyValue(value) {
+        if (value === null || value === undefined || value === '') return null;
+        
+        // String ise virgulu noktaya cevir
+        const strVal = String(value).replace(',', '.').trim();
+        
+        // Bos veya sadece 0 mu kontrol et
+        if (strVal === '' || strVal === '0' || strVal === '0.00' || strVal === '0.0') {
+            return null;
+        }
+        
+        const num = parseFloat(strVal);
+        
+        // NaN veya 0 ise null dondur
+        if (isNaN(num) || num === 0) return null;
+        
+        return num;
+    },
+
+    /**
+     * Para input'undan deger al - 0 veya bos ise null dondurur
+     * Form validasyonlarinda ve API gonderimlerinde kullanilir
+     * @param {HTMLInputElement|string} input - Input elementi veya degeri
+     * @returns {number|null} - Normalize edilmis deger
+     */
+    getMoneyInputValue(input) {
+        const value = typeof input === 'string' ? input : (input?.value || '');
+        return this.normalizeMoneyValue(value);
     }
 };
 
@@ -392,6 +433,218 @@ const NbtParams = {
 };
 
 // =============================================
+// PERMISSION YARDIMCISI (RBAC)
+// =============================================
+const NbtPermission = {
+    _cache: null,
+    _cacheTime: 0,
+    _cacheTtl: 5 * 60 * 1000, // 5 dakika
+    
+    /**
+     * LocalStorage'dan permission bilgilerini al
+     */
+    _getFromStorage() {
+        try {
+            const data = localStorage.getItem('nbt_permissions');
+            return data ? JSON.parse(data) : null;
+        } catch {
+            return null;
+        }
+    },
+    
+    /**
+     * Permission bilgilerini API'den yukle
+     */
+    async load() {
+        try {
+            const resp = await NbtApi.get('/api/auth/permissions');
+            // API yaniti {data: {...}} formatinda donuyor
+            const permData = resp.data || resp;
+            if (permData && (permData.permissionlar || permData.roller)) {
+                this._cache = permData;
+                this._cacheTime = Date.now();
+                localStorage.setItem('nbt_permissions', JSON.stringify(permData));
+                // Global event dispatch et - diger scriptler bunu bekleyebilir
+                window.dispatchEvent(new CustomEvent('nbt:permissions:ready', { detail: permData }));
+                return permData;
+            }
+        } catch (err) {
+            NbtLogger.error('Permission yukleme hatasi:', err);
+        }
+        const stored = this._getFromStorage();
+        if (stored) {
+            window.dispatchEvent(new CustomEvent('nbt:permissions:ready', { detail: stored }));
+        }
+        return stored;
+    },
+    
+    /**
+     * Permission verilerini dondur (cached)
+     */
+    async getData() {
+        // Memory cache gecerli mi?
+        if (this._cache && (Date.now() - this._cacheTime) < this._cacheTtl) {
+            return this._cache;
+        }
+        // Storage'dan dene
+        const stored = this._getFromStorage();
+        if (stored) {
+            this._cache = stored;
+            this._cacheTime = Date.now();
+            return stored;
+        }
+        // API'den yukle
+        return await this.load();
+    },
+    
+    /**
+     * Belirtilen permission'a sahip mi? (sync - cached data kullanir)
+     * @param {string} permission - Ornek: 'users.create', 'invoices.read'
+     * @returns {boolean}
+     */
+    can(permission) {
+        const data = this._cache || this._getFromStorage();
+        if (!data) return false;
+        
+        // Superadmin her seye yetkili
+        if (data.superadmin === true) return true;
+        
+        // Permission listesinde var mi?
+        return Array.isArray(data.permissionlar) && data.permissionlar.includes(permission);
+    },
+    
+    /**
+     * Birden fazla permission'dan herhangi birine sahip mi?
+     * @param {string[]} permissions 
+     * @returns {boolean}
+     */
+    canAny(permissions) {
+        return permissions.some(p => this.can(p));
+    },
+    
+    /**
+     * Tum belirtilen permission'lara sahip mi?
+     * @param {string[]} permissions 
+     * @returns {boolean}
+     */
+    canAll(permissions) {
+        return permissions.every(p => this.can(p));
+    },
+    
+    /**
+     * Permission cache hazir olana kadar bekle
+     * @param {number} timeout - Maksimum bekleme suresi (ms)
+     * @returns {Promise<boolean>}
+     */
+    waitForReady(timeout = 5000) {
+        return new Promise((resolve) => {
+            // Zaten hazir mi?
+            if (this._cache || this._getFromStorage()) {
+                resolve(true);
+                return;
+            }
+            
+            let resolved = false;
+            const handler = () => {
+                if (!resolved) {
+                    resolved = true;
+                    resolve(true);
+                }
+            };
+            
+            window.addEventListener('nbt:permissions:ready', handler, { once: true });
+            
+            // Timeout
+            setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    window.removeEventListener('nbt:permissions:ready', handler);
+                    resolve(false);
+                }
+            }, timeout);
+        });
+    },
+    
+    /**
+     * Belirtilen moduldeki herhangi bir aksiyona yetkili mi?
+     * @param {string} modul - Ornek: 'users', 'invoices'
+     * @returns {boolean}
+     */
+    canAccessModule(modul) {
+        const data = this._cache || this._getFromStorage();
+        if (!data) return false;
+        if (data.superadmin === true) return true;
+        
+        return data.moduller && data.moduller[modul] && data.moduller[modul].length > 0;
+    },
+    
+    /**
+     * Superadmin mi?
+     * @returns {boolean}
+     */
+    isSuperAdmin() {
+        const data = this._cache || this._getFromStorage();
+        return data?.superadmin === true;
+    },
+    
+    /**
+     * Kullanicinin rollerini dondur
+     * @returns {string[]}
+     */
+    getRoles() {
+        const data = this._cache || this._getFromStorage();
+        return data?.roller || [];
+    },
+    
+    /**
+     * Belirtilen role sahip mi?
+     * @param {string} role 
+     * @returns {boolean}
+     */
+    hasRole(role) {
+        return this.getRoles().includes(role);
+    },
+    
+    /**
+     * Cache'i temizle (logout veya rol degisikligi sonrasi)
+     */
+    clearCache() {
+        this._cache = null;
+        this._cacheTime = 0;
+        localStorage.removeItem('nbt_permissions');
+    },
+    
+    /**
+     * HTML elementi permission'a gore gizle/goster
+     * data-permission="users.create" attribute'u ile kullanilir
+     */
+    applyToElements() {
+        document.querySelectorAll('[data-permission]').forEach(el => {
+            const permission = el.dataset.permission;
+            if (!this.can(permission)) {
+                el.style.display = 'none';
+            }
+        });
+        
+        // data-permission-any="users.create,users.update" icin
+        document.querySelectorAll('[data-permission-any]').forEach(el => {
+            const permissions = el.dataset.permissionAny.split(',').map(p => p.trim());
+            if (!this.canAny(permissions)) {
+                el.style.display = 'none';
+            }
+        });
+        
+        // data-module-access="users" icin
+        document.querySelectorAll('[data-module-access]').forEach(el => {
+            const modul = el.dataset.moduleAccess;
+            if (!this.canAccessModule(modul)) {
+                el.style.display = 'none';
+            }
+        });
+    }
+};
+
+// =============================================
 // API ISTEK YARDIMCISI
 // =============================================
 const NbtApi = {
@@ -568,22 +821,22 @@ const NbtListToolbar = {
         const searchHtml = options.onSearch !== false ? `
                 <div class="input-group input-group-sm" style="max-width:280px;">
                     <span class="input-group-text bg-white border-end-0">
-                        <i class="bi bi-search"></i>
+                        <i class="bi bi-search text-muted"></i>
                     </span>
                     <input type="text" class="form-control border-start-0" data-toolbar="search"
                            placeholder="${options.placeholder || 'Ara...'}" />
                 </div>` : '';
         
         return `
-            <div class="d-flex align-items-center gap-2 p-2 bg-light border-bottom">
+            <div class="d-flex align-items-center gap-2 p-2 bg-light border-bottom nbt-toolbar">
                 ${searchHtml}
                 ${options.onFilter ? `
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-toolbar="filter" title="Filtrele">
                     <i class="bi bi-funnel"></i>
                 </button>` : ''}
                 ${options.onAdd ? `
-                <button type="button" class="btn btn-primary btn-sm" data-toolbar="add" title="Yeni Ekle">
-                    <i class="bi bi-plus-lg"></i>
+                <button type="button" class="btn btn-success btn-sm" data-toolbar="add" title="Yeni Ekle">
+                    <i class="bi bi-plus-lg me-1"></i><span class="d-none d-md-inline">Ekle</span>
                 </button>` : ''}
             </div>
         `;
@@ -625,7 +878,7 @@ const NbtDataTable = {
         }
 
         let html = `
-            <div class="table-responsive px-2 py-2">
+            <div class="table-responsive p-2">
                 <table class="table table-hover table-sm mb-0">
                     <thead class="table-light">
                         <tr>
@@ -653,11 +906,11 @@ const NbtDataTable = {
                     <td class="text-center px-3">
                         <div class="btn-group btn-group-sm">
                             ${options.actions.view !== false ? `
-                            <button type="button" class="btn btn-outline-primary btn-sm" data-action="view" data-id="${row.Id}" title="Detay">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-action="view" data-id="${row.Id}" title="Detay">
                                 <i class="bi bi-eye"></i>
                             </button>` : ''}
                             ${options.actions.edit !== false ? `
-                            <button type="button" class="btn btn-outline-warning btn-sm" data-action="edit" data-id="${row.Id}" title="Düzenle">
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-action="edit" data-id="${row.Id}" title="Düzenle">
                                 <i class="bi bi-pencil"></i>
                             </button>` : ''}
                             ${options.actions.delete !== false ? `
@@ -1400,6 +1653,9 @@ const NbtCalendar = {
         html += '</div>';
         container.innerHTML = html;
         
+        // Tooltip'leri initialize et
+        this._initTooltips(container);
+        
         // Event listener'i sadece bir kez bagla
         if (!this._eventsBound) {
             this._bindEvents(container);
@@ -1427,7 +1683,12 @@ const NbtCalendar = {
         for (let day = 1; day <= lastDay.getDate(); day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
-            const dayEvents = this.events.filter(e => e.date === dateStr && !e.completed);
+            // Tarih karsilastirmasini normalize et (T ve saat bilgisini kaldir)
+            const dayEvents = this.events.filter(e => {
+                if (!e.date) return false;
+                const eventDate = e.date.split('T')[0].split(' ')[0]; // "2026-01-19T00:00:00" veya "2026-01-19 00:00:00" -> "2026-01-19"
+                return eventDate === dateStr && !e.completed;
+            });
             
             let bgClass = isToday ? 'bg-primary-subtle' : 'bg-white';
             
@@ -1439,7 +1700,11 @@ const NbtCalendar = {
             
             dayEvents.slice(0, 2).forEach(event => {
                 const typeColor = this._getEventColor(event.type);
-                html += `<div class="text-truncate small px-1 mb-1 rounded ${typeColor}" style="font-size:10px;" title="${NbtUtils.escapeHtml(event.title)}" data-event-id="${event.id}">${NbtUtils.escapeHtml(event.title)}</div>`;
+                // Takvimde musteri kodu goster, title detay modalda gosterilecek
+                const displayText = event.customerCode || event.customer || event.title;
+                // Tooltip icerigi olustur
+                const tooltipContent = this._buildTooltipContent(event);
+                html += `<div class="text-truncate small px-1 mb-1 rounded ${typeColor} calendar-event-tooltip" style="font-size:10px;cursor:pointer;" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="top" title="${NbtUtils.escapeHtml(tooltipContent)}" data-event-id="${event.id}">${NbtUtils.escapeHtml(displayText)}</div>`;
             });
             
             if (dayEvents.length > 2) {
@@ -1484,7 +1749,11 @@ const NbtCalendar = {
                 const d = new Date(weekStart);
                 d.setDate(d.getDate() + i);
                 const dateStr = this._formatDate(d);
-                const hourEvents = this.events.filter(e => e.date === dateStr && e.time && e.time.startsWith(hour.split(':')[0]));
+                const hourEvents = this.events.filter(e => {
+                    if (!e.date) return false;
+                    const eventDate = e.date.split('T')[0].split(' ')[0];
+                    return eventDate === dateStr && e.time && e.time.startsWith(hour.split(':')[0]);
+                });
                 
                 html += `<div class="border-end border-bottom p-1" style="min-height:40px;" data-date="${dateStr}" data-hour="${hour}">`;
                 hourEvents.forEach(event => {
@@ -1497,6 +1766,68 @@ const NbtCalendar = {
 
         html += '</div>';
         return html;
+    },
+
+    _buildTooltipContent(event) {
+        // Tooltip icin zengin icerik olustur
+        const typeLabels = {
+            'fatura': 'Fatura',
+            'odeme': 'Ödeme',
+            'teklif': 'Teklif',
+            'sozlesme': 'Sözleşme',
+            'teminat': 'Teminat',
+            'gorusme': 'Görüşme',
+            'damgavergisi': 'Damga Vergisi',
+            'takvim': 'Takvim'
+        };
+        
+        let content = '';
+        
+        // Tur bilgisi
+        const typeLabel = typeLabels[event.type] || 'Etkinlik';
+        content += `<strong>${typeLabel}</strong><br>`;
+        
+        // Baslik
+        if (event.title) {
+            content += `${event.title}<br>`;
+        }
+        
+        // Musteri
+        if (event.customer) {
+            content += `<small>Müşteri: ${event.customer}</small><br>`;
+        }
+        
+        // Tutar
+        if (event.amount) {
+            const currency = event.currency || 'TRY';
+            content += `<small>Tutar: ${NbtUtils.formatMoney(event.amount, currency)}</small><br>`;
+        }
+        
+        // Aciklama
+        if (event.description) {
+            content += `<small>${event.description}</small>`;
+        }
+        
+        return content;
+    },
+
+    _initTooltips(container) {
+        // Bootstrap tooltip'leri initialize et
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltipElements.forEach(el => {
+                // Mevcut tooltip varsa dispose et
+                const existingTooltip = bootstrap.Tooltip.getInstance(el);
+                if (existingTooltip) {
+                    existingTooltip.dispose();
+                }
+                // Yeni tooltip olustur
+                new bootstrap.Tooltip(el, {
+                    container: 'body',
+                    trigger: 'hover'
+                });
+            });
+        }
     },
 
     _getWeekStart(date) {
@@ -1570,7 +1901,11 @@ const NbtCalendar = {
                 if (event) this.onEventClick(event);
             } else if (dayEl && this.onDayClick) {
                 const date = dayEl.dataset.date;
-                const dayEvents = this.events.filter(e => e.date === date && !e.completed);
+                const dayEvents = this.events.filter(e => {
+                    if (!e.date) return false;
+                    const eventDate = e.date.split('T')[0].split(' ')[0];
+                    return eventDate === date && !e.completed;
+                });
                 this.onDayClick(date, dayEvents);
             }
         });
@@ -1599,6 +1934,27 @@ const NbtCalendar = {
             NbtLogger.error('Takvim eventi yüklenemedi:', err);
             return [];
         }
+    },
+
+    async refresh() {
+        // Mevcut tarih ve container varsa takvimi yeniden yukle ve render et
+        if (this.container && document.contains(this.container)) {
+            const month = this.currentDate.getMonth() + 1;
+            const year = this.currentDate.getFullYear();
+            await this.loadEvents(null, month, year);
+            this.render(this.container, { events: this.events });
+        }
+    },
+    
+    /**
+     * Belirli bir tarih icin takvimi yenile
+     * @param {Date} targetDate - Hedef tarih
+     */
+    async refreshForDate(targetDate) {
+        if (targetDate) {
+            this.currentDate = new Date(targetDate);
+        }
+        await this.refresh();
     }
 };
 

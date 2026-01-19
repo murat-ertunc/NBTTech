@@ -26,8 +26,8 @@
         <div class="row mb-3">
           <label class="col-12 col-md-4 col-form-label">Müşteri Kodu</label>
           <div class="col-12 col-md-8">
-            <input type="text" class="form-control" id="customerMusteriKodu" maxlength="5" placeholder="Örn: AB123" style="text-transform: uppercase;">
-            <small class="text-muted">Maks. 5 karakter</small>
+            <input type="text" class="form-control" id="customerMusteriKodu" maxlength="10" placeholder="Örn: ABC1234567" style="text-transform: uppercase;">
+            <small class="text-muted">Maks. 10 karakter</small>
           </div>
         </div>
         

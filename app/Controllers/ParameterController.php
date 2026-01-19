@@ -6,6 +6,8 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\ParameterRepository;
+use App\Services\CalendarService;
+use App\Services\Logger\ActionLogger;
 
 class ParameterController
 {
@@ -162,7 +164,8 @@ class ParameterController
     {
         $Id = isset($Parametreler['id']) ? (int)$Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Gecersiz kayit.', 422);
+            ActionLogger::error('ParameterController::update', 'Gecersiz parametre ID: ' . ($Parametreler['id'] ?? 'null'));
+            Response::error('Parametre ID gecersiz veya eksik.', 422);
             return;
         }
 
@@ -176,11 +179,20 @@ class ParameterController
         // Rol kontrolu
         $Rol = Context::rol();
         if ($Rol !== 'superadmin') {
+            ActionLogger::error('ParameterController::update', 'Yetkisiz erisim denemesi. Rol: ' . $Rol . ', UserId: ' . $KullaniciId);
             Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }
 
         $Repo = new ParameterRepository();
+        
+        // Kayit mevcut mu kontrol et
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            ActionLogger::error('ParameterController::update', 'Parametre bulunamadi. ID: ' . $Id);
+            Response::error('Parametre bulunamadi.', 404);
+            return;
+        }
         
         $Guncellenecek = [];
         if (isset($Girdi['Kod'])) $Guncellenecek['Kod'] = trim((string)$Girdi['Kod']);
@@ -208,7 +220,8 @@ class ParameterController
     {
         $Id = isset($Parametreler['id']) ? (int)$Parametreler['id'] : 0;
         if ($Id <= 0) {
-            Response::error('Gecersiz kayit.', 422);
+            ActionLogger::error('ParameterController::delete', 'Gecersiz parametre ID: ' . ($Parametreler['id'] ?? 'null'));
+            Response::error('Parametre ID gecersiz veya eksik.', 422);
             return;
         }
 
@@ -221,11 +234,21 @@ class ParameterController
         // Rol kontrolu
         $Rol = Context::rol();
         if ($Rol !== 'superadmin') {
+            ActionLogger::error('ParameterController::delete', 'Yetkisiz erisim denemesi. Rol: ' . $Rol . ', UserId: ' . $KullaniciId);
             Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }
 
         $Repo = new ParameterRepository();
+        
+        // Kayit mevcut mu kontrol et
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            ActionLogger::error('ParameterController::delete', 'Parametre bulunamadi. ID: ' . $Id);
+            Response::error('Parametre bulunamadi.', 404);
+            return;
+        }
+        
         $Repo->yedekle($Id, 'bck_tbl_parametre', $KullaniciId);
         $Repo->softSil($Id, $KullaniciId);
 
@@ -275,6 +298,68 @@ class ParameterController
             if (isset($Girdi['degerler']) && is_array($Girdi['degerler'])) {
                 foreach ($Girdi['degerler'] as $item) {
                     $Repo->guncelle((int)$item['id'], ['Deger' => $item['deger']], $KullaniciId);
+                }
+            }
+        });
+
+        Response::json(['status' => 'success']);
+    }
+
+    /**
+     * Hatirlatma ayarlarini getir
+     */
+    public static function reminderSettings(): void
+    {
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Settings = CalendarService::getAllReminderSettings();
+        Response::json(['data' => $Settings]);
+    }
+
+    /**
+     * Hatirlatma ayarlarini guncelle
+     */
+    public static function updateReminderSettings(): void
+    {
+        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        // Rol kontrolu
+        $Rol = Context::rol();
+        if ($Rol !== 'superadmin' && $Rol !== 'admin') {
+            Response::error('Bu islem icin yetkiniz yok.', 403);
+            return;
+        }
+
+        $Repo = new ParameterRepository();
+        
+        Transaction::wrap(function () use ($Repo, $Girdi, $KullaniciId) {
+            foreach ($Girdi as $type => $settings) {
+                // Gun parametresini guncelle
+                if (isset($settings['gun'])) {
+                    $gunParamAd = $type . '_hatirlatma_gun';
+                    if ($type === 'teklif') $gunParamAd = 'teklif_gecerlilik_hatirlatma_gun';
+                    if ($type === 'teminat') $gunParamAd = 'teminat_termin_hatirlatma_gun';
+                    
+                    $Repo->degerGuncelle($gunParamAd, (string)$settings['gun'], $KullaniciId);
+                }
+                
+                // Aktif parametresini guncelle
+                if (isset($settings['aktif'])) {
+                    $aktifParamAd = $type . '_hatirlatma_aktif';
+                    if ($type === 'teklif') $aktifParamAd = 'teklif_gecerlilik_hatirlatma_aktif';
+                    if ($type === 'teminat') $aktifParamAd = 'teminat_termin_hatirlatma_aktif';
+                    
+                    $Repo->degerGuncelle($aktifParamAd, $settings['aktif'] ? '1' : '0', $KullaniciId);
                 }
             }
         });

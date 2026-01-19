@@ -6,6 +6,7 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\OfferRepository;
+use App\Services\CalendarService;
 
 class OfferController
 {
@@ -107,6 +108,18 @@ class OfferController
             return $Repo->ekle($YuklenecekVeri, $KullaniciId);
         });
 
+        // Takvim hatirlatmasi olustur - gecerlilik tarihi varsa
+        if (!empty($YuklenecekVeri['GecerlilikTarihi'])) {
+            CalendarService::createOrUpdateReminder(
+                (int)$YuklenecekVeri['MusteriId'],
+                'teklif',
+                $Id,
+                $YuklenecekVeri['GecerlilikTarihi'],
+                'Teklif Geçerlilik: ' . ($YuklenecekVeri['Konu'] ?? 'Teklif'),
+                $KullaniciId
+            );
+        }
+
         Response::json(['id' => $Id], 201);
     }
 
@@ -141,6 +154,22 @@ class OfferController
             }
         });
 
+        // Takvim hatirlatmasi guncelle - gecerlilik tarihi varsa
+        if (isset($Girdi['GecerlilikTarihi'])) {
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut) {
+                $Konu = isset($Girdi['Konu']) ? $Girdi['Konu'] : ($Mevcut['Konu'] ?? 'Teklif');
+                CalendarService::createOrUpdateReminder(
+                    (int)$Mevcut['MusteriId'],
+                    'teklif',
+                    $Id,
+                    $Girdi['GecerlilikTarihi'],
+                    'Teklif Geçerlilik: ' . $Konu,
+                    $KullaniciId
+                );
+            }
+        }
+
         Response::json(['status' => 'success']);
     }
 
@@ -162,6 +191,9 @@ class OfferController
         Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
             $Repo->softSil($Id, $KullaniciId);
         });
+
+        // Takvim hatirlatmasini sil
+        CalendarService::deleteReminder('teklif', $Id);
 
         Response::json(['status' => 'success']);
     }

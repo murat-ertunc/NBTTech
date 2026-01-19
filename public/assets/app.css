@@ -19,6 +19,107 @@
 }
 .list-group-item.active .bi { color: #fff !important; }
 
+/* Global Sidebar */
+#globalCustomerPanel {
+  position: sticky;
+  top: 70px;
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
+#globalCustomerPanel .card-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Standart Buton Stilleri */
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 0.25rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-action-add {
+  background-color: #198754;
+  border-color: #198754;
+  color: #fff;
+}
+.btn-action-add:hover {
+  background-color: #157347;
+  border-color: #146c43;
+  color: #fff;
+}
+
+.btn-action-edit {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  color: #fff;
+}
+.btn-action-edit:hover {
+  background-color: #0b5ed7;
+  border-color: #0a58ca;
+  color: #fff;
+}
+
+.btn-action-delete {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: #fff;
+}
+.btn-action-delete:hover {
+  background-color: #bb2d3b;
+  border-color: #b02a37;
+  color: #fff;
+}
+
+.btn-action-view {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  color: #fff;
+}
+.btn-action-view:hover {
+  background-color: #5c636a;
+  border-color: #565e64;
+  color: #fff;
+}
+
+.btn-action-search {
+  background-color: #0dcaf0;
+  border-color: #0dcaf0;
+  color: #000;
+}
+.btn-action-search:hover {
+  background-color: #31d2f2;
+  border-color: #25cff2;
+  color: #000;
+}
+
+/* Standart İkon Boyutları */
+.icon-sm { font-size: 0.875rem; }
+.icon-md { font-size: 1rem; }
+.icon-lg { font-size: 1.25rem; }
+
+/* Toolbar Standart Stil */
+.nbt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.nbt-toolbar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
 #view-customer-detail .col-lg-4 > .card {
   position: sticky;
   top: 70px;

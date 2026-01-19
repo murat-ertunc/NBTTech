@@ -22,7 +22,6 @@ class CalendarController
      * - customerId: Belirli musteriye ait etkinlikler
      * - month: Ay (1-12)
      * - year: Yil
-     * - includeCompleted: Tamamlanan isleri dahil et (0/1)
      */
     public function index(): void
     {
@@ -35,29 +34,9 @@ class CalendarController
         $MusteriId = isset($_GET['customerId']) ? (int)$_GET['customerId'] : null;
         $Ay = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('n');
         $Yil = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
-        $TamamlananlarDahil = isset($_GET['includeCompleted']) && $_GET['includeCompleted'] === '1';
 
-        $Etkinlikler = [];
-
-        // 1. Proje baslangic ve bitis tarihleri
-        $ProjeEtkinlikleri = $this->getProjectEvents($MusteriId, $Ay, $Yil, $TamamlananlarDahil);
-        $Etkinlikler = array_merge($Etkinlikler, $ProjeEtkinlikleri);
-
-        // 2. Sozlesme baslangic ve bitis tarihleri
-        $SozlesmeEtkinlikleri = $this->getContractEvents($MusteriId, $Ay, $Yil, $TamamlananlarDahil);
-        $Etkinlikler = array_merge($Etkinlikler, $SozlesmeEtkinlikleri);
-
-        // 3. Teminat Termin Tarihi tarihleri
-        $TeminatEtkinlikleri = $this->getGuaranteeEvents($MusteriId, $Ay, $Yil, $TamamlananlarDahil);
-        $Etkinlikler = array_merge($Etkinlikler, $TeminatEtkinlikleri);
-
-        // 4. Fatura tarihleri
-        $FaturaEtkinlikleri = $this->getInvoiceEvents($MusteriId, $Ay, $Yil);
-        $Etkinlikler = array_merge($Etkinlikler, $FaturaEtkinlikleri);
-
-        // 5. Takvim kayitlari (tbl_takvim)
-        $TakvimEtkinlikleri = $this->getTakvimEvents($MusteriId, $Ay, $Yil);
-        $Etkinlikler = array_merge($Etkinlikler, $TakvimEtkinlikleri);
+        // Sadece manuel takvim kayitlari (tbl_takvim)
+        $Etkinlikler = $this->getTakvimEvents($MusteriId, $Ay, $Yil);
 
         // Tarihe gore sirala
         usort($Etkinlikler, function($a, $b) {
@@ -258,8 +237,6 @@ class CalendarController
                         ];
                     }
                 }
-                    }
-                }
             }
             
             return $Etkinlikler;
@@ -412,93 +389,7 @@ class CalendarController
                 $Parametreler['customerId'] = $MusteriId;
             }
             
-            // Projeler
-            $Sql = "
-                SELECT Id, MusteriId, ProjeAdi, 
-                       CASE WHEN CAST(BaslangicTarihi AS DATE) = :date THEN 'start' ELSE 'end' END as EventType
-                FROM tbl_proje 
-                WHERE Sil = 0 {$MusteriKosulu}
-                  AND (CAST(BaslangicTarihi AS DATE) = :date OR CAST(BitisTarihi AS DATE) = :date)
-            ";
-            $Stmt = $Db->prepare($Sql); 
-            $Stmt->execute($Parametreler);
-            $Projeler = $Stmt->fetchAll();
-            
-            foreach ($Projeler as $Proje) {
-                $Etkinlikler[] = [
-                    'id' => $Proje['Id'],
-                    'type' => 'project',
-                    'eventType' => $Proje['EventType'],
-                    'title' => $Proje['ProjeAdi'],
-                    'customerId' => $Proje['MusteriId']
-                ];
-            }
-            
-            // Sozlesmeler
-            $Sql = "
-                SELECT Id, MusteriId,
-                       CASE WHEN CAST(BaslangicTarihi AS DATE) = :date THEN 'start' ELSE 'end' END as EventType
-                FROM tbl_sozlesme 
-                WHERE Sil = 0 {$MusteriKosulu}
-                  AND (CAST(BaslangicTarihi AS DATE) = :date OR CAST(BitisTarihi AS DATE) = :date)
-            ";
-            $Stmt = $Db->prepare($Sql); 
-            $Stmt->execute($Parametreler);
-            $Sozlesmeler = $Stmt->fetchAll();
-            
-            foreach ($Sozlesmeler as $Sozlesme) {
-                $Etkinlikler[] = [
-                    'id' => $Sozlesme['Id'],
-                    'type' => 'contract',
-                    'eventType' => $Sozlesme['EventType'],
-                    'title' => 'Sözleşme',
-                    'customerId' => $Sozlesme['MusteriId']
-                ];
-            }
-            
-            // Teminatlar
-            $Sql = "
-                SELECT Id, MusteriId, Tur
-                FROM tbl_teminat 
-                WHERE Sil = 0 {$MusteriKosulu}
-                  AND CAST(TerminTarihi AS DATE) = :date
-            ";
-            $Stmt = $Db->prepare($Sql); 
-            $Stmt->execute($Parametreler);
-            $Teminatlar = $Stmt->fetchAll();
-            
-            foreach ($Teminatlar as $Teminat) {
-                $Etkinlikler[] = [
-                    'id' => $Teminat['Id'],
-                    'type' => 'guarantee',
-                    'eventType' => 'due',
-                    'title' => $Teminat['Tur'],
-                    'customerId' => $Teminat['MusteriId']
-                ];
-            }
-            
-            // Faturalar
-            $Sql = "
-                SELECT Id, MusteriId, Aciklama
-                FROM tbl_fatura 
-                WHERE Sil = 0 {$MusteriKosulu}
-                  AND CAST(Tarih AS DATE) = :date
-            ";
-            $Stmt = $Db->prepare($Sql); 
-            $Stmt->execute($Parametreler);
-            $Faturalar = $Stmt->fetchAll();
-            
-            foreach ($Faturalar as $Fatura) {
-                $Etkinlikler[] = [
-                    'id' => $Fatura['Id'],
-                    'type' => 'invoice',
-                    'eventType' => 'created',
-                    'title' => $Fatura['Aciklama'] ?: 'Fatura #' . $Fatura['Id'],
-                    'customerId' => $Fatura['MusteriId']
-                ];
-            }
-            
-            // Takvim kayitlari
+            // Sadece Takvim kayitlari
             $Sql = "
                 SELECT t.Id, t.MusteriId, t.Ozet, m.Unvan as MusteriUnvan
                 FROM tbl_takvim t
@@ -551,6 +442,7 @@ class CalendarController
                     t.Id,
                     t.MusteriId,
                     m.Unvan as MusteriUnvan,
+                    m.MusteriKodu,
                     t.ProjeId,
                     p.ProjeAdi,
                     t.TerminTarihi,
@@ -569,15 +461,25 @@ class CalendarController
             
             $Etkinlikler = [];
             foreach ($TakvimKayitlari as $Kayit) {
+                // Tarih formatini normalize et (YYYY-MM-DD)
+                $TerminTarihi = $Kayit['TerminTarihi'];
+                if ($TerminTarihi) {
+                    $TerminTarihi = date('Y-m-d', strtotime($TerminTarihi));
+                }
+                
+                // Musteri kodu yoksa otomatik olustur
+                $MusteriKodu = $Kayit['MusteriKodu'] ?: 'MÜŞ-' . str_pad($Kayit['MusteriId'], 5, '0', STR_PAD_LEFT);
+                
                 $Etkinlikler[] = [
                     'id' => 'takvim_' . $Kayit['Id'],
                     'type' => 'takvim',
                     'category' => 'takvim',
                     'customerId' => $Kayit['MusteriId'],
                     'customer' => $Kayit['MusteriUnvan'],
+                    'customerCode' => $MusteriKodu,
                     'title' => $Kayit['Ozet'],
                     'description' => $Kayit['ProjeAdi'] ? 'Proje: ' . $Kayit['ProjeAdi'] : null,
-                    'date' => $Kayit['TerminTarihi'],
+                    'date' => $TerminTarihi,
                     'color' => '#198754', // green
                     'completed' => false,
                     'relatedId' => $Kayit['Id'],

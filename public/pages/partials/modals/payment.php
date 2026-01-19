@@ -48,7 +48,7 @@
         <div class="row mb-3">
           <label class="col-12 col-md-4 col-form-label">Tutar</label>
           <div class="col-12 col-md-8">
-            <input type="number" step="0.01" class="form-control" id="paymentTutar">
+            <input type="number" step="0.01" class="form-control nbt-money-input" id="paymentTutar" placeholder="0,00">
           </div>
         </div>
         <div class="row mb-3">

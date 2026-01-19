@@ -11,10 +11,10 @@ use App\Core\Database;
  * 
  * Dashboard alarm sistemi icin endpoint'ler.
  * Temel alarm fonksiyonlari:
- * 1. Odenmemis faturalar
- * 2. Yaklasan takvim isleri
- * 3. Termin tarihi gecen teminatlar
- * 4. Sozlesme bitis yaklasanlari
+ * 1. Odenmemis faturalar (bakiyesi olan tum faturalar)
+ * 2. Yaklasan takvim isleri (7 gun icinde)
+ * 3. Termin tarihi gecen teminatlar (aktif ve suresi dolmus)
+ * 4. Gecerliligi biten/bitecek teklifler (7 gun icinde)
  */
 class AlarmController
 {
@@ -41,26 +41,27 @@ class AlarmController
                 'title' => 'Ödenmemiş Faturalar',
                 'description' => $OdenmemisFaturalar['count'] . ' adet fatura ödeme bekliyor',
                 'total' => $OdenmemisFaturalar['total'],
+                'totalByCurrency' => $OdenmemisFaturalar['totalByCurrency'] ?? [],
                 'count' => $OdenmemisFaturalar['count'],
                 'items' => $OdenmemisFaturalar['items']
             ];
         }
 
         // 2. Yaklasan takvim isleri (7 gun icinde)
-        $YaklasanIsler = $this->yaklasanIsleriGetir(7);
+        $YaklasanIsler = $this->yaklasanTakvimIsleriniGetir(7);
         if ($YaklasanIsler['count'] > 0) {
             $Alarmlar[] = [
                 'id' => 'upcoming_events',
                 'type' => 'calendar',
                 'priority' => 'medium',
-                'title' => 'Yaklasan Isler',
-                'description' => 'Bu hafta ' . $YaklasanIsler['count'] . ' gorev var',
+                'title' => 'Yaklaşan Takvim İşleri',
+                'description' => 'Bu hafta ' . $YaklasanIsler['count'] . ' görev var',
                 'count' => $YaklasanIsler['count'],
                 'items' => $YaklasanIsler['items']
             ];
         }
 
-        // 3. Termin tarihi gecen teminatlar
+        // 3. Termin tarihi gecen teminatlar (aktif ve suresi dolmus)
         $TerminTarihiGecenTeminatlar = $this->terminTarihiGecenTeminatlariGetir();
         if ($TerminTarihiGecenTeminatlar['count'] > 0) {
             $Alarmlar[] = [
@@ -69,22 +70,24 @@ class AlarmController
                 'priority' => 'high',
                 'title' => 'Termin Tarihi Geçen Teminatlar',
                 'description' => $TerminTarihiGecenTeminatlar['count'] . ' teminatın termin tarihi geçmiş',
+                'total' => $TerminTarihiGecenTeminatlar['total'] ?? 0,
+                'totalByCurrency' => $TerminTarihiGecenTeminatlar['totalByCurrency'] ?? [],
                 'count' => $TerminTarihiGecenTeminatlar['count'],
                 'items' => $TerminTarihiGecenTeminatlar['items']
             ];
         }
 
-        // 4. Yaklasan sozlesme bitisleri (30 gun icinde)
-        $BitenSozlesmeler = $this->bitenSozlesmeleriGetir(30);
-        if ($BitenSozlesmeler['count'] > 0) {
+        // 4. Gecerliligi biten/bitecek teklifler (7 gun icinde veya gecmis)
+        $GecerililigiDolanTeklifler = $this->gecerliligiDolanTeklifleriGetir(7);
+        if ($GecerililigiDolanTeklifler['count'] > 0) {
             $Alarmlar[] = [
-                'id' => 'expiring_contracts',
-                'type' => 'contract',
+                'id' => 'expiring_offers',
+                'type' => 'offer',
                 'priority' => 'medium',
-                'title' => 'Sozlesme Bitis Yaklasiyor',
-                'description' => $BitenSozlesmeler['count'] . ' sozlesme 30 gun icinde bitiyor',
-                'count' => $BitenSozlesmeler['count'],
-                'items' => $BitenSozlesmeler['items']
+                'title' => 'Geçerliliği Dolan Teklifler',
+                'description' => $GecerililigiDolanTeklifler['count'] . ' teklifin geçerliliği dolmuş veya dolmak üzere',
+                'count' => $GecerililigiDolanTeklifler['count'],
+                'items' => $GecerililigiDolanTeklifler['items']
             ];
         }
 
@@ -115,7 +118,6 @@ class AlarmController
                     f.Tarih,
                     f.Tutar,
                     f.DovizCinsi,
-                    f.Aciklama,
                     ISNULL(
                         (SELECT SUM(o.Tutar) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil = 0), 
                         0
@@ -134,12 +136,16 @@ class AlarmController
             $OdenmemisKalemler = [];
             $ToplamOdenmemis = 0;
             
+            // Para birimi bazinda toplamlar
+            $ParaBirimiToplam = [];
+            
             $Bugun = new \DateTime();
             
             foreach ($Faturalar as $Fatura) {
                 $FaturaTutari = (float)$Fatura['Tutar'];
                 $OdenenTutar = (float)$Fatura['ToplamOdeme'];
                 $Kalan = $FaturaTutari - $OdenenTutar;
+                $ParaBirimi = $Fatura['DovizCinsi'] ?? 'TRY';
                 
                 if ($Kalan > 0.01) { // Bakiye varsa
                     $FaturaTarihi = new \DateTime($Fatura['Tarih']);
@@ -150,6 +156,12 @@ class AlarmController
                     if ($FaturaTarihi > $Bugun) {
                         $GecikmeGun = -$GecikmeGun; // Henuz termin tarihi gelmemis
                     }
+                    
+                    // Para birimi bazinda topla
+                    if (!isset($ParaBirimiToplam[$ParaBirimi])) {
+                        $ParaBirimiToplam[$ParaBirimi] = 0;
+                    }
+                    $ParaBirimiToplam[$ParaBirimi] += $Kalan;
                     
                     $OdenmemisKalemler[] = [
                         'id' => $Fatura['Id'],
@@ -162,7 +174,7 @@ class AlarmController
                         'delayDays' => $GecikmeGun,
                         'invoiceAmount' => $FaturaTutari,
                         'balance' => $Kalan,
-                        'currency' => $Fatura['DovizCinsi'] ?? 'TRY'
+                        'currency' => $ParaBirimi
                     ];
                     $ToplamOdenmemis += $Kalan;
                 }
@@ -176,52 +188,65 @@ class AlarmController
             return [
                 'count' => count($OdenmemisKalemler),
                 'total' => $ToplamOdenmemis,
-                'items' => $OdenmemisKalemler // Tum faturalar
+                'totalByCurrency' => $ParaBirimiToplam,
+                'items' => $OdenmemisKalemler
             ];
         } catch (\Exception $e) {
-            return ['count' => 0, 'total' => 0, 'items' => []];
+            return ['count' => 0, 'total' => 0, 'totalByCurrency' => [], 'items' => []];
         }
     }
 
     /**
-     * Yaklasan takvim islerini getir
+     * Yaklasan takvim islerini getir (tbl_takvim tablosundan)
      */
-    private function yaklasanIsleriGetir(int $Gun = 7): array
+    private function yaklasanTakvimIsleriniGetir(int $Gun = 7): array
     {
         try {
             $Db = Database::connection();
             
-            // Proje bitis tarihleri yaklasan projeler
+            // Takvim tablosundan yaklasan veya gecmis isler
+            // Gun parametresi integer olarak dogrudan sorguya eklenir (SQL Injection riski yok)
+            $GunInt = (int)$Gun;
             $Sql = "
                 SELECT 
-                    p.Id,
-                    p.MusteriId,
+                    t.Id,
+                    t.MusteriId,
                     m.Unvan as MusteriUnvan,
+                    t.ProjeId,
                     p.ProjeAdi,
-                    p.BitisTarihi,
-                    'project' as EventType
-                FROM tbl_proje p
-                LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id
-                WHERE p.Sil = 0
-                  AND p.Durum = 1
-                  AND p.BitisTarihi IS NOT NULL
-                  AND p.BitisTarihi BETWEEN GETDATE() AND DATEADD(day, :gun, GETDATE())
-                ORDER BY p.BitisTarihi ASC
+                    t.Ozet,
+                    t.TerminTarihi
+                FROM tbl_takvim t
+                LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
+                LEFT JOIN tbl_proje p ON t.ProjeId = p.Id
+                WHERE t.Sil = 0
+                  AND m.Sil = 0
+                  AND t.TerminTarihi IS NOT NULL
+                  AND t.TerminTarihi <= DATEADD(day, {$GunInt}, GETDATE())
+                ORDER BY t.TerminTarihi ASC
             ";
             
-            $Stmt = $Db->prepare($Sql); 
-            $Stmt->execute(['gun' => $Gun]);
-            $Projeler = $Stmt->fetchAll();
+            $Stmt = $Db->query($Sql);
+            $Takvimler = $Stmt->fetchAll();
             
             $Kalemler = [];
-            foreach ($Projeler as $Proje) {
+            $Bugun = new \DateTime();
+            
+            foreach ($Takvimler as $Takvim) {
+                $TerminTarihi = new \DateTime($Takvim['TerminTarihi']);
+                $Fark = $Bugun->diff($TerminTarihi);
+                $KalanGun = $TerminTarihi >= $Bugun ? $Fark->days : -$Fark->days;
+                
                 $Kalemler[] = [
-                    'id' => $Proje['Id'],
-                    'type' => 'project',
-                    'customerId' => $Proje['MusteriId'],
-                    'customer' => $Proje['MusteriUnvan'],
-                    'title' => $Proje['ProjeAdi'],
-                    'date' => $Proje['BitisTarihi']
+                    'id' => $Takvim['Id'],
+                    'type' => 'takvim',
+                    'customerId' => $Takvim['MusteriId'],
+                    'customer' => $Takvim['MusteriUnvan'],
+                    'projectId' => $Takvim['ProjeId'],
+                    'project' => $Takvim['ProjeAdi'] ?? '-',
+                    'title' => $Takvim['Ozet'],
+                    'date' => $Takvim['TerminTarihi'],
+                    'daysRemaining' => $KalanGun
                 ];
             }
             
@@ -236,6 +261,7 @@ class AlarmController
 
     /**
      * Termin tarihi gecen teminatlari getir
+     * Durum filtresi YOK - tum aktif teminatlardan suresi gecmis olanlari getir
      */
     private function terminTarihiGecenTeminatlariGetir(): array
     {
@@ -247,14 +273,19 @@ class AlarmController
                     t.Id,
                     t.MusteriId,
                     m.Unvan as MusteriUnvan,
+                    t.ProjeId,
+                    p.ProjeAdi,
                     t.Tur,
                     t.Tutar,
                     t.ParaBirimi,
-                    t.TerminTarihi
+                    t.TerminTarihi,
+                    t.Durum
                 FROM tbl_teminat t
                 LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
+                LEFT JOIN tbl_proje p ON t.ProjeId = p.Id
                 WHERE t.Sil = 0
-                  AND t.Durum = 1
+                  AND m.Sil = 0
+                  AND t.TerminTarihi IS NOT NULL
                   AND t.TerminTarihi < GETDATE()
                 ORDER BY t.TerminTarihi ASC
             ";
@@ -263,71 +294,116 @@ class AlarmController
             $Teminatlar = $Stmt->fetchAll();
             
             $Kalemler = [];
+            $Bugun = new \DateTime();
+            $ToplamTutar = 0;
+            
+            // Para birimi bazinda toplamlar
+            $ParaBirimiToplam = [];
+            
             foreach ($Teminatlar as $Teminat) {
+                $TerminTarihi = new \DateTime($Teminat['TerminTarihi']);
+                $Fark = $Bugun->diff($TerminTarihi);
+                $GecenGun = $Fark->days;
+                $Tutar = (float)$Teminat['Tutar'];
+                $ParaBirimi = $Teminat['ParaBirimi'] ?? 'TRY';
+                
+                // Para birimi bazinda topla
+                if (!isset($ParaBirimiToplam[$ParaBirimi])) {
+                    $ParaBirimiToplam[$ParaBirimi] = 0;
+                }
+                $ParaBirimiToplam[$ParaBirimi] += $Tutar;
+                $ToplamTutar += $Tutar;
+                
                 $Kalemler[] = [
                     'id' => $Teminat['Id'],
                     'customerId' => $Teminat['MusteriId'],
                     'customer' => $Teminat['MusteriUnvan'],
+                    'projectId' => $Teminat['ProjeId'],
+                    'project' => $Teminat['ProjeAdi'] ?? '-',
                     'type' => $Teminat['Tur'],
-                    'amount' => $Teminat['Tutar'],
-                    'currency' => $Teminat['ParaBirimi'],
-                    'dueDate' => $Teminat['TerminTarihi']
+                    'amount' => $Tutar,
+                    'currency' => $ParaBirimi,
+                    'dueDate' => $Teminat['TerminTarihi'],
+                    'daysOverdue' => $GecenGun
                 ];
             }
             
             return [
                 'count' => count($Kalemler),
-                'items' => array_slice($Kalemler, 0, 5)
+                'total' => $ToplamTutar,
+                'totalByCurrency' => $ParaBirimiToplam,
+                'items' => $Kalemler
             ];
         } catch (\Exception $e) {
-            return ['count' => 0, 'items' => []];
+            return ['count' => 0, 'total' => 0, 'totalByCurrency' => [], 'items' => []];
         }
     }
 
     /**
-     * Yaklasan sozlesme bitislerini getir
+     * Gecerliligi dolan veya dolmak uzere olan teklifleri getir
+     * Sadece aktif (Durum = 0 veya 1) teklifler
      */
-    private function bitenSozlesmeleriGetir(int $Gun = 30): array
+    private function gecerliligiDolanTeklifleriGetir(int $Gun = 7): array
     {
         try {
             $Db = Database::connection();
             
+            // Gecerliligi gecmis veya $Gun icerisinde dolacak aktif teklifler
+            // Gun parametresi integer olarak dogrudan sorguya eklenir (SQL Injection riski yok)
+            $GunInt = (int)$Gun;
             $Sql = "
                 SELECT 
-                    s.Id,
-                    s.MusteriId,
+                    t.Id,
+                    t.MusteriId,
                     m.Unvan as MusteriUnvan,
-                    s.SozlesmeTarihi,
-                    s.Tutar,
-                    s.ParaBirimi as DovizCinsi
-                FROM tbl_sozlesme s
-                LEFT JOIN tbl_musteri m ON s.MusteriId = m.Id
-                WHERE s.Sil = 0
-                  AND s.Durum = 1
-                  AND s.SozlesmeTarihi IS NOT NULL
-                  AND s.SozlesmeTarihi BETWEEN GETDATE() AND DATEADD(day, :gun, GETDATE())
-                ORDER BY s.SozlesmeTarihi ASC
+                    t.ProjeId,
+                    p.ProjeAdi,
+                    t.Konu,
+                    t.Tutar,
+                    t.ParaBirimi,
+                    t.TeklifTarihi,
+                    t.GecerlilikTarihi,
+                    t.Durum
+                FROM tbl_teklif t
+                LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
+                LEFT JOIN tbl_proje p ON t.ProjeId = p.Id
+                WHERE t.Sil = 0
+                  AND m.Sil = 0
+                  AND t.GecerlilikTarihi IS NOT NULL
+                  AND t.GecerlilikTarihi <= DATEADD(day, {$GunInt}, GETDATE())
+                  AND t.Durum IN (0, 1)
+                ORDER BY t.GecerlilikTarihi ASC
             ";
             
-            $Stmt = $Db->prepare($Sql); 
-            $Stmt->execute(['gun' => $Gun]);
-            $Sozlesmeler = $Stmt->fetchAll();
+            $Stmt = $Db->query($Sql);
+            $Teklifler = $Stmt->fetchAll();
             
             $Kalemler = [];
-            foreach ($Sozlesmeler as $Sozlesme) {
+            $Bugun = new \DateTime();
+            
+            foreach ($Teklifler as $Teklif) {
+                $GecerlilikTarihi = new \DateTime($Teklif['GecerlilikTarihi']);
+                $Fark = $Bugun->diff($GecerlilikTarihi);
+                $KalanGun = $GecerlilikTarihi >= $Bugun ? $Fark->days : -$Fark->days;
+                
                 $Kalemler[] = [
-                    'id' => $Sozlesme['Id'],
-                    'customerId' => $Sozlesme['MusteriId'],
-                    'customer' => $Sozlesme['MusteriUnvan'],
-                    'endDate' => $Sozlesme['SozlesmeTarihi'],
-                    'amount' => $Sozlesme['Tutar'],
-                    'currency' => $Sozlesme['DovizCinsi']
+                    'id' => $Teklif['Id'],
+                    'customerId' => $Teklif['MusteriId'],
+                    'customer' => $Teklif['MusteriUnvan'],
+                    'projectId' => $Teklif['ProjeId'],
+                    'project' => $Teklif['ProjeAdi'] ?? '-',
+                    'title' => $Teklif['Konu'] ?? 'Teklif #' . $Teklif['Id'],
+                    'amount' => $Teklif['Tutar'],
+                    'currency' => $Teklif['ParaBirimi'],
+                    'offerDate' => $Teklif['TeklifTarihi'],
+                    'validUntil' => $Teklif['GecerlilikTarihi'],
+                    'daysRemaining' => $KalanGun
                 ];
             }
             
             return [
                 'count' => count($Kalemler),
-                'items' => array_slice($Kalemler, 0, 5)
+                'items' => array_slice($Kalemler, 0, 10)
             ];
         } catch (\Exception $e) {
             return ['count' => 0, 'items' => []];

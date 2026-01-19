@@ -15,7 +15,178 @@ const AppState = {
     currentCustomer: null,
     currentCustomerTab: 'genel',
     alarms: [],
-    calendarEvents: []
+    calendarEvents: [],
+    calendarNeedsRefresh: false, // Takvim verisi degistiginde true olur
+    lastCalendarEventDate: null  // Son eklenen/guncellenen takvim kaydinin tarihi
+};
+
+// =============================================
+// GLOBAL CUSTOMER SIDEBAR - Her sayfada gosterilen musteri listesi
+// =============================================
+const GlobalCustomerSidebar = {
+    customers: [],
+    displayLimit: 20,
+    searchQuery: '',
+    searchTimeout: null,
+    _eventsBound: false,
+    currentCustomerId: null,
+
+    async init() {
+        // Mevcut musteri ID'sini al (customer-detail sayfasindaysa)
+        const detailEl = document.getElementById('view-customer-detail');
+        if (detailEl) {
+            this.currentCustomerId = parseInt(detailEl.dataset.customerId) || null;
+        }
+        
+        await this.loadCustomers();
+        this.bindEvents();
+    },
+
+    async loadCustomers(query = '') {
+        const container = document.getElementById('globalCustomerList');
+        if (!container) return;
+
+        try {
+            // Arama varsa backend'den ara, yoksa ilk 20'yi getir
+            let url = '/api/customers?limit=' + this.displayLimit;
+            if (query && query.length >= 2) {
+                url += '&search=' + encodeURIComponent(query);
+            }
+            
+            const response = await NbtApi.get(url);
+            this.customers = response.data || [];
+            AppState.customers = this.customers;
+            this.render();
+        } catch (err) {
+            container.innerHTML = `<div class="text-danger small p-3">${err.message}</div>`;
+        }
+    },
+
+    /**
+     * Turkce ve buyuk/kucuk harf duyarsiz arama
+     */
+    filterCustomers(query) {
+        if (!query || query.length < 2) {
+            return this.customers;
+        }
+        
+        const normalizedQuery = NbtUtils.normalizeText(query);
+        
+        return this.customers.filter(c => {
+            const kod = NbtUtils.normalizeText(c.MusteriKodu || '');
+            const unvan = NbtUtils.normalizeText(c.Unvan || '');
+            return kod.includes(normalizedQuery) || unvan.includes(normalizedQuery);
+        });
+    },
+
+    /**
+     * Arama yap - debounce ile veya focusout ile cagrilir
+     */
+    doSearch() {
+        const query = this.searchQuery;
+        
+        // 2 karakterden az ise tum listeyi goster
+        if (!query || query.length < 2) {
+            this.loadCustomers('');
+            return;
+        }
+        
+        // Backend'den ara
+        this.loadCustomers(query);
+    },
+
+    render() {
+        const container = document.getElementById('globalCustomerList');
+        if (!container) return;
+
+        if (!this.customers.length) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-people fs-2 d-block mb-2 opacity-50"></i>
+                    <p class="mb-0">${this.searchQuery ? 'Sonuç bulunamadı' : 'Henüz müşteri eklenmemiş'}</p>
+                </div>`;
+            return;
+        }
+
+        let html = '<div class="list-group list-group-flush">';
+        this.customers.forEach(c => {
+            const musteriKodu = c.MusteriKodu || `MÜŞ-${String(c.Id).padStart(5, '0')}`;
+            const isActive = parseInt(c.Id) === this.currentCustomerId;
+            html += `
+                <a href="/customer/${c.Id}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2 ${isActive ? 'active' : ''}" 
+                   data-customer-id="${c.Id}">
+                    <div class="text-truncate" style="max-width: calc(100% - 20px);">
+                        <div class="fw-semibold text-truncate">${NbtUtils.escapeHtml(musteriKodu)} - ${NbtUtils.escapeHtml(c.Unvan)}</div>
+                        ${c.Aciklama ? `<small class="${isActive ? 'text-white-50' : 'text-muted'} d-block text-truncate">${NbtUtils.escapeHtml(c.Aciklama).substring(0, 40)}</small>` : ''}
+                    </div>
+                    <i class="bi bi-chevron-right flex-shrink-0"></i>
+                </a>`;
+        });
+        html += '</div>';
+        
+        container.innerHTML = html;
+    },
+
+    bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
+
+        const searchInput = document.getElementById('globalCustomerSearch');
+        if (searchInput) {
+            // Input olayinda: 2 saniye bekle, sonra ara
+            searchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.trim();
+                
+                // Onceki timeout'u temizle
+                if (this.searchTimeout) clearTimeout(this.searchTimeout);
+                
+                // 2 saniye bekle, sonra ara
+                this.searchTimeout = setTimeout(() => {
+                    this.doSearch();
+                }, 2000);
+            });
+            
+            // Focus kaybedildiginde hemen ara
+            searchInput.addEventListener('blur', () => {
+                // Timeout'u temizle ve hemen ara
+                if (this.searchTimeout) clearTimeout(this.searchTimeout);
+                this.doSearch();
+            });
+            
+            // Enter tusuna basildiginda hemen ara
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (this.searchTimeout) clearTimeout(this.searchTimeout);
+                    this.doSearch();
+                }
+            });
+        }
+
+        // Musteri ekle butonu
+        document.querySelector('#globalCustomerPanel [data-action="add-customer"]')?.addEventListener('click', () => {
+            CustomerModule.openModal();
+        });
+
+        // Musteri tiklama
+        document.getElementById('globalCustomerList')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            const link = e.target.closest('[data-customer-id]');
+            if (link) {
+                const customerId = parseInt(link.dataset.customerId);
+                NbtRouter.navigate(`/customer/${customerId}`);
+            }
+        });
+        
+        // Yeni musteri eklendiginde listeyi guncelle
+        window.addEventListener('customerAdded', () => {
+            this.loadCustomers(this.searchQuery);
+        });
+        
+        window.addEventListener('customerUpdated', () => {
+            this.loadCustomers(this.searchQuery);
+        });
+    }
 };
 
 // =============================================
@@ -25,9 +196,16 @@ const DashboardModule = {
     _eventsBound: false,
     
     async init() {
+        // Takvim yenileme gerekiyorsa ve bir hedef tarih varsa
+        // NbtCalendar'in currentDate'ini guncelle (baska sayfadan donerken)
+        if (AppState.calendarNeedsRefresh && AppState.lastCalendarEventDate) {
+            NbtCalendar.currentDate = new Date(AppState.lastCalendarEventDate);
+            AppState.lastCalendarEventDate = null;
+        }
+        AppState.calendarNeedsRefresh = false;
+        
         await Promise.all([
             this.loadStats(),
-            this.loadCustomers(),
             this.loadAlarms(),
             this.loadCalendar()
         ]);
@@ -44,52 +222,6 @@ const DashboardModule = {
         } catch (err) {
             NbtLogger.error('Dashboard stats yuklenemedi:', err);
         }
-    },
-
-    async loadCustomers() {
-        const container = document.getElementById('dashCustomerList');
-        try {
-            const response = await NbtApi.get('/api/customers');
-            AppState.customers = response.data || [];
-            this.renderCustomerList(AppState.customers);
-        } catch (err) {
-            container.innerHTML = `<div class="text-danger small p-3">${err.message}</div>`;
-        }
-    },
-
-    renderCustomerList(customers) {
-        const container = document.getElementById('dashCustomerList');
-        if (!customers.length) {
-            container.innerHTML = `
-                <div class="text-center text-muted py-4">
-                    <i class="bi bi-people fs-2 d-block mb-2 opacity-50"></i>
-                    <p class="mb-0">Henüz müşteri eklenmemiş</p>
-                </div>`;
-            return;
-        }
-
-        let html = '<div class="list-group list-group-flush">';
-        customers.slice(0, 10).forEach(c => {
-            const musteriKodu = c.MusteriKodu || `MÜŞ-${String(c.Id).padStart(5, '0')}`;
-            html += `
-                <a href="/customer/${c.Id}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2" 
-                   data-customer-id="${c.Id}">
-                    <div>
-                        <div class="fw-semibold">${NbtUtils.escapeHtml(musteriKodu)} - ${NbtUtils.escapeHtml(c.Unvan)}</div>
-                        ${c.Aciklama ? `<small class="text-muted">${NbtUtils.escapeHtml(c.Aciklama).substring(0, 50)}</small>` : ''}
-                    </div>
-                    <i class="bi bi-chevron-right text-muted"></i>
-                </a>`;
-        });
-        html += '</div>';
-        
-        if (customers.length > 10) {
-            html += `<div class="text-center py-2">
-                <a href="/customers" class="small">Tümünü Gör (${customers.length})</a>
-            </div>`;
-        }
-        
-        container.innerHTML = html;
     },
 
     async loadAlarms() {
@@ -117,17 +249,24 @@ const DashboardModule = {
             return;
         }
 
+        // Alarm tiplerine gore ikon ve renk
+        const alarmStyles = {
+            invoice: { badge: 'bg-danger', icon: 'bi-receipt' },
+            calendar: { badge: 'bg-warning', icon: 'bi-calendar-event' },
+            guarantee: { badge: 'bg-info', icon: 'bi-shield-check' },
+            offer: { badge: 'bg-primary', icon: 'bi-file-earmark-text' },
+            contract: { badge: 'bg-secondary', icon: 'bi-file-earmark-check' },
+            default: { badge: 'bg-secondary', icon: 'bi-bell' }
+        };
+
         let html = '<div class="list-group list-group-flush">';
         alarms.forEach(alarm => {
-            const badgeClass = alarm.type === 'invoice' ? 'bg-danger' : 
-                             alarm.type === 'calendar' ? 'bg-warning' : 'bg-info';
-            const icon = alarm.type === 'invoice' ? 'bi-receipt' : 
-                        alarm.type === 'calendar' ? 'bi-calendar-event' : 'bi-bell';
+            const style = alarmStyles[alarm.type] || alarmStyles.default;
             
             html += `
                 <div class="list-group-item d-flex align-items-start gap-2 cursor-pointer" data-alarm-type="${alarm.type}" data-alarm-id="${alarm.id}" style="cursor:pointer;">
-                    <span class="badge ${badgeClass} p-2">
-                        <i class="bi ${icon}"></i>
+                    <span class="badge ${style.badge} p-2">
+                        <i class="bi ${style.icon}"></i>
                     </span>
                     <div class="flex-grow-1">
                         <div class="fw-semibold small">${NbtUtils.escapeHtml(alarm.title)}</div>
@@ -141,10 +280,13 @@ const DashboardModule = {
 
     async loadCalendar() {
         const container = document.getElementById('dashCalendar');
+        if (!container) return;
+        
         try {
-            // Mevcut ay ve yil ile verileri yukle
-            const now = new Date();
-            await NbtCalendar.loadEvents(null, now.getMonth() + 1, now.getFullYear());
+            // NbtCalendar'in mevcut tarihini kullan (navigasyon yapildiysa o tarihi korur)
+            const month = NbtCalendar.currentDate.getMonth() + 1;
+            const year = NbtCalendar.currentDate.getFullYear();
+            await NbtCalendar.loadEvents(null, month, year);
         } catch (err) {
             NbtCalendar.events = [];
         }
@@ -153,6 +295,9 @@ const DashboardModule = {
             events: NbtCalendar.events,
             onDayClick: (date, dayEvents) => this.openCalendarDayModal(date, dayEvents)
         });
+        
+        // Refresh flag'ini sifirla
+        AppState.calendarNeedsRefresh = false;
     },
 
     openCalendarDayModal(date, events) {
@@ -216,21 +361,6 @@ const DashboardModule = {
         if (this._eventsBound) return;
         this._eventsBound = true;
 
-        const searchInput = document.getElementById('dashCustomerSearch');
-        if (searchInput) {
-            searchInput.addEventListener('input', NbtUtils.debounce((e) => {
-                const query = e.target.value.toLowerCase();
-                const filtered = AppState.customers.filter(c => 
-                    (c.Unvan || '').toLowerCase().includes(query)
-                );
-                this.renderCustomerList(filtered);
-            }, 300));
-        }
-
-        document.querySelector('[data-action="add-customer"]')?.addEventListener('click', () => {
-            CustomerModule.openModal();
-        });
-
         document.getElementById('dashAlarmList')?.addEventListener('click', (e) => {
             const item = e.target.closest('.list-group-item[data-alarm-type]');
             if (item) {
@@ -239,13 +369,16 @@ const DashboardModule = {
                 NbtRouter.navigate('/alarms');
             }
         });
-
-        document.getElementById('dashCustomerList')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            const link = e.target.closest('[data-customer-id]');
-            if (link) {
-                const customerId = parseInt(link.dataset.customerId);
-                NbtRouter.navigate(`/customer/${customerId}`);
+        
+        // Takvim verisi degistiginde takvimi yenile
+        window.addEventListener('calendarDataChanged', async (e) => {
+            const container = document.getElementById('dashCalendar');
+            if (container) {
+                // Eklenen/guncellenen kaydin tarihine git
+                if (e.detail?.data?.TerminTarihi) {
+                    NbtCalendar.currentDate = new Date(e.detail.data.TerminTarihi);
+                }
+                await this.loadCalendar();
             }
         });
     }
@@ -475,7 +608,7 @@ const CustomerModule = {
         }
 
         container.innerHTML = `
-            <div class="table-responsive px-2 py-2">
+            <div class="table-responsive p-2">
                 <table class="table table-bordered table-hover table-sm mb-0" id="customersTable">
                     <thead>
                         <tr>${headers}</tr>
@@ -811,7 +944,6 @@ const CustomerDetailModule = {
     customerId: null,
     activeTab: 'bilgi',
     filters: {},
-    sidebarCustomers: [],
     pageSize: window.APP_CONFIG?.PAGINATION_DEFAULT || 10,
     // Kolon filtreleri icin - her tablo icin ayri
     columnFilters: {},
@@ -905,66 +1037,9 @@ const CustomerDetailModule = {
         ]);
         
         await this.loadCustomer();
-        await this.loadSidebarCustomers();
         this.bindEvents();
         const tabToOpen = initialTab && this.tabConfig[initialTab] ? initialTab : 'bilgi';
         this.switchTab(tabToOpen);
-    },
-
-    async loadSidebarCustomers() {
-        const container = document.getElementById('sidebarCustomerList');
-        if (!container) return;
-        
-        try {
-            let customers = AppState.customers;
-            if (!customers || customers.length === 0) {
-                const response = await NbtApi.get('/api/customers');
-                customers = response.data || [];
-                AppState.customers = customers;
-            }
-            
-            this.sidebarCustomers = customers;
-            this.renderSidebarCustomers();
-        } catch (err) {
-            container.innerHTML = `<div class="text-danger text-center py-2">Hata: ${err.message}</div>`;
-        }
-    },
-
-    renderSidebarCustomers(filter = '') {
-        const container = document.getElementById('sidebarCustomerList');
-        if (!container) return;
-        
-        let filtered = this.sidebarCustomers;
-        if (filter) {
-            const lowerFilter = filter.toLowerCase();
-            filtered = this.sidebarCustomers.filter(c => 
-                (c.Unvan || '').toLowerCase().includes(lowerFilter) ||
-                (c.MusteriKodu || '').toLowerCase().includes(lowerFilter) ||
-                (c.VergiNo || '').toLowerCase().includes(lowerFilter)
-            );
-        }
-        
-        if (filtered.length === 0) {
-            container.innerHTML = `<div class="text-muted text-center py-3"><i class="bi bi-inbox me-1"></i>Müşteri bulunamadı</div>`;
-            return;
-        }
-        
-        container.innerHTML = filtered.map(c => {
-            const isActive = parseInt(c.Id, 10) === this.customerId;
-            const musteriKodu = c.MusteriKodu || `MÜŞ-${String(c.Id).padStart(5, '0')}`;
-            return `
-            <a href="/customer/${c.Id}" 
-               class="list-group-item list-group-item-action py-2 px-3 ${isActive ? 'active' : ''}"
-               style="cursor:pointer;">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="text-truncate" style="max-width: calc(100% - 20px);">
-                        <div class="fw-semibold text-truncate">${NbtUtils.escapeHtml(musteriKodu)} - ${NbtUtils.escapeHtml(c.Unvan || '—')}</div>
-                        ${c.Aciklama ? `<small class="${isActive ? 'text-white-50' : 'text-muted'} d-block text-truncate">${NbtUtils.escapeHtml(c.Aciklama).substring(0, 40)}</small>` : ''}
-                    </div>
-                    <i class="bi bi-chevron-right flex-shrink-0"></i>
-                </div>
-            </a>`;
-        }).join('');
     },
 
     async loadCustomer() {
@@ -1049,17 +1124,6 @@ const CustomerDetailModule = {
 
         document.getElementById('btnEditCustomer')?.addEventListener('click', () => {
             CustomerModule.openModal(this.customerId);
-        });
-
-        const sidebarSearch = document.getElementById('sidebarCustomerSearch');
-        if (sidebarSearch) {
-            sidebarSearch.addEventListener('input', (e) => {
-                this.renderSidebarCustomers(e.target.value);
-            });
-        }
-        
-        document.querySelector('#view-customer-detail [data-action="add-customer"]')?.addEventListener('click', () => {
-            CustomerModule.openModal(null);
         });
     },
 
@@ -1226,7 +1290,7 @@ const CustomerDetailModule = {
 
         if (!data || !data.length) {
             return `
-                <div class="table-responsive px-2 py-2">
+                <div class="table-responsive p-2">
                     <table class="table table-bordered table-hover table-sm mb-0" id="table_${id}">
                         <thead>
                             <tr>${headers}</tr>
@@ -1299,7 +1363,7 @@ const CustomerDetailModule = {
             : this.renderPagination(id, currentPage, totalPages, totalItems, startIndex, endIndex);
 
         return `
-            <div class="table-responsive px-2 py-2">
+            <div class="table-responsive p-2">
                 <table class="table table-bordered table-hover table-sm mb-0" id="table_${id}">
                     <thead>
                         <tr>${headers}</tr>
@@ -1621,6 +1685,9 @@ const CustomerDetailModule = {
             const yilGruplari = {};
             let toplamFatura = 0;
             
+            // Doviz bazli toplamlar
+            const dovizToplamlar = {};
+            
             data.forEach(item => {
                 const yil = item.Yil;
                 if (!yilGruplari[yil]) {
@@ -1628,6 +1695,15 @@ const CustomerDetailModule = {
                 }
                 yilGruplari[yil].push(item);
                 toplamFatura += parseInt(item.FaturaAdedi) || 0;
+                
+                // Doviz bazli toplam hesapla
+                const doviz = item.DovizCinsi || 'TL';
+                if (!dovizToplamlar[doviz]) {
+                    dovizToplamlar[doviz] = { tutar: 0, odenen: 0, kalan: 0 };
+                }
+                dovizToplamlar[doviz].tutar += parseFloat(item.ToplamTutar) || 0;
+                dovizToplamlar[doviz].odenen += parseFloat(item.ToplamOdenen) || 0;
+                dovizToplamlar[doviz].kalan += parseFloat(item.ToplamKalan) || 0;
             });
             
             if (badge) badge.textContent = `${toplamFatura} Fatura`;
@@ -1680,6 +1756,32 @@ const CustomerDetailModule = {
                             </td>
                         </tr>`;
                 });
+            });
+            
+            // Toplam satirlari ekle - her doviz icin ayri
+            const dovizler = Object.keys(dovizToplamlar).sort();
+            dovizler.forEach((doviz, idx) => {
+                const t = dovizToplamlar[doviz];
+                const dovizSimge = this.getDovizSimge(doviz);
+                
+                html += `
+                    <tr class="table-secondary">
+                        ${idx === 0 ? `<td class="px-3 fw-bold align-middle" rowspan="${dovizler.length}">
+                            <span class="badge bg-primary">TOPLAM</span>
+                        </td>` : ''}
+                        <td class="text-end px-3">
+                            <span class="fw-bold">${NbtUtils.formatNumber(t.tutar)}</span>
+                            <span class="ms-1">${dovizSimge}</span>
+                        </td>
+                        <td class="text-end px-3 text-success">
+                            <span class="fw-bold">${NbtUtils.formatNumber(t.odenen)}</span>
+                            <span class="ms-1">${dovizSimge}</span>
+                        </td>
+                        <td class="text-end px-3 ${t.kalan > 0 ? 'text-danger' : 'text-success'}">
+                            <span class="fw-bold">${NbtUtils.formatNumber(t.kalan)}</span>
+                            <span class="ms-1">${dovizSimge}</span>
+                        </td>
+                    </tr>`;
             });
             
             html += `
@@ -1791,10 +1893,10 @@ const CustomerDetailModule = {
             ],
             columns: [
                 { field: 'ProjeAdi', label: 'Proje' },
+                { field: 'TeklifTarihi', label: 'Teklif Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Konu', label: 'Konu' },
                 { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
-                { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
-                { field: 'TeklifTarihi', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'ParaBirimi', label: 'Döviz Cinsi', render: v => v || 'TL' },
                 { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'offer'), statusType: 'teklif' }
             ],
             data: this.data.offers
@@ -3187,7 +3289,7 @@ const InvoiceModule = {
         }
 
         container.innerHTML = `
-            <div class="table-responsive px-2 py-2">
+            <div class="table-responsive p-2">
                 <table class="table table-bordered table-hover table-sm mb-0" id="invoicesTable">
                     <thead>
                         <tr>${headers}</tr>
@@ -3389,22 +3491,14 @@ const InvoiceModule = {
         const tevkifatAktifEl = document.getElementById('invoiceTevkifatAktif');
         const tevkifatOran1El = document.getElementById('invoiceTevkifatOran1');
         const tevkifatOran2El = document.getElementById('invoiceTevkifatOran2');
-        const takvimAktifEl = document.getElementById('invoiceTakvimAktif');
-        const takvimSureEl = document.getElementById('invoiceTakvimSure');
-        const takvimSureTipiEl = document.getElementById('invoiceTakvimSureTipi');
         const tevkifatAlani = document.getElementById('tevkifatAlani');
-        const takvimAlani = document.getElementById('takvimAlani');
 
         if (faturaNoEl) faturaNoEl.value = '';
         if (supheliEl) supheliEl.checked = false;
         if (tevkifatAktifEl) tevkifatAktifEl.checked = false;
         if (tevkifatOran1El) tevkifatOran1El.value = '';
         if (tevkifatOran2El) tevkifatOran2El.value = '';
-        if (takvimAktifEl) takvimAktifEl.checked = false;
-        if (takvimSureEl) takvimSureEl.value = '';
-        if (takvimSureTipiEl) takvimSureTipiEl.value = 'gun';
         if (tevkifatAlani) tevkifatAlani.style.display = 'none';
-        if (takvimAlani) takvimAlani.style.display = 'none';
 
         // Fatura kalemlerini sifirla
         this.resetInvoiceItems();
@@ -3457,12 +3551,6 @@ const InvoiceModule = {
                     if (tevkifatAlani) tevkifatAlani.style.display = 'block';
                     if (tevkifatOran1El) tevkifatOran1El.value = NbtUtils.formatDecimal(invoice.TevkifatOran1) || '';
                     if (tevkifatOran2El) tevkifatOran2El.value = NbtUtils.formatDecimal(invoice.TevkifatOran2) || '';
-                }
-                if (parseInt(invoice.TakvimAktif, 10) === 1) {
-                    if (takvimAktifEl) takvimAktifEl.checked = true;
-                    if (takvimAlani) takvimAlani.style.display = 'block';
-                    if (takvimSureEl) takvimSureEl.value = invoice.TakvimSure || '';
-                    if (takvimSureTipiEl) takvimSureTipiEl.value = invoice.TakvimSureTipi || 'gun';
                 }
 
                 // Fatura kalemlerini API'den yukle (her zaman guncel veri icin)
@@ -3522,9 +3610,6 @@ const InvoiceModule = {
             TevkifatAktif: document.getElementById('invoiceTevkifatAktif')?.checked ? 1 : 0,
             TevkifatOran1: parseFloat(document.getElementById('invoiceTevkifatOran1')?.value) || null,
             TevkifatOran2: parseFloat(document.getElementById('invoiceTevkifatOran2')?.value) || null,
-            TakvimAktif: document.getElementById('invoiceTakvimAktif')?.checked ? 1 : 0,
-            TakvimSure: parseInt(document.getElementById('invoiceTakvimSure')?.value) || null,
-            TakvimSureTipi: document.getElementById('invoiceTakvimSureTipi')?.value || null,
             Kalemler: this.getInvoiceItems()
         };
 
@@ -3551,12 +3636,6 @@ const InvoiceModule = {
         }
         if (!data.Kalemler || data.Kalemler.length === 0) {
             NbtModal.showError('invoiceModal', 'En az bir fatura kalemi eklemelisiniz');
-            return;
-        }
-        // Takvim aktifse sure zorunlu
-        if (data.TakvimAktif && (!data.TakvimSure || data.TakvimSure <= 0)) {
-            NbtModal.showFieldError('invoiceModal', 'invoiceTakvimSure', 'Takvim süresi zorunludur');
-            NbtModal.showError('invoiceModal', 'Takvim hatırlatması için süre giriniz');
             return;
         }
 
@@ -3828,23 +3907,6 @@ const InvoiceModule = {
             fileInput.addEventListener('change', () => this.handleFileSelect(fileInput));
         }
 
-        // Takvim hatirlatma alanini checkbox ile ac/kapa
-        const takvimAktifEl = document.getElementById('invoiceTakvimAktif');
-        const takvimAlani = document.getElementById('takvimAlani');
-        const takvimSureEl = document.getElementById('invoiceTakvimSure');
-        const takvimSureTipiEl = document.getElementById('invoiceTakvimSureTipi');
-        if (takvimAktifEl && takvimAlani) {
-            takvimAktifEl.addEventListener('change', () => {
-                const aktif = takvimAktifEl.checked;
-                takvimAlani.style.display = aktif ? 'block' : 'none';
-                if (!aktif) {
-                    if (takvimSureEl) takvimSureEl.value = '';
-                    if (takvimSureTipiEl) takvimSureTipiEl.value = 'gun';
-                } else if (takvimSureEl && !takvimSureEl.value) {
-                    takvimSureEl.focus({ preventScroll: true });
-                }
-            });
-        }
     }
 };
 
@@ -4070,7 +4132,7 @@ const PaymentModule = {
         }
 
         container.innerHTML = `
-            <div class="table-responsive px-2 py-2">
+            <div class="table-responsive p-2">
                 <table class="table table-bordered table-hover table-sm mb-0" id="paymentsTable">
                     <thead>
                         <tr>${headers}</tr>
@@ -4650,6 +4712,24 @@ const CalendarTabModule = {
             NbtModal.close('calendarModal');
             await CustomerDetailModule.loadRelatedData('calendars', '/api/takvim');
             CustomerDetailModule.switchTab('takvim');
+            
+            // Takvim verisi degisti - global state'i guncelle
+            AppState.calendarNeedsRefresh = true;
+            AppState.lastCalendarEventDate = data.TerminTarihi; // Hedef tarihi sakla
+            
+            // Dashboard takvimini yenile (varsa, ayni sayfadaysa)
+            const dashCalendarContainer = document.getElementById('dashCalendar');
+            if (typeof NbtCalendar !== 'undefined' && dashCalendarContainer) {
+                // Eklenen kaydin termin tarihine gore NbtCalendar tarihini guncelle
+                if (data.TerminTarihi) {
+                    NbtCalendar.currentDate = new Date(data.TerminTarihi);
+                }
+                await NbtCalendar.loadEvents(null, NbtCalendar.currentDate.getMonth() + 1, NbtCalendar.currentDate.getFullYear());
+                NbtCalendar.render(dashCalendarContainer, { events: NbtCalendar.events });
+            }
+            
+            // Custom event dispatch et - diger moduller dinleyebilir
+            window.dispatchEvent(new CustomEvent('calendarDataChanged', { detail: { action: id ? 'update' : 'create', data: data } }));
         } catch (err) {
             NbtModal.showError('calendarModal', err.message);
         } finally {
@@ -5371,7 +5451,7 @@ const ProjectModule = {
         }
 
         container.innerHTML = `
-            <div class="table-responsive px-2 py-2">
+            <div class="table-responsive p-2">
                 <table class="table table-bordered table-hover table-sm mb-0" id="projectsTable">
                     <thead>
                         <tr>${headers}</tr>
@@ -5651,22 +5731,38 @@ const ProjectModule = {
 // LOG MODULU
 // =============================================
 const LogModule = {
+    _eventsBound: false,
     data: [],
+    pageSize: window.APP_CONFIG?.PAGINATION_DEFAULT || 10,
+    currentPage: 1,
+    paginationInfo: null,
+    columnFilters: {},
+    // Filtre icin ek property'ler
+    allData: null,
+    allDataLoading: false,
+    filteredPage: 1,
+    filteredPaginationInfo: null,
+    // Cift tiklama icin
     lastClickTime: 0,
     lastClickedRow: null,
 
     async init() {
+        this.pageSize = NbtParams.getPaginationDefault();
         await this.loadList();
         this.initToolbar();
         this.bindEvents();
     },
 
-    async loadList() {
+    async loadList(page = 1) {
         const container = document.getElementById('logsTableContainer');
-        if (!container) return; // Standalone sayfa degilse cik
+        if (!container) return;
         try {
-            const response = await NbtApi.get('/api/logs');
+            container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
+            const response = await NbtApi.get(`/api/logs?page=${page}&limit=${this.pageSize}`);
             this.data = response.data || [];
+            this.paginationInfo = response.pagination || null;
+            this.currentPage = page;
+            this.filteredPaginationInfo = null;
             this.renderTable(this.data);
         } catch (err) {
             container.innerHTML = `<div class="alert alert-danger m-3">${err.message}</div>`;
@@ -5676,30 +5772,350 @@ const LogModule = {
     initToolbar() {
         const toolbarContainer = document.getElementById('logsToolbar');
         if (!toolbarContainer || toolbarContainer.children.length > 0) return;
-        if (toolbarContainer.children.length > 0) return;
         
         toolbarContainer.innerHTML = NbtListToolbar.create({
-            placeholder: 'Log ara...',
-            onAdd: false
+            onSearch: false,
+            onAdd: false,
+            onFilter: false
         });
 
         const panel = document.getElementById('panelLogs');
         NbtListToolbar.bind(toolbarContainer, {
-            onSearch: (query) => {
-                const filtered = this.data.filter(item => 
-                    (item.Islem || '').toLowerCase().includes(query.toLowerCase()) ||
-                    (item.Tablo || '').toLowerCase().includes(query.toLowerCase()) ||
-                    (item.KullaniciAdi || '').toLowerCase().includes(query.toLowerCase())
-                );
-                this.renderTable(filtered);
-            },
             panelElement: panel
         });
     },
 
+    async applyFilters(page = 1) {
+        const hasFilters = Object.keys(this.columnFilters).length > 0;
+        if (!hasFilters) {
+            this.allData = null;
+            this.filteredPaginationInfo = null;
+            this.loadList(1);
+            return;
+        }
+        
+        // Tum verileri yukle
+        if (!this.allData && !this.allDataLoading) {
+            this.allDataLoading = true;
+            const container = document.getElementById('logsTableContainer');
+            if (container) {
+                container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> <small class="text-muted ms-2">Arama yapılıyor...</small></div>';
+            }
+            try {
+                const response = await NbtApi.get('/api/logs?page=1&limit=10000');
+                this.allData = response.data || [];
+            } catch (err) {
+                this.allData = this.data || [];
+            }
+            this.allDataLoading = false;
+        }
+        
+        if (this.allDataLoading) {
+            setTimeout(() => this.applyFilters(page), 100);
+            return;
+        }
+        
+        let filtered = this.allData || [];
+        
+        // Kolon filtreleri
+        Object.keys(this.columnFilters).forEach(field => {
+            const value = this.columnFilters[field];
+            if (!value) return;
+            
+            // Tarih araligi baslangic filtresi
+            if (field.endsWith('_start')) {
+                const baseField = field.replace('_start', '');
+                filtered = filtered.filter(item => {
+                    let cellValue = item[baseField];
+                    if (!cellValue) return false;
+                    const cellDate = NbtUtils.formatDateForCompare(cellValue);
+                    return cellDate >= value;
+                });
+                return;
+            }
+            
+            // Tarih araligi bitis filtresi
+            if (field.endsWith('_end')) {
+                const baseField = field.replace('_end', '');
+                filtered = filtered.filter(item => {
+                    let cellValue = item[baseField];
+                    if (!cellValue) return false;
+                    const cellDate = NbtUtils.formatDateForCompare(cellValue);
+                    return cellDate <= value;
+                });
+                return;
+            }
+            
+            // Islem alani icin exact match
+            if (field === 'Islem') {
+                filtered = filtered.filter(item => {
+                    const cellValue = String(item[field] ?? '');
+                    return cellValue === value;
+                });
+                return;
+            }
+            
+            // Normal alanlar icin filtre
+            filtered = filtered.filter(item => {
+                let cellValue = item[field];
+                return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
+            });
+        });
+        
+        this.filteredPage = page;
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / this.pageSize);
+        const startIndex = (page - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, total);
+        const pageData = filtered.slice(startIndex, endIndex);
+        
+        this.filteredPaginationInfo = { page, limit: this.pageSize, total, totalPages };
+        this.renderTable(pageData, true);
+    },
+
+    renderTable(data, isFiltered = false) {
+        const container = document.getElementById('logsTableContainer');
+        if (!container) return;
+        
+        const columns = [
+            { field: 'EklemeZamani', label: 'Zaman', render: v => NbtUtils.formatDate(v, 'long'), isDate: true },
+            { field: 'KullaniciAdi', label: 'Kullanıcı' },
+            { field: 'Islem', label: 'İşlem', render: v => {
+                const colors = { INSERT: 'success', UPDATE: 'warning', DELETE: 'danger', SELECT: 'info', login: 'primary' };
+                return `<span class="badge bg-${colors[v] || 'secondary'}">${v}</span>`;
+            }, isSelect: true },
+            { field: 'Tablo', label: 'Tablo' },
+            { field: 'YeniDeger', label: 'Detay', render: v => {
+                if (!v) return '-';
+                const text = typeof v === 'object' ? JSON.stringify(v) : v;
+                const display = String(text).length > 40 ? String(text).substring(0, 40) + '...' : text;
+                return `<small class="text-muted" title="Detay için çift tıklayın">${NbtUtils.escapeHtml(display)}</small>`;
+            }}
+        ];
+
+        const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
+            '<th class="bg-light text-center px-3" style="width:80px;">İncele</th>';
+
+        // Filter row
+        const filterRow = columns.map(c => {
+            const currentValue = this.columnFilters[c.field] || '';
+            const startValue = this.columnFilters[c.field + '_start'] || '';
+            const endValue = this.columnFilters[c.field + '_end'] || '';
+            
+            // Tarih alanlari icin cift date input
+            if (c.isDate) {
+                return `<th class="p-1" style="min-width:200px;">
+                    <div class="d-flex gap-1">
+                        <input type="date" class="form-control form-control-sm" data-column-filter="${c.field}_start" data-table-id="logs" value="${NbtUtils.escapeHtml(startValue)}" title="Başlangıç">
+                        <input type="date" class="form-control form-control-sm" data-column-filter="${c.field}_end" data-table-id="logs" value="${NbtUtils.escapeHtml(endValue)}" title="Bitiş">
+                    </div>
+                </th>`;
+            }
+            
+            // Islem alani icin select
+            if (c.field === 'Islem') {
+                return `<th class="p-1">
+                    <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="logs">
+                        <option value="">Tümü</option>
+                        <option value="INSERT" ${currentValue === 'INSERT' ? 'selected' : ''}>INSERT</option>
+                        <option value="UPDATE" ${currentValue === 'UPDATE' ? 'selected' : ''}>UPDATE</option>
+                        <option value="DELETE" ${currentValue === 'DELETE' ? 'selected' : ''}>DELETE</option>
+                        <option value="SELECT" ${currentValue === 'SELECT' ? 'selected' : ''}>SELECT</option>
+                        <option value="login" ${currentValue === 'login' ? 'selected' : ''}>login</option>
+                    </select>
+                </th>`;
+            }
+            
+            // Detay alani icin arama yok
+            if (c.field === 'YeniDeger') {
+                return `<th class="p-1"><span class="text-muted small">-</span></th>`;
+            }
+            
+            return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="logs" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+        }).join('') + `<th class="p-1 text-center">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="apply-filters" title="Ara"><i class="bi bi-search"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="clear-filters" title="Filtreleri Temizle"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </th>`;
+
+        let rowsHtml = '';
+        if (!data || data.length === 0) {
+            rowsHtml = `<tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Log kaydı bulunamadı</td></tr>`;
+        } else {
+            rowsHtml = data.map(row => {
+                const cells = columns.map(c => {
+                    let val = row[c.field];
+                    if (c.render) val = c.render(val, row);
+                    return `<td data-field="${c.field}" class="px-3">${val ?? '-'}</td>`;
+                }).join('');
+                
+                return `
+                    <tr data-id="${row.Id}">
+                        ${cells}
+                        <td class="text-center px-3">
+                            <button class="btn btn-sm btn-outline-info" data-action="inspect" data-log-id="${row.Id}" title="JSON Görüntüle"><i class="bi bi-code-slash"></i></button>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        container.innerHTML = `
+            <div class="table-responsive p-2">
+                <table class="table table-bordered table-hover table-sm mb-0" id="logsTable">
+                    <thead>
+                        <tr>${headers}</tr>
+                        <tr class="bg-white">${filterRow}</tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>`;
+
+        if (isFiltered && this.filteredPaginationInfo) {
+            const { page, totalPages, total } = this.filteredPaginationInfo;
+            if (totalPages > 1) {
+                container.innerHTML += this.renderFilteredPagination();
+            } else if (total > 0) {
+                container.innerHTML += `<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"><small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${total} kayıt gösteriliyor</small></div>`;
+            }
+        } else if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
+            container.innerHTML += this.renderPagination();
+        }
+
+        this.bindTableEvents(container);
+    },
+
+    bindTableEvents(container) {
+        // Inspect butonlari
+        container.querySelectorAll('[data-action="inspect"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const logId = btn.dataset.logId;
+                const logItem = (this.allData || this.data).find(d => String(d.Id) === logId);
+                if (logItem && logItem.YeniDeger) {
+                    this.showInspectModal(logItem.YeniDeger);
+                }
+            });
+        });
+
+        // Pagination
+        container.querySelectorAll('[data-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.page);
+                if (!isNaN(newPage) && newPage !== this.currentPage) {
+                    this.loadList(newPage);
+                }
+            });
+        });
+
+        // Filtered pagination
+        container.querySelectorAll('[data-filtered-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.filteredPage);
+                if (!isNaN(newPage) && newPage !== this.filteredPage) {
+                    this.applyFilters(newPage);
+                }
+            });
+        });
+
+        // Apply filters button
+        container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    const field = input.dataset.columnFilter;
+                    const value = input.value.trim();
+                    if (value) this.columnFilters[field] = value;
+                });
+                this.applyFilters();
+            });
+        });
+
+        // Enter key for filters
+        container.querySelectorAll('[data-column-filter]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    container.querySelector('[data-action="apply-filters"]')?.click();
+                }
+            });
+        });
+
+        // Clear filters button
+        container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                this.allData = null;
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    input.value = '';
+                });
+                this.loadList(1);
+            });
+        });
+    },
+
+    renderPagination() {
+        if (!this.paginationInfo) return '';
+        const { page, totalPages, total, limit } = this.paginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light" id="logsPagination">
+                <small class="text-muted">Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
+    },
+
+    renderFilteredPagination() {
+        if (!this.filteredPaginationInfo) return '';
+        const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-filtered-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+                <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
+    },
+
     // Satira cift tiklama event binding kodu
     bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
+        
         const container = document.getElementById('logsTableContainer');
+        if (!container) return;
+        
         container.addEventListener('click', (e) => {
             const row = e.target.closest('tr[data-id]');
             if (!row) return;
@@ -5721,7 +6137,7 @@ const LogModule = {
 
     // Detayi yeni sekmede JSON olarak acma kodu
     openDetailInNewTab(id) {
-        const log = this.data.find(item => String(item.Id) === String(id));
+        const log = (this.allData || this.data).find(item => String(item.Id) === String(id));
         if (!log) return;
         
         let detailData = log.YeniDeger;
@@ -5815,45 +6231,6 @@ const LogModule = {
             return '<span class="' + cls + '">' + match + '</span>';
         });
     },
-
-    renderTable(data) {
-        const container = document.getElementById('logsTableContainer');
-        const columns = [
-            { field: 'EklemeZamani', label: 'Zaman', render: v => NbtUtils.formatDate(v, 'long') },
-            { field: 'KullaniciAdi', label: 'Kullanıcı' },
-            { field: 'Islem', label: 'İşlem', render: v => {
-                const colors = { INSERT: 'success', UPDATE: 'warning', DELETE: 'danger', SELECT: 'info', login: 'primary' };
-                return `<span class="badge bg-${colors[v] || 'secondary'}">${v}</span>`;
-            }},
-            { field: 'Tablo', label: 'Tablo' },
-            { field: 'YeniDeger', label: 'Detay', render: v => {
-                if (!v) return '-';
-                const text = typeof v === 'object' ? JSON.stringify(v) : v;
-                const display = String(text).length > 50 ? String(text).substring(0, 50) + '...' : text;
-                return `<small class="text-muted" title="Detay için çift tıklayın">${NbtUtils.escapeHtml(display)}</small>`;
-            }},
-            { field: 'YeniDeger', label: 'İncele', render: (v, row) => {
-                if (!v) return '-';
-                return `<button class="btn btn-sm btn-outline-info" data-action="inspect" data-log-id="${row.Id}" title="JSON Görüntüle"><i class="bi bi-code-slash"></i></button>`;
-            }}
-        ];
-
-        container.innerHTML = NbtDataTable.create(columns, data, {
-            actions: false,
-            emptyMessage: 'Log kaydı bulunamadı'
-        });
-        
-        // Inspect butonlari icin event listener
-        container.querySelectorAll('[data-action="inspect"]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const logId = btn.dataset.logId;
-                const logItem = data.find(d => String(d.Id) === logId);
-                if (logItem && logItem.YeniDeger) {
-                    this.showInspectModal(logItem.YeniDeger);
-                }
-            });
-        });
-    },
     
     showInspectModal(jsonData) {
         let parsed;
@@ -5887,18 +6264,18 @@ const ParameterModule = {
     activeGroup: 'genel',
     
     groups: {
-        'genel': { icon: 'bi-gear', label: 'Genel Ayarlar', color: 'primary' },
-        'doviz': { icon: 'bi-currency-exchange', label: 'Döviz Türleri', color: 'success' },
-        'durum_proje': { icon: 'bi-kanban', label: 'Proje Durumları', color: 'info' },
-        'durum_teklif': { icon: 'bi-file-text', label: 'Teklif Durumları', color: 'warning' },
-        'durum_sozlesme': { icon: 'bi-file-earmark-text', label: 'Sözleşme Durumları', color: 'secondary' },
-        'durum_teminat': { icon: 'bi-shield-check', label: 'Teminat Durumları', color: 'danger' }
+        'genel': { icon: 'bi-gear', label: 'Genel Ayarlar', color: 'primary', badgeId: 'paramCountGenel' },
+        'doviz': { icon: 'bi-currency-exchange', label: 'Döviz Türleri', color: 'success', badgeId: 'paramCountDoviz' },
+        'durum_proje': { icon: 'bi-kanban', label: 'Proje Durumları', color: 'info', badgeId: 'paramCountDurumProje' },
+        'durum_teklif': { icon: 'bi-file-text', label: 'Teklif Durumları', color: 'warning', badgeId: 'paramCountDurumTeklif' },
+        'durum_sozlesme': { icon: 'bi-file-earmark-text', label: 'Sözleşme Durumları', color: 'secondary', badgeId: 'paramCountDurumSozlesme' },
+        'durum_teminat': { icon: 'bi-shield-check', label: 'Teminat Durumları', color: 'danger', badgeId: 'paramCountDurumTeminat' }
     },
 
     async init() {
         await this.loadData();
-        this.renderSidebar();
-        this.renderTable();
+        this.updateTabBadges();
+        this.selectTab(this.activeGroup);
         this.bindEvents();
     },
 
@@ -5911,78 +6288,114 @@ const ParameterModule = {
         }
     },
 
-    renderSidebar() {
-        const sidebar = document.getElementById('parametersSidebar');
-        if (!sidebar) return;
-
-        let html = '<div class="list-group list-group-flush">';
-        
+    updateTabBadges() {
         Object.entries(this.groups).forEach(([key, group]) => {
-            const count = this.data[key]?.length || 0;
-            const isActive = key === this.activeGroup;
-            html += `
-                <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center ${isActive ? 'active' : ''}" 
-                   data-group="${key}">
-                    <span><i class="bi ${group.icon} me-2"></i>${group.label}</span>
-                    <span class="badge bg-${group.color} rounded-pill">${count}</span>
-                </a>
-            `;
-        });
-        
-        html += '</div>';
-        sidebar.innerHTML = html;
-
-        // Sidebar click events
-        sidebar.querySelectorAll('[data-group]').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                sidebar.querySelectorAll('.list-group-item').forEach(i => i.classList.remove('active'));
-                item.classList.add('active');
-                this.activeGroup = item.dataset.group;
-                this.renderTable();
-            });
+            const badgeEl = document.getElementById(group.badgeId);
+            if (badgeEl) {
+                const count = this.data[key]?.length || 0;
+                badgeEl.textContent = count;
+            }
         });
     },
 
-    renderTable() {
-        const container = document.getElementById('parametersTableContainer');
-        const titleEl = document.getElementById('parametersTableTitle');
-        const addBtn = document.getElementById('btnAddParameter');
+    selectTab(tab) {
+        this.activeGroup = tab;
+        
+        // Tab butonlarini guncelle
+        document.querySelectorAll('#parametersTabs .nav-link').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.paramTab === tab);
+        });
+
+        // Icerik render
+        this.renderTabContent();
+    },
+
+    renderTabContent() {
+        const container = document.getElementById('parametersTabContent');
         if (!container) return;
 
         const group = this.groups[this.activeGroup];
         const items = this.data[this.activeGroup] || [];
-        
-        titleEl.innerHTML = `<i class="bi ${group.icon} me-2"></i>${group.label}`;
-        
-        // Yeni ekleme butonu durum ve doviz gruplarinda gorunur (genel haric)
-        if (this.activeGroup.startsWith('durum_') || this.activeGroup === 'doviz') {
-            addBtn.style.display = 'inline-block';
-        } else {
-            addBtn.style.display = 'none';
-        }
+
+        // Card yapisi ile panel olustur
+        let html = `
+            <div class="card shadow-sm">
+                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold">
+                        <i class="bi ${group.icon} me-2 text-${group.color}"></i>${group.label}
+                    </span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-${group.color}">${items.length} kayıt</span>
+                        ${(this.activeGroup.startsWith('durum_') || this.activeGroup === 'doviz') ? 
+                            `<button class="btn btn-sm btn-${group.color}" id="btnAddParameter">
+                                <i class="bi bi-plus-lg me-1"></i>Yeni Ekle
+                            </button>` : ''}
+                    </div>
+                </div>
+                <div class="card-body p-0">`;
 
         if (items.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-5 text-muted">
-                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                    Bu grupta parametre bulunamadı
+            html += `
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                    <p class="mb-0 fw-medium">Bu grupta parametre bulunamadı</p>
                 </div>`;
-            return;
+        } else {
+            // Gruba gore farkli render
+            if (this.activeGroup === 'genel') {
+                html += this.renderGeneralContent(items);
+            } else if (this.activeGroup === 'doviz') {
+                html += this.renderCurrencyContent(items);
+            } else {
+                html += this.renderStatusContent(items);
+            }
         }
 
-        // Gruba gore farkli render
+        html += '</div></div>';
+        container.innerHTML = html;
+        this.bindTableEvents(container);
+        
+        // Genel grup icin hatirlatma eventleri
         if (this.activeGroup === 'genel') {
-            this.renderGeneralTable(container, items);
-        } else if (this.activeGroup === 'doviz') {
-            this.renderCurrencyTable(container, items);
-        } else {
-            this.renderStatusTable(container, items);
+            this.bindHatirlatmaEvents(container);
+        }
+        
+        // Yeni ekle butonu event
+        const addBtn = container.querySelector('#btnAddParameter');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => this.openModal());
         }
     },
 
-    // Genel ayarlar tablosu (pagination vb.)
-    renderGeneralTable(container, items) {
+    // Eski renderSidebar yerine bos birak (geriye uyumluluk)
+    renderSidebar() {
+        // Artik kullanilmiyor - tab yapisi ile degistirildi
+    },
+
+    // Eski renderTable yerine renderTabContent kullaniliyor
+    renderTable() {
+        this.renderTabContent();
+    },
+
+    // Genel ayarlar icerigi (string dondurur)
+    renderGeneralContent(items) {
+        // Hatirlatma parametrelerini grupla
+        const hatirlatmaGunleri = {};
+        const hatirlatmaAktifler = {};
+        const digerItems = [];
+        
+        items.forEach(item => {
+            if (item.Kod.endsWith('_hatirlatma_gun') || item.Kod === 'termin_hatirlatma_gun') {
+                const key = item.Kod.replace('_hatirlatma_gun', '').replace('termin_hatirlatma_gun', 'termin');
+                hatirlatmaGunleri[key] = item;
+            } else if (item.Kod.endsWith('_hatirlatma_aktif')) {
+                const key = item.Kod.replace('_hatirlatma_aktif', '');
+                hatirlatmaAktifler[key] = item;
+            } else {
+                digerItems.push(item);
+            }
+        });
+        
         let html = `
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -5995,7 +6408,8 @@ const ParameterModule = {
                     </thead>
                     <tbody>`;
         
-        items.forEach(item => {
+        // Diger parametreleri render et
+        digerItems.forEach(item => {
             html += `
                 <tr data-id="${item.Id}">
                     <td>
@@ -6003,12 +6417,10 @@ const ParameterModule = {
                         <small class="text-muted">${NbtUtils.escapeHtml(item.Kod)}</small>
                     </td>
                     <td>
-                        ${item.Kod === 'pagination_default' || item.Kod === 'termin_hatirlatma_gun' ? `
+                        ${item.Kod === 'pagination_default' ? `
                             <input type="number" class="form-control form-control-sm" 
                                    id="param_${item.Id}" value="${item.Deger}" 
-                                   min="${item.Kod === 'pagination_default' ? '5' : '1'}" 
-                                   max="${item.Kod === 'pagination_default' ? '100' : '999'}" 
-                                   style="width:100px;">
+                                   min="5" max="100" style="width:100px;">
                         ` : `
                             <input type="text" class="form-control form-control-sm" 
                                    id="param_${item.Id}" value="${NbtUtils.escapeHtml(item.Deger || '')}">
@@ -6021,14 +6433,91 @@ const ParameterModule = {
                     </td>
                 </tr>`;
         });
-
+        
         html += '</tbody></table></div>';
-        container.innerHTML = html;
-        this.bindTableEvents(container);
+        
+        // Hatirlatma parametreleri icin ayri bir bolum
+        if (Object.keys(hatirlatmaGunleri).length > 0) {
+            html += `
+                <div class="p-3 border-top">
+                    <h6 class="text-muted mb-3"><i class="bi bi-bell me-2"></i>Hatırlatma Ayarları</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Hatırlatma Türü</th>
+                                    <th style="width:100px;">Aktif</th>
+                                    <th style="width:150px;">Gün Öncesi</th>
+                                    <th style="width:120px;">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+            
+            // Hatirlatma satirlarini render et
+            const hatirlatmaLabels = {
+                'gorusme': { label: 'Görüşme', icon: 'bi-chat-dots' },
+                'teklif_gecerlilik': { label: 'Teklif Geçerlilik', icon: 'bi-file-text' },
+                'sozlesme': { label: 'Sözleşme', icon: 'bi-file-earmark-text' },
+                'damgavergisi': { label: 'Damga Vergisi', icon: 'bi-percent' },
+                'teminat_termin': { label: 'Teminat Termin', icon: 'bi-shield-check' },
+                'fatura': { label: 'Fatura', icon: 'bi-receipt' },
+                'odeme': { label: 'Ödeme', icon: 'bi-credit-card' },
+                'termin': { label: 'Genel Termin', icon: 'bi-calendar-event' }
+            };
+            
+            Object.entries(hatirlatmaGunleri).forEach(([key, gunItem]) => {
+                const aktifItem = hatirlatmaAktifler[key];
+                const info = hatirlatmaLabels[key] || { label: key, icon: 'bi-bell' };
+                const isAktif = aktifItem ? (aktifItem.Deger === '1' || aktifItem.Deger === 1) : true;
+                
+                html += `
+                    <tr data-gun-id="${gunItem.Id}" data-aktif-id="${aktifItem?.Id || ''}">
+                        <td>
+                            <i class="bi ${info.icon} me-2 text-primary"></i>
+                            <span class="fw-semibold">${info.label}</span>
+                        </td>
+                        <td>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input hatirlatma-aktif-toggle" type="checkbox" 
+                                       id="aktif_${key}" data-key="${key}" 
+                                       data-aktif-id="${aktifItem?.Id || ''}"
+                                       ${isAktif ? 'checked' : ''}>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="input-group input-group-sm" style="width:120px;">
+                                <input type="number" class="form-control hatirlatma-gun-input" 
+                                       id="gun_${key}" data-key="${key}"
+                                       data-gun-id="${gunItem.Id}"
+                                       value="${gunItem.Deger || 0}" 
+                                       min="0" max="365" ${!isAktif ? 'disabled' : ''}>
+                                <span class="input-group-text">gün</span>
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" data-action="save-hatirlatma" 
+                                    data-key="${key}" data-gun-id="${gunItem.Id}" 
+                                    data-aktif-id="${aktifItem?.Id || ''}">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+            
+            html += `</tbody></table></div>
+                    <div class="mt-2">
+                        <button class="btn btn-success" id="btnSaveAllHatirlatma">
+                            <i class="bi bi-check-all me-1"></i> Tümünü Kaydet
+                        </button>
+                    </div>
+                </div>`;
+        }
+        
+        return html;
     },
 
-    // Doviz tablosu (sadelestirilmis - duzenleme modaldan yapilir)
-    renderCurrencyTable(container, items) {
+    // Doviz icerigi (string dondurur)
+    renderCurrencyContent(items) {
         let html = `
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -6079,12 +6568,11 @@ const ParameterModule = {
         });
 
         html += '</tbody></table></div>';
-        container.innerHTML = html;
-        this.bindTableEvents(container);
+        return html;
     },
 
-    // Durum badge tablosu (sadelestirilmis - duzenleme modaldan yapilir)
-    renderStatusTable(container, items) {
+    // Durum icerigi (string dondurur)
+    renderStatusContent(items) {
         let html = `
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -6134,8 +6622,117 @@ const ParameterModule = {
         });
 
         html += '</tbody></table></div>';
-        container.innerHTML = html;
+        return html;
+    },
+
+    // Eski render fonksiyonlari - geriye uyumluluk icin birakiliyor (artik kullanilmiyor)
+    renderGeneralTable(container, items) {
+        container.innerHTML = this.renderGeneralContent(items);
         this.bindTableEvents(container);
+        this.bindHatirlatmaEvents(container);
+    },
+
+    renderCurrencyTable(container, items) {
+        container.innerHTML = this.renderCurrencyContent(items);
+        this.bindTableEvents(container);
+    },
+
+    renderStatusTable(container, items) {
+        container.innerHTML = this.renderStatusContent(items);
+        this.bindTableEvents(container);
+    },
+
+    // Hatirlatma toggle ve kaydetme eventleri
+    bindHatirlatmaEvents(container) {
+        // Aktif toggle - gun inputunu enable/disable et
+        container.querySelectorAll('.hatirlatma-aktif-toggle').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const key = e.target.dataset.key;
+                const gunInput = container.querySelector(`#gun_${key}`);
+                if (gunInput) {
+                    gunInput.disabled = !e.target.checked;
+                }
+            });
+        });
+        
+        // Tek hatirlatma kaydet
+        container.querySelectorAll('[data-action="save-hatirlatma"]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const key = e.target.closest('button').dataset.key;
+                await this.saveHatirlatma(key, container);
+            });
+        });
+        
+        // Tum hatirlmalari kaydet
+        const btnSaveAll = container.querySelector('#btnSaveAllHatirlatma');
+        if (btnSaveAll) {
+            btnSaveAll.addEventListener('click', async () => {
+                await this.saveAllHatirlatmalar(container);
+            });
+        }
+    },
+    
+    async saveHatirlatma(key, container) {
+        const aktifCheckbox = container.querySelector(`#aktif_${key}`);
+        const gunInput = container.querySelector(`#gun_${key}`);
+        
+        if (!gunInput) return;
+        
+        const gunId = gunInput.dataset.gunId;
+        const aktifId = aktifCheckbox?.dataset.aktifId;
+        const gunDeger = gunInput.value;
+        const aktifDeger = aktifCheckbox?.checked ? '1' : '0';
+        
+        try {
+            const payload = { degerler: [] };
+            
+            // Gun parametresini kaydet
+            if (gunId) {
+                payload.degerler.push({ id: parseInt(gunId), deger: gunDeger });
+            }
+            
+            // Aktif parametresini kaydet
+            if (aktifId) {
+                payload.degerler.push({ id: parseInt(aktifId), deger: aktifDeger });
+            }
+            
+            if (payload.degerler.length > 0) {
+                await NbtApi.put('/api/parameters/bulk', payload);
+                NbtToast.success('Hatırlatma ayarı kaydedildi');
+            }
+        } catch (err) {
+            NbtToast.error('Kaydetme hatası: ' + err.message);
+        }
+    },
+    
+    async saveAllHatirlatmalar(container) {
+        const payload = { degerler: [] };
+        
+        container.querySelectorAll('.hatirlatma-gun-input').forEach(input => {
+            const gunId = input.dataset.gunId;
+            if (gunId) {
+                payload.degerler.push({ id: parseInt(gunId), deger: input.value });
+            }
+        });
+        
+        container.querySelectorAll('.hatirlatma-aktif-toggle').forEach(checkbox => {
+            const aktifId = checkbox.dataset.aktifId;
+            if (aktifId) {
+                payload.degerler.push({ id: parseInt(aktifId), deger: checkbox.checked ? '1' : '0' });
+            }
+        });
+        
+        if (payload.degerler.length === 0) {
+            NbtToast.warning('Kaydedilecek değişiklik yok');
+            return;
+        }
+        
+        try {
+            await NbtApi.put('/api/parameters/bulk', payload);
+            NbtToast.success('Tüm hatırlatma ayarları kaydedildi');
+        } catch (err) {
+            NbtToast.error('Kaydetme hatası: ' + err.message);
+        }
     },
 
     bindTableEvents(container) {
@@ -6436,7 +7033,31 @@ const ParameterModule = {
         if (this._eventsBound) return;
         this._eventsBound = true;
         
-        document.getElementById('btnAddParameter')?.addEventListener('click', () => this.openModal());
+        // Tab tiklama
+        document.getElementById('parametersTabs')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-param-tab]');
+            if (btn) {
+                e.preventDefault();
+                this.selectTab(btn.dataset.paramTab);
+            }
+        });
+
+        // Yenile butonu
+        document.getElementById('btnRefreshParameters')?.addEventListener('click', async () => {
+            const btn = document.getElementById('btnRefreshParameters');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Yükleniyor...';
+            
+            await this.loadData();
+            this.updateTabBadges();
+            this.renderTabContent();
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Yenile';
+            NbtToast.success('Parametreler yenilendi');
+        });
+        
+        // Modal kaydetme butonlari
         document.getElementById('btnSaveCurrency')?.addEventListener('click', () => this.saveCurrency());
         document.getElementById('btnSaveStatus')?.addEventListener('click', () => this.saveStatus());
     }
@@ -6447,19 +7068,91 @@ const ParameterModule = {
 // =============================================
 const UserModule = {
     _eventsBound: false,
-    
+    data: [],
+    pageSize: window.APP_CONFIG?.PAGINATION_DEFAULT || 10,
+    currentPage: 1,
+    paginationInfo: null,
+    columnFilters: {},
+    // Filtre icin ek property'ler
+    allData: null,
+    allDataLoading: false,
+    filteredPage: 1,
+    filteredPaginationInfo: null,
+    // RBAC: Atanabilir roller cache
+    assignableRoles: null,
+
     async init() {
+        this.pageSize = NbtParams.getPaginationDefault();
         await this.loadList();
         this.initToolbar();
         this.bindEvents();
     },
 
-    async loadList() {
-        const container = document.getElementById('usersTableContainer');
-        if (!container) return; // Standalone sayfa degilse cik
+    /**
+     * Atanabilir rolleri API'den yukler
+     * Subset constraint'e gore sadece kullanicinin atayabilecegi roller doner
+     */
+    async loadAssignableRoles() {
+        if (this.assignableRoles !== null) return this.assignableRoles;
+        
         try {
-            const response = await NbtApi.get('/api/users');
+            const response = await NbtApi.get('/api/roles/assignable');
+            this.assignableRoles = response.data || [];
+            return this.assignableRoles;
+        } catch (err) {
+            NbtLogger.error('UserModule: Atanabilir roller yuklenemedi', err);
+            this.assignableRoles = [];
+            return [];
+        }
+    },
+
+    /**
+     * Kullanicinin mevcut rollerini API'den yukler
+     */
+    async loadUserRoles(userId) {
+        try {
+            const response = await NbtApi.get(`/api/users/${userId}/roles`);
+            return response.data || [];
+        } catch (err) {
+            NbtLogger.error('UserModule: Kullanici rolleri yuklenemedi', err);
+            return [];
+        }
+    },
+
+    /**
+     * Rol checkbox listesini render eder
+     */
+    renderRoleCheckboxes(assignableRoles, selectedRoleIds = []) {
+        if (!assignableRoles || assignableRoles.length === 0) {
+            return '<div class="text-muted small py-2">Atayabileceğiniz rol bulunmuyor.</div>';
+        }
+        
+        return assignableRoles.map(rol => {
+            const checked = selectedRoleIds.includes(rol.Id) ? 'checked' : '';
+            return `
+                <div class="form-check">
+                    <input class="form-check-input user-role-checkbox" type="checkbox" 
+                           value="${rol.Id}" id="userRole_${rol.Id}" ${checked}>
+                    <label class="form-check-label" for="userRole_${rol.Id}">
+                        <span class="badge bg-${rol.Seviye >= 100 ? 'danger' : rol.Seviye >= 50 ? 'warning' : 'secondary'} me-1">${rol.Seviye}</span>
+                        ${rol.RolAdi}
+                        <small class="text-muted">(${rol.RolKodu})</small>
+                    </label>
+                </div>
+            `;
+        }).join('');
+    },
+
+    async loadList(page = 1) {
+        const container = document.getElementById('usersTableContainer');
+        if (!container) return;
+        try {
+            container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
+            const response = await NbtApi.get(`/api/users?page=${page}&limit=${this.pageSize}`);
             this.data = response.data || [];
+            this.paginationInfo = response.pagination || null;
+            this.currentPage = page;
+            this.filteredPaginationInfo = null;
             this.renderTable(this.data);
         } catch (err) {
             container.innerHTML = `<div class="alert alert-danger m-3">${err.message}</div>`;
@@ -6471,71 +7164,378 @@ const UserModule = {
         if (!toolbarContainer || toolbarContainer.children.length > 0) return;
         
         toolbarContainer.innerHTML = NbtListToolbar.create({
-            placeholder: 'Kullanıcı ara...',
-            onAdd: true
+            onSearch: false,
+            onAdd: true,
+            onFilter: false
         });
 
         const panel = document.getElementById('panelUsers');
         NbtListToolbar.bind(toolbarContainer, {
-            onSearch: (query) => {
-                const filtered = this.data.filter(u => 
-                    (u.AdSoyad || '').toLowerCase().includes(query.toLowerCase()) ||
-                    (u.KullaniciAdi || '').toLowerCase().includes(query.toLowerCase())
-                );
-                this.renderTable(filtered);
-            },
             onAdd: () => this.openModal(),
             panelElement: panel
         });
     },
 
-    renderTable(data) {
+    async applyFilters(page = 1) {
+        const hasFilters = Object.keys(this.columnFilters).length > 0;
+        if (!hasFilters) {
+            this.allData = null;
+            this.filteredPaginationInfo = null;
+            this.loadList(1);
+            return;
+        }
+        
+        // Tum verileri yukle
+        if (!this.allData && !this.allDataLoading) {
+            this.allDataLoading = true;
+            const container = document.getElementById('usersTableContainer');
+            if (container) {
+                container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> <small class="text-muted ms-2">Arama yapılıyor...</small></div>';
+            }
+            try {
+                const response = await NbtApi.get('/api/users?page=1&limit=10000');
+                this.allData = response.data || [];
+            } catch (err) {
+                this.allData = this.data || [];
+            }
+            this.allDataLoading = false;
+        }
+        
+        if (this.allDataLoading) {
+            setTimeout(() => this.applyFilters(page), 100);
+            return;
+        }
+        
+        let filtered = this.allData || [];
+        
+        // Kolon filtreleri
+        Object.keys(this.columnFilters).forEach(field => {
+            const value = this.columnFilters[field];
+            if (!value) return;
+            
+            // Rol ve Aktif alani icin exact match
+            if (field === 'Rol') {
+                filtered = filtered.filter(item => {
+                    const cellValue = String(item[field] ?? '');
+                    return cellValue === value;
+                });
+                return;
+            }
+            
+            // Aktif alani icin exact match (boolean olarak)
+            if (field === 'Aktif') {
+                filtered = filtered.filter(item => {
+                    const isAktif = item[field] === true || item[field] === 1 || item[field] === '1';
+                    if (value === 'true') return isAktif;
+                    if (value === 'false') return !isAktif;
+                    return true;
+                });
+                return;
+            }
+            
+            // Normal alanlar icin filtre
+            filtered = filtered.filter(item => {
+                let cellValue = item[field];
+                return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
+            });
+        });
+        
+        this.filteredPage = page;
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / this.pageSize);
+        const startIndex = (page - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, total);
+        const pageData = filtered.slice(startIndex, endIndex);
+        
+        this.filteredPaginationInfo = { page, limit: this.pageSize, total, totalPages };
+        this.renderTable(pageData, true);
+    },
+
+    renderTable(data, isFiltered = false) {
         const container = document.getElementById('usersTableContainer');
+        if (!container) return;
+        
         const columns = [
             { field: 'AdSoyad', label: 'Ad Soyad' },
             { field: 'KullaniciAdi', label: 'Kullanıcı Adı' },
             { field: 'Rol', label: 'Rol', render: v => {
                 const roles = { superadmin: 'danger', admin: 'warning', user: 'info' };
                 return `<span class="badge bg-${roles[v] || 'secondary'}">${v}</span>`;
-            }},
+            }, isSelect: true },
             { field: 'Aktif', label: 'Durum', render: v => 
-                v ? '<span class="badge bg-success">Aktif</span>' : 
-                    '<span class="badge bg-danger">Pasif</span>'
-            }
+                (v === true || v === 1 || v === '1') ? '<span class="badge bg-success">Aktif</span>' : 
+                    '<span class="badge bg-danger">Pasif</span>',
+            isSelect: true }
         ];
 
-        container.innerHTML = NbtDataTable.create(columns, data, {
-            actions: { view: false, edit: true, delete: true },
-            emptyMessage: 'Kullanıcı bulunamadı'
+        const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
+            '<th class="bg-light text-center px-3" style="width:120px;">İşlemler</th>';
+
+        // Filter row
+        const filterRow = columns.map(c => {
+            const currentValue = this.columnFilters[c.field] || '';
+            
+            // Rol alani icin select
+            if (c.field === 'Rol') {
+                return `<th class="p-1">
+                    <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="users">
+                        <option value="">Tümü</option>
+                        <option value="superadmin" ${currentValue === 'superadmin' ? 'selected' : ''}>Super Admin</option>
+                        <option value="admin" ${currentValue === 'admin' ? 'selected' : ''}>Admin</option>
+                        <option value="user" ${currentValue === 'user' ? 'selected' : ''}>User</option>
+                    </select>
+                </th>`;
+            }
+            
+            // Aktif alani icin select
+            if (c.field === 'Aktif') {
+                return `<th class="p-1">
+                    <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="users">
+                        <option value="">Tümü</option>
+                        <option value="true" ${currentValue === 'true' ? 'selected' : ''}>Aktif</option>
+                        <option value="false" ${currentValue === 'false' ? 'selected' : ''}>Pasif</option>
+                    </select>
+                </th>`;
+            }
+            
+            return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="users" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
+        }).join('') + `<th class="p-1 text-center">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="apply-filters" title="Ara"><i class="bi bi-search"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="clear-filters" title="Filtreleri Temizle"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </th>`;
+
+        let rowsHtml = '';
+        if (!data || data.length === 0) {
+            rowsHtml = `<tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Kullanıcı bulunamadı</td></tr>`;
+        } else {
+            rowsHtml = data.map(row => {
+                const cells = columns.map(c => {
+                    let val = row[c.field];
+                    if (c.render) val = c.render(val, row);
+                    return `<td data-field="${c.field}" class="px-3">${val ?? '-'}</td>`;
+                }).join('');
+                
+                return `
+                    <tr data-id="${row.Id}">
+                        ${cells}
+                        <td class="text-center px-3">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${row.Id}" title="Düzenle"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${row.Id}" title="Sil"><i class="bi bi-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        container.innerHTML = `
+            <div class="table-responsive p-2">
+                <table class="table table-bordered table-hover table-sm mb-0" id="usersTable">
+                    <thead>
+                        <tr>${headers}</tr>
+                        <tr class="bg-white">${filterRow}</tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>`;
+
+        if (isFiltered && this.filteredPaginationInfo) {
+            const { page, totalPages, total } = this.filteredPaginationInfo;
+            if (totalPages > 1) {
+                container.innerHTML += this.renderFilteredPagination();
+            } else if (total > 0) {
+                container.innerHTML += `<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light"><small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${total} kayıt gösteriliyor</small></div>`;
+            }
+        } else if (!isFiltered && this.paginationInfo && this.paginationInfo.totalPages > 1) {
+            container.innerHTML += this.renderPagination();
+        }
+
+        this.bindTableEvents(container);
+    },
+
+    bindTableEvents(container) {
+        // Edit butonlari
+        container.querySelectorAll('[data-action="edit"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.dataset.id);
+                this.openModal(id);
+            });
         });
 
-        NbtDataTable.bind(container, {
-            onEdit: (id) => this.openModal(id),
-            onDelete: async (id) => {
-                if (!confirm('Bu kaydı silmek istediğinizden emin misiniz?')) return;
+        // Delete butonlari
+        container.querySelectorAll('[data-action="delete"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.id;
+                const result = await Swal.fire({
+                    title: 'Emin misiniz?',
+                    text: 'Bu kullanıcıyı silmek istediğinizden emin misiniz?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonText: 'İptal',
+                    confirmButtonText: 'Evet, Sil'
+                });
+                
+                if (!result.isConfirmed) return;
+                
                 try {
                     await NbtApi.delete(`/api/users/${id}`);
                     NbtToast.success('Kullanıcı silindi');
-                    await this.loadList();
+                    await this.loadList(this.currentPage);
                 } catch (err) {
                     NbtToast.error(err.message);
                 }
-            }
+            });
         });
+
+        // Pagination
+        container.querySelectorAll('[data-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.page);
+                if (!isNaN(newPage) && newPage !== this.currentPage) {
+                    this.loadList(newPage);
+                }
+            });
+        });
+
+        // Filtered pagination
+        container.querySelectorAll('[data-filtered-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const newPage = parseInt(link.dataset.filteredPage);
+                if (!isNaN(newPage) && newPage !== this.filteredPage) {
+                    this.applyFilters(newPage);
+                }
+            });
+        });
+
+        // Apply filters button
+        container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    const field = input.dataset.columnFilter;
+                    const value = input.value.trim();
+                    if (value) this.columnFilters[field] = value;
+                });
+                this.applyFilters();
+            });
+        });
+
+        // Enter key for filters
+        container.querySelectorAll('[data-column-filter]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    container.querySelector('[data-action="apply-filters"]')?.click();
+                }
+            });
+        });
+
+        // Clear filters button
+        container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.columnFilters = {};
+                this.allData = null;
+                container.querySelectorAll('[data-column-filter]').forEach(input => {
+                    input.value = '';
+                });
+                this.loadList(1);
+            });
+        });
+    },
+
+    renderPagination() {
+        if (!this.paginationInfo) return '';
+        const { page, totalPages, total, limit } = this.paginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light" id="usersPagination">
+                <small class="text-muted">Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
+    },
+
+    renderFilteredPagination() {
+        if (!this.filteredPaginationInfo) return '';
+        const { page, totalPages, total, limit } = this.filteredPaginationInfo;
+        const startIndex = (page - 1) * limit;
+        const endIndex = Math.min(startIndex + limit, total);
+
+        let pageButtons = '';
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="1"><i class="bi bi-chevron-double-left"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page - 1}"><i class="bi bi-chevron-left"></i></a></li>`;
+        
+        const startPage = Math.max(1, page - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-filtered-page="${i}">${i}</a></li>`;
+        }
+        
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${page + 1}"><i class="bi bi-chevron-right"></i></a></li>`;
+        pageButtons += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-filtered-page="${totalPages}"><i class="bi bi-chevron-double-right"></i></a></li>`;
+
+        return `
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
+                <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: Toplam ${total} kayıttan ${startIndex + 1}-${endIndex} arası gösteriliyor</small>
+                <nav><ul class="pagination pagination-sm mb-0">${pageButtons}</ul></nav>
+            </div>
+        `;
     },
 
     openModal(id = null) {
         NbtModal.resetForm('userModal');
         document.getElementById('userModalTitle').textContent = id ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı';
         document.getElementById('userId').value = id || '';
+        
+        // Rol container'ini yukleniyor durumuna al
+        const rolesContainer = document.getElementById('userRolesContainer');
+        if (rolesContainer) {
+            rolesContainer.innerHTML = '<div class="text-center text-muted py-2"><div class="spinner-border spinner-border-sm"></div> Roller yükleniyor...</div>';
+        }
 
         if (id) {
-            const user = this.data.find(u => parseInt(u.Id, 10) === id);
+            const user = (this.allData || this.data).find(u => parseInt(u.Id, 10) === id);
             if (user) {
                 document.getElementById('userAdSoyad').value = user.AdSoyad || '';
                 document.getElementById('userKullaniciAdi').value = user.KullaniciAdi || '';
-                document.getElementById('userRol').value = user.Rol || 'user';
             }
+            
+            // Kullanicinin rollerini ve atanabilir rolleri yukle
+            Promise.all([
+                this.loadAssignableRoles(),
+                this.loadUserRoles(id)
+            ]).then(([assignableRoles, userRoles]) => {
+                const selectedIds = userRoles.map(r => r.Id);
+                if (rolesContainer) {
+                    rolesContainer.innerHTML = this.renderRoleCheckboxes(assignableRoles, selectedIds);
+                }
+            });
+        } else {
+            // Yeni kullanici: sadece atanabilir rolleri yukle
+            this.loadAssignableRoles().then(assignableRoles => {
+                if (rolesContainer) {
+                    rolesContainer.innerHTML = this.renderRoleCheckboxes(assignableRoles, []);
+                }
+            });
         }
 
         NbtModal.open('userModal');
@@ -6543,9 +7543,16 @@ const UserModule = {
 
     async save() {
         const id = document.getElementById('userId').value;
+        
+        // Secili rol ID'lerini topla
+        const selectedRoleIds = [];
+        document.querySelectorAll('.user-role-checkbox:checked').forEach(cb => {
+            selectedRoleIds.push(parseInt(cb.value, 10));
+        });
+        
         const data = {
             AdSoyad: document.getElementById('userAdSoyad').value.trim(),
-            Rol: document.getElementById('userRol').value
+            RolIdler: selectedRoleIds // Yeni RBAC: rol ID listesi
         };
         
         const sifre = document.getElementById('userSifre').value;
@@ -6579,14 +7586,19 @@ const UserModule = {
         NbtModal.setLoading('userModal', true);
         try {
             if (id) {
+                // Kullaniciyi guncelle
                 await NbtApi.put(`/api/users/${id}`, data);
+                
+                // Rolleri ayri endpoint ile guncelle
+                await NbtApi.post(`/api/users/${id}/roles`, { RolIdler: selectedRoleIds });
+                
                 NbtToast.success('Kullanıcı güncellendi');
             } else {
                 await NbtApi.post('/api/users', data);
                 NbtToast.success('Kullanıcı eklendi');
             }
             NbtModal.close('userModal');
-            await this.loadList();
+            await this.loadList(this.currentPage);
         } catch (err) {
             NbtModal.showError('userModal', err.message);
         } finally {
@@ -6686,12 +7698,13 @@ const MyAccountModule = {
 const AlarmsModule = {
     _eventsBound: false,
     alarms: [],
-    selectedType: 'invoice', // invoice, calendar, guarantee, contract
+    selectedTab: 'invoice', // invoice, calendar, guarantee, offer
 
     async init() {
         await this.loadAlarms();
-        this.renderSidebar();
-        this.selectType(this.selectedType);
+        this.updateTabBadges();
+        this.updateSummary();
+        this.selectTab(this.selectedTab);
         this.bindEvents();
     },
 
@@ -6706,10 +7719,10 @@ const AlarmsModule = {
 
     getGroupedAlarms() {
         const grouped = {
-            invoice: { label: 'Ödenmemiş Faturalar', icon: 'bi-receipt', color: 'danger', items: [], count: 0 },
-            calendar: { label: 'Takvim Kayıtları', icon: 'bi-calendar-event', color: 'warning', items: [], count: 0 },
-            guarantee: { label: 'Termin Tarihi Geçen Teminatlar', icon: 'bi-shield-check', color: 'info', items: [], count: 0 },
-            contract: { label: 'Sözleşme Bitişleri', icon: 'bi-file-earmark-text', color: 'primary', items: [], count: 0 }
+            invoice: { label: 'Ödenmemiş Faturalar', icon: 'bi-receipt', color: 'danger', items: [], count: 0, total: 0, totalByCurrency: {} },
+            calendar: { label: 'Yaklaşan Takvim İşleri', icon: 'bi-calendar-event', color: 'warning', items: [], count: 0 },
+            guarantee: { label: 'Termin Tarihi Geçen Teminatlar', icon: 'bi-shield-check', color: 'info', items: [], count: 0, total: 0, totalByCurrency: {} },
+            offer: { label: 'Geçerliliği Dolan Teklifler', icon: 'bi-file-earmark-text', color: 'primary', items: [], count: 0 }
         };
 
         // API'dan gelen her alarm bir kategoriye ait ve icinde items dizisi var
@@ -6717,128 +7730,260 @@ const AlarmsModule = {
             if (grouped[alarm.type]) {
                 grouped[alarm.type].items = alarm.items || [];
                 grouped[alarm.type].count = alarm.count || 0;
+                // Toplam bilgilerini de aktar
+                if (alarm.total !== undefined) {
+                    grouped[alarm.type].total = alarm.total;
+                }
+                if (alarm.totalByCurrency) {
+                    grouped[alarm.type].totalByCurrency = alarm.totalByCurrency;
+                }
             }
         });
 
         return grouped;
     },
 
-    renderSidebar() {
-        const container = document.getElementById('alarmsSidebar');
+    updateTabBadges() {
+        const grouped = this.getGroupedAlarms();
+        
+        Object.keys(grouped).forEach(type => {
+            const badgeEl = document.getElementById(`alarmCount${type.charAt(0).toUpperCase() + type.slice(1)}`);
+            if (badgeEl) {
+                badgeEl.textContent = grouped[type].count;
+            }
+        });
+    },
+
+    updateSummary() {
+        const summaryEl = document.getElementById('alarmsSummary');
+        if (!summaryEl) return;
+
+        const grouped = this.getGroupedAlarms();
+        const totalCount = Object.values(grouped).reduce((sum, g) => sum + g.count, 0);
+        
+        if (totalCount === 0) {
+            summaryEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Aktif alarm bulunmuyor</span>';
+        } else {
+            summaryEl.textContent = `Toplam ${totalCount} alarm mevcut`;
+        }
+    },
+
+    selectTab(tab) {
+        this.selectedTab = tab;
+        
+        // Tab butonlarini guncelle
+        document.querySelectorAll('#alarmsTabs .nav-link').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.alarmTab === tab);
+        });
+
+        // Icerik render
+        this.renderTabContent();
+    },
+
+    renderTabContent() {
+        const container = document.getElementById('alarmsTabContent');
         if (!container) return;
 
         const grouped = this.getGroupedAlarms();
-        let html = '<div class="list-group list-group-flush">';
+        const group = grouped[this.selectedTab];
+        const items = group ? group.items : [];
 
-        Object.keys(grouped).forEach(type => {
-            const group = grouped[type];
-            const isActive = type === this.selectedType ? 'active' : '';
+        // Card yapisi ile panel olustur
+        let html = `
+            <div class="card shadow-sm">
+                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold">
+                        <i class="bi ${group.icon} me-2 text-${group.color}"></i>${group.label}
+                    </span>
+                    <span class="badge bg-${group.color}">${group.count} kayıt</span>
+                </div>
+                <div class="card-body p-0">`;
+
+        if (!items.length) {
             html += `
-                <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center ${isActive}" data-alarm-type="${type}">
-                    <span><i class="bi ${group.icon} me-2"></i>${group.label}</span>
-                    <span class="badge bg-${group.color}">${group.count}</span>
-                </a>`;
-        });
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-check-circle fs-1 d-block mb-3 text-success"></i>
+                    <p class="mb-0 fw-medium">Bu kategoride alarm bulunmuyor</p>
+                    <small class="text-muted">Tüm kayıtlar güncel durumda</small>
+                </div>`;
+        } else {
+            html += this.renderTable(items, group);
+        }
 
-        html += '</div>';
+        html += '</div></div>';
         container.innerHTML = html;
     },
 
-    selectType(type) {
-        this.selectedType = type;
+    renderTable(items, group) {
+        let html = '<div class="table-responsive p-2"><table class="table table-bordered table-hover table-sm mb-0 align-middle"><thead class="table-light"><tr>';
         
-        // Sidebar aktif durumu guncelleme
-        document.querySelectorAll('#alarmsSidebar .list-group-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.alarmType === type);
-        });
-
-        // Tablo render islemi
-        this.renderTable();
-    },
-
-    renderTable() {
-        const container = document.getElementById('alarmsTableContainer');
-        if (!container) return;
-
-        const grouped = this.getGroupedAlarms();
-        const group = grouped[this.selectedType];
-        const items = group ? group.items : [];
-
-        // Baslik guncelleme
-        const titleEl = document.getElementById('alarmsTableTitle');
-        if (titleEl && group) {
-            titleEl.innerHTML = `<i class="bi ${group.icon} me-2"></i>${group.label}`;
-        }
-
-        if (!items.length) {
-            container.innerHTML = `
-                <div class="text-center text-muted py-5">
-                    <i class="bi bi-check-circle fs-1 d-block mb-3 text-success"></i>
-                    <p class="mb-0">Bu kategoride alarm bulunmuyor</p>
-                </div>`;
-            return;
-        }
-
-        // Tip bazli farkli kolonlar ve tablo
-        let html = '<div class="table-responsive"><table class="table table-bordered table-hover table-sm mb-0"><thead class="table-light"><tr>';
-        
-        if (this.selectedType === 'invoice') {
-            html += '<th>Müşteri</th><th>Proje</th><th>Fatura No</th><th>Fatura Tarihi</th><th class="text-center">Gecikme (gün)</th><th class="text-end">Fatura Tutarı</th><th class="text-end">Bakiye</th>';
-        } else if (this.selectedType === 'calendar') {
-            html += '<th>Başlık</th><th>Açıklama</th><th>Tarih</th>';
-        } else if (this.selectedType === 'guarantee') {
-            html += '<th>Müşteri</th><th>Tutar</th><th>Termin Tarihi</th>';
-        } else if (this.selectedType === 'contract') {
-            html += '<th>Müşteri</th><th>Bitiş Tarihi</th>';
+        // Kolon basliklari
+        if (this.selectedTab === 'invoice') {
+            html += `
+                <th class="text-nowrap">Müşteri</th>
+                <th class="text-nowrap">Proje</th>
+                <th class="text-nowrap">Fatura No</th>
+                <th class="text-nowrap text-center">Fatura Tarihi</th>
+                <th class="text-nowrap text-center">Gecikme</th>
+                <th class="text-nowrap text-end">Fatura Tutarı</th>
+                <th class="text-nowrap text-end">Kalan Bakiye</th>`;
+        } else if (this.selectedTab === 'calendar') {
+            html += `
+                <th class="text-nowrap">Müşteri</th>
+                <th class="text-nowrap">Proje</th>
+                <th class="text-nowrap">Görev</th>
+                <th class="text-nowrap text-center">Termin Tarihi</th>
+                <th class="text-nowrap text-center">Durum</th>`;
+        } else if (this.selectedTab === 'guarantee') {
+            html += `
+                <th class="text-nowrap">Müşteri</th>
+                <th class="text-nowrap">Proje</th>
+                <th class="text-nowrap">Teminat Türü</th>
+                <th class="text-nowrap text-end">Tutar</th>
+                <th class="text-nowrap text-center">Termin Tarihi</th>
+                <th class="text-nowrap text-center">Gecikme</th>`;
+        } else if (this.selectedTab === 'offer') {
+            html += `
+                <th class="text-nowrap">Müşteri</th>
+                <th class="text-nowrap">Proje</th>
+                <th class="text-nowrap">Teklif Konusu</th>
+                <th class="text-nowrap text-end">Tutar</th>
+                <th class="text-nowrap text-center">Geçerlilik Tarihi</th>
+                <th class="text-nowrap text-center">Durum</th>`;
         }
         
         html += '</tr></thead><tbody>';
 
         items.forEach(item => {
             html += '<tr>';
-            if (this.selectedType === 'invoice') {
-                const gecikmeClass = item.delayDays > 30 ? 'text-danger fw-bold' : (item.delayDays > 0 ? 'text-warning' : 'text-muted');
+            
+            if (this.selectedTab === 'invoice') {
+                const gecikmeClass = item.delayDays > 30 ? 'bg-danger text-white' : (item.delayDays > 7 ? 'bg-warning text-dark' : 'bg-secondary');
                 html += `
-                    <td>${NbtUtils.escapeHtml(item.customer || '')}</td>
+                    <td>
+                        <a href="/customer/${item.customerId}" class="text-decoration-none fw-medium">${NbtUtils.escapeHtml(item.customer || '')}</a>
+                    </td>
                     <td>${NbtUtils.escapeHtml(item.project || '-')}</td>
-                    <td>${NbtUtils.escapeHtml(item.invoiceNo || '-')}</td>
-                    <td>${NbtUtils.formatDate(item.invoiceDate)}</td>
-                    <td class="text-center ${gecikmeClass}">${item.delayDays > 0 ? item.delayDays : '-'}</td>
+                    <td><span class="text-muted">${NbtUtils.escapeHtml(item.invoiceNo || '-')}</span></td>
+                    <td class="text-center">${NbtUtils.formatDate(item.invoiceDate)}</td>
+                    <td class="text-center">
+                        <span class="badge ${gecikmeClass}">${item.delayDays > 0 ? item.delayDays + ' gün' : '-'}</span>
+                    </td>
                     <td class="text-end">${NbtUtils.formatMoney(item.invoiceAmount, item.currency)}</td>
-                    <td class="text-end text-danger fw-bold">${NbtUtils.formatMoney(item.balance, item.currency)}</td>`;
-            } else if (this.selectedType === 'calendar') {
+                    <td class="text-end"><span class="text-danger fw-bold">${NbtUtils.formatMoney(item.balance, item.currency)}</span></td>`;
+                    
+            } else if (this.selectedTab === 'calendar') {
+                const durumClass = item.daysRemaining < 0 ? 'bg-danger' : (item.daysRemaining === 0 ? 'bg-warning text-dark' : 'bg-info');
+                const durumText = item.daysRemaining < 0 ? `${Math.abs(item.daysRemaining)} gün geçti` : (item.daysRemaining === 0 ? 'Bugün' : `${item.daysRemaining} gün kaldı`);
                 html += `
+                    <td>
+                        <a href="/customer/${item.customerId}" class="text-decoration-none fw-medium">${NbtUtils.escapeHtml(item.customer || '')}</a>
+                    </td>
+                    <td>${NbtUtils.escapeHtml(item.project || '-')}</td>
                     <td>${NbtUtils.escapeHtml(item.title || '')}</td>
-                    <td>${NbtUtils.escapeHtml(item.description || '')}</td>
-                    <td>${NbtUtils.formatDate(item.date)}</td>`;
-            } else if (this.selectedType === 'guarantee') {
+                    <td class="text-center">${NbtUtils.formatDate(item.date)}</td>
+                    <td class="text-center"><span class="badge ${durumClass}">${durumText}</span></td>`;
+                    
+            } else if (this.selectedTab === 'guarantee') {
                 html += `
-                    <td>${NbtUtils.escapeHtml(item.customer || '')}</td>
-                    <td class="text-danger">${NbtUtils.formatMoney(item.amount, item.currency)}</td>
-                    <td>${NbtUtils.formatDate(item.dueDate)}</td>`;
-            } else if (this.selectedType === 'contract') {
+                    <td>
+                        <a href="/customer/${item.customerId}" class="text-decoration-none fw-medium">${NbtUtils.escapeHtml(item.customer || '')}</a>
+                    </td>
+                    <td>${NbtUtils.escapeHtml(item.project || '-')}</td>
+                    <td>${NbtUtils.escapeHtml(item.type || '-')}</td>
+                    <td class="text-end"><span class="text-primary fw-medium">${NbtUtils.formatMoney(item.amount, item.currency)}</span></td>
+                    <td class="text-center">${NbtUtils.formatDate(item.dueDate)}</td>
+                    <td class="text-center"><span class="badge bg-danger">${item.daysOverdue || 0} gün geçti</span></td>`;
+                    
+            } else if (this.selectedTab === 'offer') {
+                const durumClass = item.daysRemaining < 0 ? 'bg-danger' : (item.daysRemaining <= 3 ? 'bg-warning text-dark' : 'bg-info');
+                const durumText = item.daysRemaining < 0 ? `${Math.abs(item.daysRemaining)} gün geçti` : `${item.daysRemaining} gün kaldı`;
                 html += `
-                    <td>${NbtUtils.escapeHtml(item.customer || '')}</td>
-                    <td>${NbtUtils.formatDate(item.endDate)}</td>`;
+                    <td>
+                        <a href="/customer/${item.customerId}" class="text-decoration-none fw-medium">${NbtUtils.escapeHtml(item.customer || '')}</a>
+                    </td>
+                    <td>${NbtUtils.escapeHtml(item.project || '-')}</td>
+                    <td>${NbtUtils.escapeHtml(item.title || '-')}</td>
+                    <td class="text-end"><span class="text-primary fw-medium">${NbtUtils.formatMoney(item.amount, item.currency)}</span></td>
+                    <td class="text-center">${NbtUtils.formatDate(item.validUntil)}</td>
+                    <td class="text-center"><span class="badge ${durumClass}">${durumText}</span></td>`;
             }
+            
             html += '</tr>';
         });
 
-        html += '</tbody></table></div>';
-        container.innerHTML = html;
+        html += '</tbody>';
+        
+        // Toplam satiri ekle (invoice ve guarantee icin)
+        if (group && group.totalByCurrency && Object.keys(group.totalByCurrency).length > 0) {
+            const toplamStr = this.formatTotalsByCurrency(group.totalByCurrency);
+            
+            if (this.selectedTab === 'invoice') {
+                html += `<tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td colspan="5" class="text-end border-top-2">
+                            <i class="bi bi-calculator me-1"></i>Toplam (${group.count} kayıt):
+                        </td>
+                        <td class="text-end border-top-2">-</td>
+                        <td class="text-end border-top-2 text-danger">${toplamStr}</td>
+                    </tr>
+                </tfoot>`;
+            } else if (this.selectedTab === 'guarantee') {
+                html += `<tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td colspan="3" class="text-end border-top-2">
+                            <i class="bi bi-calculator me-1"></i>Toplam (${group.count} kayıt):
+                        </td>
+                        <td class="text-end border-top-2 text-primary">${toplamStr}</td>
+                        <td colspan="2" class="border-top-2"></td>
+                    </tr>
+                </tfoot>`;
+            }
+        }
+        
+        html += '</table></div>';
+        return html;
+    },
+
+    // Para birimi bazinda toplamlari formatla
+    formatTotalsByCurrency(totalByCurrency) {
+        const parts = [];
+        Object.keys(totalByCurrency).forEach(currency => {
+            const amount = totalByCurrency[currency];
+            if (amount > 0) {
+                parts.push(NbtUtils.formatMoney(amount, currency));
+            }
+        });
+        return parts.length > 0 ? parts.join(' + ') : '-';
     },
 
     bindEvents() {
         if (this._eventsBound) return;
         this._eventsBound = true;
 
-        // Sidebar tiklama
-        document.getElementById('alarmsSidebar')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            const item = e.target.closest('[data-alarm-type]');
-            if (item) {
-                this.selectType(item.dataset.alarmType);
+        // Tab tiklama
+        document.getElementById('alarmsTabs')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-alarm-tab]');
+            if (btn) {
+                e.preventDefault();
+                this.selectTab(btn.dataset.alarmTab);
             }
+        });
+
+        // Yenile butonu
+        document.getElementById('btnRefreshAlarms')?.addEventListener('click', async () => {
+            const btn = document.getElementById('btnRefreshAlarms');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Yükleniyor...';
+            
+            await this.loadAlarms();
+            this.updateTabBadges();
+            this.updateSummary();
+            this.renderTabContent();
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Yenile';
+            NbtUtils.showToast('Alarmlar yenilendi', 'success');
         });
     }
 };
@@ -7078,7 +8223,7 @@ const OfferModule = {
         }
 
         container.innerHTML = `
-            <div class="table-responsive px-2 py-2">
+            <div class="table-responsive p-2">
                 <table class="table table-bordered table-hover table-sm mb-0" id="offersTable">
                     <thead>
                         <tr>${headers}</tr>
@@ -7647,7 +8792,7 @@ const ContractModule = {
         }
 
         container.innerHTML = `
-            <div class="table-responsive px-2 py-2">
+            <div class="table-responsive p-2">
                 <table class="table table-bordered table-hover table-sm mb-0" id="contractsTable">
                     <thead>
                         <tr>${headers}</tr>
@@ -8728,15 +9873,6 @@ function setupRoutes() {
         }
     });
 
-    // Musteriler listesi
-    NbtRouter.register('customers', () => {
-        const view = document.getElementById('view-customers');
-        if (view) {
-            view.classList.remove('d-none');
-            CustomerModule.init();
-        }
-    });
-
     // Musteri detay
     NbtRouter.register('customer', (params) => {
         const view = document.getElementById('view-customer-detail');
@@ -8877,9 +10013,10 @@ function setupGlobalEvents() {
     // data-route attribute'lari artik sadece aktif durumu belirlemek icin
     // Link interception KALDIRILDI - tum href'ler dogal sayfa yuklemesi yapar
 
-    // Rol bazli menu gorunurlugu
-    const role = NbtUtils.getRole();
-    if (role !== 'superadmin') {
+    // Permission bazli menu gorunurlugu
+    // Sistem menusu: roles, users veya permissions modulune erisilebiliyorsa goster
+    const sistemMenuGosterilsinMi = NbtPermission.canAny(['roles.read', 'users.read', 'permissions.read']);
+    if (!sistemMenuGosterilsinMi) {
         document.getElementById('systemMenu')?.classList.add('d-none');
     }
 
@@ -8909,13 +10046,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // Parametreleri ve musteri listesini onyukleme (performance icin)
-    await Promise.all([
-        NbtParams.preload(),
-        NbtApi.get('/api/customers').then(response => {
-            AppState.customers = response.data || [];
-        }).catch(() => {})
-    ]);
+    // Permission bilgilerini onyukle (KRITIK: Sayfa acilmadan once permission cache doldurulmali)
+    await NbtPermission.load();
+
+    // Parametreleri onyukleme (performance icin)
+    await NbtParams.preload();
 
     // Route'lari kaydet (modul init fonksiyonlari icin)
     setupRoutes();
@@ -8925,6 +10060,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Sifre modulunu init etme
     PasswordModule.init();
+    
+    // Global customer sidebar'i baslat
+    await GlobalCustomerSidebar.init();
 
     // Server-rendered mimaride: Sayfa init
     // CURRENT_PAGE degerine gore ilgili modulu baslat
