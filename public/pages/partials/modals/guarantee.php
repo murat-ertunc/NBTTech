@@ -33,7 +33,7 @@
         <div class="row mb-3">
           <label class="col-12 col-md-4 col-form-label">Belge No</label>
           <div class="col-12 col-md-8">
-            <input type="text" class="form-control" id="guaranteeNo">
+            <input type="text" class="form-control" id="guaranteeNo" placeholder="Belge numarası (opsiyonel)">
           </div>
         </div>
         <div class="row mb-3">
@@ -42,8 +42,6 @@
             <select class="form-select" id="guaranteeType">
               <option value="Nakit">Nakit</option>
               <option value="Teminat Mektubu">Teminat Mektubu</option>
-              <option value="Çek">Çek</option>
-              <option value="Senet">Senet</option>
             </select>
           </div>
         </div>
@@ -64,7 +62,7 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Vade Tarihi</label>
+          <label class="col-12 col-md-4 col-form-label">Termin Tarihi</label>
           <div class="col-12 col-md-8">
             <input type="date" class="form-control" id="guaranteeDate">
           </div>

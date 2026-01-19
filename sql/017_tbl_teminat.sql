@@ -17,8 +17,7 @@ CREATE TABLE tbl_teminat (
     Tutar DECIMAL(16,2) DEFAULT 0.00,
     ParaBirimi NVARCHAR(3) DEFAULT 'TRY',
     BankaAdi NVARCHAR(100) NULL,
-    VadeTarihi DATE NULL,
-    BelgeNo NVARCHAR(50) NULL,
+    TerminTarihi DATE NULL,
     Durum TINYINT DEFAULT 1,
     
     -- Dosya Bilgileri

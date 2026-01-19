@@ -19,9 +19,7 @@ CREATE TABLE bck_tbl_sozlesme (
     TeklifId INT NULL,
     
     -- Sözleşme Bilgileri
-    SozlesmeNo NVARCHAR(50) NOT NULL,
-    BaslangicTarihi DATE NULL,
-    BitisTarihi DATE NULL,
+    SozlesmeTarihi DATE NULL,
     Tutar DECIMAL(16,2) NULL,
     ParaBirimi NVARCHAR(3) NULL,
     DosyaYolu NVARCHAR(255) NULL,

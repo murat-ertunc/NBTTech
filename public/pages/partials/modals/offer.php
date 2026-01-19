@@ -31,12 +31,6 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Teklif No <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
-            <input type="text" class="form-control" id="offerNo">
-          </div>
-        </div>
-        <div class="row mb-3">
           <label class="col-12 col-md-4 col-form-label">Konu</label>
           <div class="col-12 col-md-8">
             <input type="text" class="form-control" id="offerSubject">

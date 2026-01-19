@@ -1177,7 +1177,7 @@ const CustomerDetailModule = {
             const endValue = tableFilters[c.field + '_end'] || '';
             
             // Tarih alanlari icin cift date input (baslangic-bitis) - yan yana
-            const isDateField = c.isDate || c.field.toLowerCase().includes('tarih') || c.field === 'BaslangicTarihi' || c.field === 'BitisTarihi' || c.field === 'TeklifTarihi' || c.field === 'VadeTarihi' || c.field === 'OlusturmaZamani';
+            const isDateField = c.isDate || c.field.toLowerCase().includes('tarih') || c.field === 'BaslangicTarihi' || c.field === 'BitisTarihi' || c.field === 'TeklifTarihi' || c.field === 'TerminTarihi' || c.field === 'SozlesmeTarihi' || c.field === 'OlusturmaZamani';
             if (isDateField) {
                 return `<th class="p-1" style="min-width:200px;">
                     <div class="d-flex gap-1">
@@ -1773,8 +1773,6 @@ const CustomerDetailModule = {
             ],
             columns: [
                 { field: 'ProjeAdi', label: 'Proje Adı' },
-                { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
-                { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'project'), statusType: 'proje' }
             ],
             data: this.data.projects
@@ -1789,12 +1787,10 @@ const CustomerDetailModule = {
             addType: 'offer',
             emptyMsg: 'Henüz teklif eklenmemiş',
             filterFields: [
-                { field: 'TeklifNo', placeholder: 'Teklif No', width: 2 },
                 { field: 'Konu', placeholder: 'Konu', width: 3 }
             ],
             columns: [
                 { field: 'ProjeAdi', label: 'Proje' },
-                { field: 'TeklifNo', label: 'Teklif No' },
                 { field: 'Konu', label: 'Konu' },
                 { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                 { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
@@ -1812,14 +1808,10 @@ const CustomerDetailModule = {
             icon: 'bi-file-text',
             addType: 'contract',
             emptyMsg: 'Henüz sözleşme eklenmemiş',
-            filterFields: [
-                { field: 'SozlesmeNo', placeholder: 'Sözleşme No', width: 2 }
-            ],
+            filterFields: [],
             columns: [
                 { field: 'ProjeAdi', label: 'Proje' },
-                { field: 'SozlesmeNo', label: 'Sözleşme No' },
-                { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
-                { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'SozlesmeTarihi', label: 'Sözleşme Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                 { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
                 { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'contract'), statusType: 'sozlesme' }
@@ -1831,10 +1823,10 @@ const CustomerDetailModule = {
     renderTakvim() {
         // Takvim verilerine tamamlandi durumu ekle
         const calendars = (this.data.calendars || []).map(item => {
-            const bitisTarihi = item.BitisTarihi ? new Date(item.BitisTarihi) : null;
+            const terminTarihi = item.TerminTarihi ? new Date(item.TerminTarihi) : null;
             const bugun = new Date();
             bugun.setHours(0, 0, 0, 0);
-            const tamamlandi = bitisTarihi && bitisTarihi < bugun ? 1 : 0;
+            const tamamlandi = terminTarihi && terminTarihi < bugun ? 1 : 0;
             return { ...item, Tamamlandi: tamamlandi };
         });
         
@@ -1846,8 +1838,7 @@ const CustomerDetailModule = {
             emptyMsg: 'Henüz takvim kaydı yok',
             columns: [
                 { field: 'ProjeAdi', label: 'Proje' },
-                { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
-                { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'TerminTarihi', label: 'Termin Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Ozet', label: 'Özet' },
                 { field: 'Tamamlandi', label: 'Durum', render: v => v === 1 
                     ? '<span class="badge bg-success">Tamamlandı</span>' 
@@ -1866,12 +1857,10 @@ const CustomerDetailModule = {
             addType: 'stamptax',
             emptyMsg: 'Henüz damga vergisi kaydı yok',
             filterFields: [
-                { field: 'Tarih', type: 'date', placeholder: 'Tarih', width: 2 },
-                { field: 'BelgeNo', placeholder: 'Belge No', width: 2 }
+                { field: 'Tarih', type: 'date', placeholder: 'Tarih', width: 2 }
             ],
             columns: [
                 { field: 'ProjeAdi', label: 'Proje' },
-                { field: 'BelgeNo', label: 'Belge No' },
                 { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                 { field: 'DovizCinsi', label: 'Döviz', render: v => v || 'TL' },
@@ -1889,7 +1878,6 @@ const CustomerDetailModule = {
             addType: 'guarantee',
             emptyMsg: 'Henüz teminat eklenmemiş',
             filterFields: [
-                { field: 'BelgeNo', placeholder: 'Belge No', width: 2 },
                 { field: 'Tur', placeholder: 'Tür', width: 2 },
                 { field: 'Durum', type: 'select', placeholder: 'Durum', width: 2, options: [
                     { value: '1', label: 'Bekliyor' },
@@ -1900,12 +1888,12 @@ const CustomerDetailModule = {
             ],
             columns: [
                 { field: 'ProjeAdi', label: 'Proje' },
-                { field: 'BelgeNo', label: 'Belge No' },
                 { field: 'Tur', label: 'Tür' },
                 { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                 { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
                 { field: 'BankaAdi', label: 'Banka' },
-                { field: 'VadeTarihi', label: 'Vade', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'TerminTarihi', label: 'Termin Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
+                { field: 'EklemeZamani', label: 'İşlem Tarihi', render: v => NbtUtils.formatDate(v, 'long'), isDate: true },
                 { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'guarantee'), statusType: 'teminat' }
             ],
             data: this.data.guarantees
@@ -1943,8 +1931,7 @@ const CustomerDetailModule = {
                     const kalan = parseFloat(v) || 0;
                     const cls = kalan > 0 ? 'text-danger fw-bold' : 'text-success';
                     return `<span class="${cls}">${NbtUtils.formatNumber(kalan)}</span>`;
-                }},
-                { field: 'Aciklama', label: 'Açıklama' }
+                }}
             ],
             data: data
         });
@@ -1996,7 +1983,6 @@ const CustomerDetailModule = {
             columns: [
                 { field: 'ProjeAdi', label: 'Proje' },
                 { field: 'DosyaAdi', label: 'Dosya Adı' },
-                { field: 'DosyaBoyutu', label: 'Boyut', render: v => v ? `${(v/1024).toFixed(1)} KB` : '-' },
                 { field: 'OlusturmaZamani', label: 'Yüklenme', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Aciklama', label: 'Açıklama' }
             ],
@@ -2478,7 +2464,7 @@ const CustomerDetailModule = {
                 let cellValue = item[field];
                 
                 // Tarih alani icin ozel karsilastirma
-                const isDateField = field.toLowerCase().includes('tarih') || field === 'BaslangicTarihi' || field === 'BitisTarihi' || field === 'TeklifTarihi' || field === 'VadeTarihi';
+                const isDateField = field.toLowerCase().includes('tarih') || field === 'BaslangicTarihi' || field === 'BitisTarihi' || field === 'TeklifTarihi' || field === 'TerminTarihi' || field === 'SozlesmeTarihi';
                 if (isDateField) {
                     const cellDate = NbtUtils.formatDateForCompare(cellValue);
                     return cellDate === value;
@@ -2568,8 +2554,6 @@ const CustomerDetailModule = {
             projeler: {
                 columns: [
                     { field: 'ProjeAdi', label: 'Proje Adı' },
-                    { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
-                    { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
                     { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'project'), statusType: 'proje' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
@@ -2589,9 +2573,7 @@ const CustomerDetailModule = {
             sozlesmeler: {
                 columns: [
                     { field: 'ProjeAdi', label: 'Proje' },
-                    { field: 'SozlesmeNo', label: 'Sözleşme No' },
-                    { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
-                    { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'SozlesmeTarihi', label: 'Sözleşme Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
                     { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                     { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
                     { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'contract'), statusType: 'sozlesme' }
@@ -2601,12 +2583,12 @@ const CustomerDetailModule = {
             teminatlar: {
                 columns: [
                     { field: 'ProjeAdi', label: 'Proje' },
-                    { field: 'BelgeNo', label: 'Belge No' },
                     { field: 'Tur', label: 'Tür' },
                     { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                     { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
                     { field: 'BankaAdi', label: 'Banka' },
-                    { field: 'VadeTarihi', label: 'Vade', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'TerminTarihi', label: 'Termin Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'EklemeZamani', label: 'İşlem Tarihi', render: v => NbtUtils.formatDate(v, 'long'), isDate: true },
                     { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'guarantee'), statusType: 'teminat' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
@@ -2622,8 +2604,7 @@ const CustomerDetailModule = {
                         const kalan = parseFloat(v) || 0;
                         const cls = kalan > 0 ? 'text-danger fw-bold' : 'text-success';
                         return `<span class="${cls}">${NbtUtils.formatNumber(kalan)}</span>`;
-                    }},
-                    { field: 'Aciklama', label: 'Açıklama' }
+                    }}
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
@@ -2656,7 +2637,6 @@ const CustomerDetailModule = {
                 columns: [
                     { field: 'ProjeAdi', label: 'Proje' },
                     { field: 'DosyaAdi', label: 'Dosya Adı' },
-                    { field: 'DosyaBoyutu', label: 'Boyut', render: v => v ? `${(v/1024).toFixed(1)} KB` : '-' },
                     { field: 'OlusturmaZamani', label: 'Yüklenme', render: v => NbtUtils.formatDate(v), isDate: true },
                     { field: 'Aciklama', label: 'Açıklama' }
                 ],
@@ -2665,8 +2645,7 @@ const CustomerDetailModule = {
             takvim: {
                 columns: [
                     { field: 'ProjeAdi', label: 'Proje' },
-                    { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
-                    { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'TerminTarihi', label: 'Termin Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
                     { field: 'Ozet', label: 'Özet' },
                     { field: 'Tamamlandi', label: 'Durum', render: v => v === 1 
                         ? '<span class="badge bg-success">Tamamlandı</span>' 
@@ -2953,10 +2932,8 @@ const CustomerDetailModule = {
                             <div><strong>Tutar:</strong> ${formatMoney(data.Tutar)}</div>`,
             teklifler: () => `<div><strong>Teklif No:</strong> ${data.TeklifNo || '-'}</div>
                              <div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
-            sozlesmeler: () => `<div><strong>Sözleşme No:</strong> ${data.SozlesmeNo || '-'}</div>
-                               <div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
-            teminatlar: () => `<div><strong>Belge No:</strong> ${data.BelgeNo || '-'}</div>
-                              <div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
+            sozlesmeler: () => `<div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
+            teminatlar: () => `<div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
             damgavergisi: () => `<div><strong>Tarih:</strong> ${formatDate(data.Tarih)}</div>
                                 <div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
             dosyalar: () => `<div><strong>Dosya:</strong> ${data.DosyaAdi || '-'}</div>`
@@ -3140,8 +3117,7 @@ const InvoiceModule = {
                 const kalan = parseFloat(v) || 0;
                 const cls = kalan > 0 ? 'text-danger fw-bold' : 'text-success';
                 return `<span class="${cls}">${NbtUtils.formatMoney(kalan, row.DovizCinsi)}</span>`;
-            }},
-            { field: 'Aciklama', label: 'Açıklama' }
+            }}
         ];
 
         // Header row
@@ -3470,9 +3446,7 @@ const InvoiceModule = {
                 await select.onchange();
                 document.getElementById('invoiceProjeId').value = invoice.ProjeId || '';
                 document.getElementById('invoiceTarih').value = invoice.Tarih?.split('T')[0] || '';
-                document.getElementById('invoiceTutar').value = NbtUtils.formatDecimal(invoice.Tutar) || '';
                 document.getElementById('invoiceDoviz').value = invoice.DovizCinsi || 'TRY';
-                document.getElementById('invoiceAciklama').value = invoice.Aciklama || '';
                 
                 // Yeni alanlari doldur
                 if (faturaNoEl && invoice.FaturaNo) faturaNoEl.value = invoice.FaturaNo;
@@ -3531,13 +3505,17 @@ const InvoiceModule = {
         }
         
         const projeIdVal = document.getElementById('invoiceProjeId').value;
+        
+        // Tutar'ı fatura kalemlerinin genel toplamından al
+        const genelToplamEl = document.getElementById('invoiceItemsGenelToplam');
+        const tutar = genelToplamEl ? parseFloat(genelToplamEl.value) || 0 : 0;
+        
         const data = {
             MusteriId: musteriId,
             ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
             Tarih: document.getElementById('invoiceTarih').value,
-            Tutar: parseFloat(document.getElementById('invoiceTutar').value) || 0,
-            DovizCinsi: document.getElementById('invoiceDoviz').value,
-            Aciklama: document.getElementById('invoiceAciklama').value.trim() || null,
+            Tutar: tutar,
+            DovizCinsi: document.getElementById('invoiceDoviz')?.value || 'TRY',
             // Yeni alanlar
             FaturaNo: document.getElementById('invoiceFaturaNo')?.value.trim() || null,
             SupheliAlacak: document.getElementById('invoiceSupheliAlacak')?.checked ? 1 : 0,
@@ -3566,9 +3544,13 @@ const InvoiceModule = {
             NbtModal.showError('invoiceModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
-        if (!data.Tutar || data.Tutar <= 0) {
-            NbtModal.showFieldError('invoiceModal', 'invoiceTutar', 'Tutar zorunludur');
-            NbtModal.showError('invoiceModal', 'Lütfen zorunlu alanları doldurun');
+        if (!data.DovizCinsi) {
+            NbtModal.showFieldError('invoiceModal', 'invoiceDoviz', 'Döviz cinsi seçiniz');
+            NbtModal.showError('invoiceModal', 'Döviz cinsi zorunludur');
+            return;
+        }
+        if (!data.Kalemler || data.Kalemler.length === 0) {
+            NbtModal.showError('invoiceModal', 'En az bir fatura kalemi eklemelisiniz');
             return;
         }
         // Takvim aktifse sure zorunlu
@@ -4598,8 +4580,7 @@ const CalendarTabModule = {
                 document.getElementById('calendarMusteriId').value = calendar.MusteriId;
                 // Projeleri yukleme - edit modda secili projeyi de gonder
                 await CustomerDetailModule.populateProjectSelect('calendarProjeId', calendar.ProjeId);
-                document.getElementById('calendarBaslangicTarihi').value = calendar.BaslangicTarihi?.split('T')[0] || '';
-                document.getElementById('calendarBitisTarihi').value = calendar.BitisTarihi?.split('T')[0] || '';
+                document.getElementById('calendarTerminTarihi').value = calendar.TerminTarihi?.split('T')[0] || '';
                 document.getElementById('calendarOzet').value = calendar.Ozet || '';
                 if (ozetCount) ozetCount.textContent = (calendar.Ozet || '').length;
             } else {
@@ -4626,8 +4607,7 @@ const CalendarTabModule = {
         const data = {
             MusteriId: musteriId,
             ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
-            BaslangicTarihi: document.getElementById('calendarBaslangicTarihi').value,
-            BitisTarihi: document.getElementById('calendarBitisTarihi').value,
+            TerminTarihi: document.getElementById('calendarTerminTarihi').value,
             Ozet: document.getElementById('calendarOzet').value.trim()
         };
 
@@ -4642,13 +4622,8 @@ const CalendarTabModule = {
             NbtModal.showError('calendarModal', 'Proje seçimi zorunludur');
             return;
         }
-        if (!data.BaslangicTarihi) {
-            NbtModal.showFieldError('calendarModal', 'calendarBaslangicTarihi', 'Başlangıç tarihi zorunludur');
-            NbtModal.showError('calendarModal', 'Lütfen zorunlu alanları doldurun');
-            return;
-        }
-        if (!data.BitisTarihi) {
-            NbtModal.showFieldError('calendarModal', 'calendarBitisTarihi', 'Bitiş tarihi zorunludur');
+        if (!data.TerminTarihi) {
+            NbtModal.showFieldError('calendarModal', 'calendarTerminTarihi', 'Termin tarihi zorunludur');
             NbtModal.showError('calendarModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
@@ -4830,7 +4805,6 @@ const StampTaxModule = {
                 document.getElementById('stampTaxTarih').value = item.Tarih?.split('T')[0] || '';
                 document.getElementById('stampTaxTutar').value = NbtUtils.formatDecimal(item.Tutar) || '';
                 document.getElementById('stampTaxDovizCinsi').value = item.DovizCinsi || 'TRY';
-                document.getElementById('stampTaxBelgeNo').value = item.BelgeNo || '';
                 document.getElementById('stampTaxAciklama').value = item.Aciklama || '';
                 
                 if (item.DosyaAdi) {
@@ -4885,7 +4859,7 @@ const StampTaxModule = {
             Tarih: document.getElementById('stampTaxTarih').value,
             Tutar: parseFloat(document.getElementById('stampTaxTutar').value) || 0,
             DovizCinsi: document.getElementById('stampTaxDovizCinsi').value || 'TRY',
-            BelgeNo: document.getElementById('stampTaxBelgeNo').value.trim() || null,
+            // BelgeNo kaldırıldı
             Aciklama: document.getElementById('stampTaxAciklama').value.trim() || null
         };
 
@@ -5329,8 +5303,6 @@ const ProjectModule = {
         const columns = [
             { field: 'MusteriUnvan', label: 'Müşteri' },
             { field: 'ProjeAdi', label: 'Proje Adı' },
-            { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
-            { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
             { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'proje'), statusType: 'proje' }
         ];
 
@@ -5591,8 +5563,6 @@ const ProjectModule = {
                 select.value = project.MusteriId;
                 select.disabled = true; // Duzenlemede musteri kilitli
                 document.getElementById('projectName').value = project.ProjeAdi || '';
-                document.getElementById('projectStart').value = project.BaslangicTarihi?.split('T')[0] || '';
-                document.getElementById('projectEnd').value = project.BitisTarihi?.split('T')[0] || '';
                 document.getElementById('projectStatus').value = project.Durum || '';
             } else {
                 NbtToast.error('Proje kaydı bulunamadı');
@@ -5614,8 +5584,6 @@ const ProjectModule = {
         const data = {
             MusteriId: musteriId,
             ProjeAdi: document.getElementById('projectName').value.trim(),
-            BaslangicTarihi: document.getElementById('projectStart').value || null,
-            BitisTarihi: document.getElementById('projectEnd').value || null,
             Durum: document.getElementById('projectStatus').value
         };
 
@@ -6035,10 +6003,12 @@ const ParameterModule = {
                         <small class="text-muted">${NbtUtils.escapeHtml(item.Kod)}</small>
                     </td>
                     <td>
-                        ${item.Kod === 'pagination_default' ? `
+                        ${item.Kod === 'pagination_default' || item.Kod === 'termin_hatirlatma_gun' ? `
                             <input type="number" class="form-control form-control-sm" 
                                    id="param_${item.Id}" value="${item.Deger}" 
-                                   min="5" max="100" style="width:100px;">
+                                   min="${item.Kod === 'pagination_default' ? '5' : '1'}" 
+                                   max="${item.Kod === 'pagination_default' ? '100' : '999'}" 
+                                   style="width:100px;">
                         ` : `
                             <input type="text" class="form-control form-control-sm" 
                                    id="param_${item.Id}" value="${NbtUtils.escapeHtml(item.Deger || '')}">
@@ -6738,7 +6708,7 @@ const AlarmsModule = {
         const grouped = {
             invoice: { label: 'Ödenmemiş Faturalar', icon: 'bi-receipt', color: 'danger', items: [], count: 0 },
             calendar: { label: 'Takvim Kayıtları', icon: 'bi-calendar-event', color: 'warning', items: [], count: 0 },
-            guarantee: { label: 'Vadesi Geçen Teminatlar', icon: 'bi-shield-check', color: 'info', items: [], count: 0 },
+            guarantee: { label: 'Termin Tarihi Geçen Teminatlar', icon: 'bi-shield-check', color: 'info', items: [], count: 0 },
             contract: { label: 'Sözleşme Bitişleri', icon: 'bi-file-earmark-text', color: 'primary', items: [], count: 0 }
         };
 
@@ -6817,9 +6787,9 @@ const AlarmsModule = {
         } else if (this.selectedType === 'calendar') {
             html += '<th>Başlık</th><th>Açıklama</th><th>Tarih</th>';
         } else if (this.selectedType === 'guarantee') {
-            html += '<th>Müşteri</th><th>Tutar</th><th>Vade Tarihi</th>';
+            html += '<th>Müşteri</th><th>Tutar</th><th>Termin Tarihi</th>';
         } else if (this.selectedType === 'contract') {
-            html += '<th>Müşteri</th><th>Sözleşme No</th><th>Bitiş Tarihi</th>';
+            html += '<th>Müşteri</th><th>Bitiş Tarihi</th>';
         }
         
         html += '</tr></thead><tbody>';
@@ -6849,7 +6819,6 @@ const AlarmsModule = {
             } else if (this.selectedType === 'contract') {
                 html += `
                     <td>${NbtUtils.escapeHtml(item.customer || '')}</td>
-                    <td>${NbtUtils.escapeHtml(item.contractNo || '')}</td>
                     <td>${NbtUtils.formatDate(item.endDate)}</td>`;
             }
             html += '</tr>';
@@ -7334,7 +7303,6 @@ const OfferModule = {
                 // Projeleri yukleme ve secili projeyi ayarlama
                 await select.onchange();
                 document.getElementById('offerProjeId').value = offer.ProjeId || '';
-                document.getElementById('offerNo').value = offer.TeklifNo || '';
                 document.getElementById('offerSubject').value = offer.Konu || '';
                 document.getElementById('offerAmount').value = NbtUtils.formatDecimal(offer.Tutar) || '';
                 document.getElementById('offerCurrency').value = offer.ParaBirimi || NbtParams.getDefaultCurrency();
@@ -7362,7 +7330,6 @@ const OfferModule = {
         const data = {
             MusteriId: musteriId,
             ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
-            TeklifNo: document.getElementById('offerNo').value.trim(),
             Konu: document.getElementById('offerSubject').value.trim() || null,
             Tutar: parseFloat(document.getElementById('offerAmount').value) || 0,
             ParaBirimi: document.getElementById('offerCurrency').value,
@@ -7382,11 +7349,7 @@ const OfferModule = {
             NbtModal.showError('offerModal', 'Proje seçimi zorunludur');
             return;
         }
-        if (!data.TeklifNo) {
-            NbtModal.showFieldError('offerModal', 'offerNo', 'Teklif No zorunludur');
-            NbtModal.showError('offerModal', 'Lütfen zorunlu alanları doldurun');
-            return;
-        }
+        // TeklifNo alanı kaldırıldı
         if (!data.Tutar || data.Tutar <= 0) {
             NbtModal.showFieldError('offerModal', 'offerAmount', 'Tutar zorunludur');
             NbtModal.showError('offerModal', 'Lütfen tutar giriniz');
@@ -7604,9 +7567,7 @@ const ContractModule = {
         if (!container) return;
         const columns = [
             { field: 'MusteriUnvan', label: 'Müşteri' },
-            { field: 'SozlesmeNo', label: 'Sözleşme No' },
-            { field: 'BaslangicTarihi', label: 'Başlangıç', render: v => NbtUtils.formatDate(v), isDate: true },
-            { field: 'BitisTarihi', label: 'Bitiş', render: v => NbtUtils.formatDate(v), isDate: true },
+            { field: 'SozlesmeTarihi', label: 'Sözleşme Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
             { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
             { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TRY', isSelect: true },
             { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'sozlesme'), statusType: 'sozlesme' }
@@ -7911,9 +7872,7 @@ const ContractModule = {
                 // Projeleri yukleme ve secili projeyi ayarlama
                 await select.onchange();
                 document.getElementById('contractProjeId').value = contract.ProjeId || '';
-                document.getElementById('contractNo').value = contract.SozlesmeNo || '';
-                document.getElementById('contractStart').value = contract.BaslangicTarihi?.split('T')[0] || '';
-                document.getElementById('contractEnd').value = contract.BitisTarihi?.split('T')[0] || '';
+                document.getElementById('contractStart').value = contract.SozlesmeTarihi?.split('T')[0] || '';
                 document.getElementById('contractAmount').value = NbtUtils.formatDecimal(contract.Tutar) || '';
                 document.getElementById('contractCurrency').value = contract.ParaBirimi || NbtParams.getDefaultCurrency();
                 document.getElementById('contractStatus').value = contract.Durum ?? '';
@@ -7935,13 +7894,10 @@ const ContractModule = {
         }
         
         const projeIdVal = document.getElementById('contractProjeId').value;
-        const sozlesmeNo = document.getElementById('contractNo')?.value?.trim() || '';
         const data = {
             MusteriId: musteriId,
             ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
-            SozlesmeNo: sozlesmeNo,
-            BaslangicTarihi: document.getElementById('contractStart').value || null,
-            BitisTarihi: document.getElementById('contractEnd').value || null,
+            SozlesmeTarihi: document.getElementById('contractStart').value || null,
             Tutar: parseFloat(document.getElementById('contractAmount').value) || 0,
             ParaBirimi: document.getElementById('contractCurrency').value,
             Durum: document.getElementById('contractStatus').value
@@ -7958,11 +7914,7 @@ const ContractModule = {
             NbtModal.showError('contractModal', 'Proje seçimi zorunludur');
             return;
         }
-        if (!data.SozlesmeNo) {
-            NbtModal.showFieldError('contractModal', 'contractNo', 'Sözleşme No zorunludur');
-            NbtModal.showError('contractModal', 'Lütfen sözleşme numarasını girin');
-            return;
-        }
+        // Sözleşme No alanı kaldırıldı
         if (!data.Tutar || data.Tutar <= 0) {
             NbtModal.showFieldError('contractModal', 'contractAmount', 'Tutar zorunludur');
             NbtModal.showError('contractModal', 'Tutar 0\'dan büyük olmalıdır');
@@ -8174,12 +8126,11 @@ const GuaranteeModule = {
         
         const columns = [
             { field: 'MusteriUnvan', label: 'Müşteri' },
-            { field: 'BelgeNo', label: 'Belge No' },
             { field: 'Tur', label: 'Tür' },
             { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
             { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TRY', isSelect: true },
             { field: 'BankaAdi', label: 'Banka' },
-            { field: 'VadeTarihi', label: 'Vade', render: v => NbtUtils.formatDate(v), isDate: true },
+            { field: 'TerminTarihi', label: 'Termin Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
             { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'teminat'), statusType: 'teminat' }
         ];
 
@@ -8505,7 +8456,7 @@ const GuaranteeModule = {
                 document.getElementById('guaranteeBank').value = guarantee.BankaAdi || '';
                 document.getElementById('guaranteeAmount').value = NbtUtils.formatDecimal(guarantee.Tutar) || '';
                 document.getElementById('guaranteeCurrency').value = guarantee.ParaBirimi || NbtParams.getDefaultCurrency();
-                document.getElementById('guaranteeDate').value = guarantee.VadeTarihi?.split('T')[0] || '';
+                document.getElementById('guaranteeDate').value = guarantee.TerminTarihi?.split('T')[0] || '';
                 document.getElementById('guaranteeStatus').value = guarantee.Durum ?? '';
                 
                 // Mevcut dosya varsa goster
@@ -8559,7 +8510,7 @@ const GuaranteeModule = {
             BankaAdi: document.getElementById('guaranteeBank').value.trim() || null,
             Tutar: parseFloat(document.getElementById('guaranteeAmount').value) || 0,
             ParaBirimi: document.getElementById('guaranteeCurrency').value,
-            VadeTarihi: document.getElementById('guaranteeDate').value || null,
+            TerminTarihi: document.getElementById('guaranteeDate').value || null,
             Durum: document.getElementById('guaranteeStatus').value
         };
 
@@ -8606,7 +8557,7 @@ const GuaranteeModule = {
                 if (data.BankaAdi) formData.append('BankaAdi', data.BankaAdi);
                 formData.append('Tutar', data.Tutar);
                 formData.append('ParaBirimi', data.ParaBirimi);
-                if (data.VadeTarihi) formData.append('VadeTarihi', data.VadeTarihi);
+                if (data.TerminTarihi) formData.append('TerminTarihi', data.TerminTarihi);
                 formData.append('Durum', data.Durum);
                 if (file) formData.append('dosya', file);
                 if (this.removeExistingFile) formData.append('removeFile', '1');

@@ -24,15 +24,9 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Başlangıç Tarihi <span class="text-danger">*</span></label>
+          <label class="col-12 col-md-4 col-form-label">Termin Tarihi <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
-            <input type="date" class="form-control" id="calendarBaslangicTarihi" required>
-          </div>
-        </div>
-        <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Bitiş Tarihi <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
-            <input type="date" class="form-control" id="calendarBitisTarihi" required>
+            <input type="date" class="form-control" id="calendarTerminTarihi" required>
           </div>
         </div>
         <div class="row mb-3">

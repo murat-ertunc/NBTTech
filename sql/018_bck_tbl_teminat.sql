@@ -22,8 +22,7 @@ CREATE TABLE bck_tbl_teminat (
     Tutar DECIMAL(16,2) NULL,
     ParaBirimi NVARCHAR(3) NULL,
     BankaAdi NVARCHAR(100) NULL,
-    VadeTarihi DATE NULL,
-    BelgeNo NVARCHAR(50) NULL,
+    TerminTarihi DATE NULL,
     Durum TINYINT NULL,
     
     -- Dosya Bilgileri

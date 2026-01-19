@@ -29,18 +29,6 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Başlangıç</label>
-          <div class="col-12 col-md-8">
-            <input type="date" class="form-control" id="projectStart">
-          </div>
-        </div>
-        <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Bitiş</label>
-          <div class="col-12 col-md-8">
-            <input type="date" class="form-control" id="projectEnd">
-          </div>
-        </div>
-        <div class="row mb-3">
           <label class="col-12 col-md-4 col-form-label">Durum</label>
           <div class="col-12 col-md-8">
             <select class="form-select" id="projectStatus">

@@ -40,7 +40,6 @@ $Logo = config('app.logo', '/assets/logo.png');
         </div>
         <div class="d-grid gap-2">
           <button id="btnLogin" class="btn btn-primary" type="submit">Giriş</button>
-          <button id="btnRegister" class="btn btn-outline-secondary" type="button">Kayıt Ol</button>
         </div>
         <div class="alert alert-danger d-none mt-3" role="alert" id="alertBox"></div>
       </form>
@@ -105,7 +104,6 @@ $Logo = config('app.logo', '/assets/logo.png');
 
     document.getElementById('btnLogin').addEventListener('click', GirisYap);
     document.getElementById('loginForm').addEventListener('submit', (Olay) => { Olay.preventDefault(); GirisYap(); });
-    document.getElementById('btnRegister').addEventListener('click', () => { window.location.href = '/register'; });
   </script>
   <script src="/assets/bootstrap.bundle.min.js"></script>
 </body>

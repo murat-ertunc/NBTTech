@@ -123,8 +123,7 @@ class GuaranteeController
             'Tutar' => (float)$Girdi['Tutar'],
             'ParaBirimi' => $Girdi['ParaBirimi'] ?? 'TRY',
             'BankaAdi' => $Girdi['BankaAdi'] ?? null,
-            'VadeTarihi' => $Girdi['VadeTarihi'] ?? null,
-            'BelgeNo' => $Girdi['BelgeNo'] ?? null,
+            'TerminTarihi' => $Girdi['TerminTarihi'] ?? null,
             'Durum' => isset($Girdi['Durum']) ? (int)$Girdi['Durum'] : 1,
             'DosyaAdi' => $DosyaAdi,
             'DosyaYolu' => $DosyaYolu
@@ -217,8 +216,7 @@ class GuaranteeController
             if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
             if (isset($Girdi['ParaBirimi'])) $Guncellenecek['ParaBirimi'] = $Girdi['ParaBirimi'];
             if (isset($Girdi['BankaAdi'])) $Guncellenecek['BankaAdi'] = $Girdi['BankaAdi'];
-            if (isset($Girdi['VadeTarihi'])) $Guncellenecek['VadeTarihi'] = $Girdi['VadeTarihi'];
-            if (isset($Girdi['BelgeNo'])) $Guncellenecek['BelgeNo'] = $Girdi['BelgeNo'];
+            if (isset($Girdi['TerminTarihi'])) $Guncellenecek['TerminTarihi'] = $Girdi['TerminTarihi'];
             if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
             if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = !empty($Girdi['ProjeId']) ? (int)$Girdi['ProjeId'] : null;
 

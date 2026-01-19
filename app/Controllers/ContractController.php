@@ -73,7 +73,7 @@ class ContractController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        $Zorunlu = ['MusteriId', 'SozlesmeNo'];
+        $Zorunlu = ['MusteriId'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
                 Response::error("$Alan alani zorunludur.", 422);
@@ -92,9 +92,7 @@ class ContractController
             'MusteriId' => (int)$Girdi['MusteriId'],
             'ProjeId' => !empty($Girdi['ProjeId']) ? (int)$Girdi['ProjeId'] : null,
             'TeklifId' => !empty($Girdi['TeklifId']) ? (int)$Girdi['TeklifId'] : null,
-            'SozlesmeNo' => trim((string)$Girdi['SozlesmeNo']),
-            'BaslangicTarihi' => $Girdi['BaslangicTarihi'] ?? null,
-            'BitisTarihi' => $Girdi['BitisTarihi'] ?? null,
+            'SozlesmeTarihi' => $Girdi['SozlesmeTarihi'] ?? null,
             'Tutar' => isset($Girdi['Tutar']) ? (float)$Girdi['Tutar'] : 0.00,
             'ParaBirimi' => $Girdi['ParaBirimi'] ?? 'TRY',
             'DosyaYolu' => $Girdi['DosyaYolu'] ?? null,
@@ -126,9 +124,7 @@ class ContractController
 
         Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
             $Guncellenecek = [];
-            if (isset($Girdi['SozlesmeNo'])) $Guncellenecek['SozlesmeNo'] = trim((string)$Girdi['SozlesmeNo']);
-            if (isset($Girdi['BaslangicTarihi'])) $Guncellenecek['BaslangicTarihi'] = $Girdi['BaslangicTarihi'];
-            if (isset($Girdi['BitisTarihi'])) $Guncellenecek['BitisTarihi'] = $Girdi['BitisTarihi'];
+            if (isset($Girdi['SozlesmeTarihi'])) $Guncellenecek['SozlesmeTarihi'] = $Girdi['SozlesmeTarihi'];
             if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
             if (isset($Girdi['ParaBirimi'])) $Guncellenecek['ParaBirimi'] = $Girdi['ParaBirimi'];
             if (isset($Girdi['DosyaYolu'])) $Guncellenecek['DosyaYolu'] = $Girdi['DosyaYolu'];

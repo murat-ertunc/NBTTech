@@ -77,7 +77,7 @@ class OfferController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        $Zorunlu = ['MusteriId', 'TeklifNo'];
+            $Zorunlu = ['MusteriId'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
                 Response::error("$Alan alani zorunludur.", 422);
@@ -95,7 +95,6 @@ class OfferController
         $YuklenecekVeri = [
             'MusteriId' => (int)$Girdi['MusteriId'],
             'ProjeId' => !empty($Girdi['ProjeId']) ? (int)$Girdi['ProjeId'] : null,
-            'TeklifNo' => trim((string)$Girdi['TeklifNo']),
             'Konu' => $Girdi['Konu'] ?? null,
             'Tutar' => isset($Girdi['Tutar']) ? (float)$Girdi['Tutar'] : 0.00,
             'ParaBirimi' => $Girdi['ParaBirimi'] ?? 'TRY',
@@ -129,7 +128,6 @@ class OfferController
 
         Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
             $Guncellenecek = [];
-            if (isset($Girdi['TeklifNo'])) $Guncellenecek['TeklifNo'] = trim((string)$Girdi['TeklifNo']);
             if (isset($Girdi['Konu'])) $Guncellenecek['Konu'] = $Girdi['Konu'];
             if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
             if (isset($Girdi['ParaBirimi'])) $Guncellenecek['ParaBirimi'] = $Girdi['ParaBirimi'];

@@ -13,7 +13,7 @@ use App\Core\Database;
  * Temel alarm fonksiyonlari:
  * 1. Odenmemis faturalar
  * 2. Yaklasan takvim isleri
- * 3. Vadesi gecen teminatlar
+ * 3. Termin tarihi gecen teminatlar
  * 4. Sozlesme bitis yaklasanlari
  */
 class AlarmController
@@ -60,17 +60,17 @@ class AlarmController
             ];
         }
 
-        // 3. Vadesi gecen teminatlar
-        $VadesiGecenTeminatlar = $this->vadesiGecenTeminatlariGetir();
-        if ($VadesiGecenTeminatlar['count'] > 0) {
+        // 3. Termin tarihi gecen teminatlar
+        $TerminTarihiGecenTeminatlar = $this->terminTarihiGecenTeminatlariGetir();
+        if ($TerminTarihiGecenTeminatlar['count'] > 0) {
             $Alarmlar[] = [
                 'id' => 'expired_guarantees',
                 'type' => 'guarantee',
                 'priority' => 'high',
-                'title' => 'Vadesi Gecen Teminatlar',
-                'description' => $VadesiGecenTeminatlar['count'] . ' teminatin vadesi gecmis',
-                'count' => $VadesiGecenTeminatlar['count'],
-                'items' => $VadesiGecenTeminatlar['items']
+                'title' => 'Termin Tarihi Geçen Teminatlar',
+                'description' => $TerminTarihiGecenTeminatlar['count'] . ' teminatın termin tarihi geçmiş',
+                'count' => $TerminTarihiGecenTeminatlar['count'],
+                'items' => $TerminTarihiGecenTeminatlar['items']
             ];
         }
 
@@ -148,7 +148,7 @@ class AlarmController
                     
                     // Eger fatura tarihi bugunden onceyse gecikme pozitif
                     if ($FaturaTarihi > $Bugun) {
-                        $GecikmeGun = -$GecikmeGun; // Henuz vadesi gelmemis
+                        $GecikmeGun = -$GecikmeGun; // Henuz termin tarihi gelmemis
                     }
                     
                     $OdenmemisKalemler[] = [
@@ -235,9 +235,9 @@ class AlarmController
     }
 
     /**
-     * Vadesi gecen teminatlari getir
+     * Termin tarihi gecen teminatlari getir
      */
-    private function vadesiGecenTeminatlariGetir(): array
+    private function terminTarihiGecenTeminatlariGetir(): array
     {
         try {
             $Db = Database::connection();
@@ -247,17 +247,16 @@ class AlarmController
                     t.Id,
                     t.MusteriId,
                     m.Unvan as MusteriUnvan,
-                    t.BelgeNo,
                     t.Tur,
                     t.Tutar,
-                    t.DovizCinsi,
-                    t.VadeTarihi
+                    t.ParaBirimi,
+                    t.TerminTarihi
                 FROM tbl_teminat t
                 LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
                 WHERE t.Sil = 0
                   AND t.Durum = 1
-                  AND t.VadeTarihi < GETDATE()
-                ORDER BY t.VadeTarihi ASC
+                  AND t.TerminTarihi < GETDATE()
+                ORDER BY t.TerminTarihi ASC
             ";
             
             $Stmt = $Db->query($Sql);
@@ -269,11 +268,10 @@ class AlarmController
                     'id' => $Teminat['Id'],
                     'customerId' => $Teminat['MusteriId'],
                     'customer' => $Teminat['MusteriUnvan'],
-                    'documentNo' => $Teminat['BelgeNo'],
                     'type' => $Teminat['Tur'],
                     'amount' => $Teminat['Tutar'],
-                    'currency' => $Teminat['DovizCinsi'],
-                    'dueDate' => $Teminat['VadeTarihi']
+                    'currency' => $Teminat['ParaBirimi'],
+                    'dueDate' => $Teminat['TerminTarihi']
                 ];
             }
             
@@ -299,17 +297,16 @@ class AlarmController
                     s.Id,
                     s.MusteriId,
                     m.Unvan as MusteriUnvan,
-                    s.SozlesmeNo,
-                    s.BitisTarihi,
+                    s.SozlesmeTarihi,
                     s.Tutar,
-                    s.DovizCinsi
+                    s.ParaBirimi as DovizCinsi
                 FROM tbl_sozlesme s
                 LEFT JOIN tbl_musteri m ON s.MusteriId = m.Id
                 WHERE s.Sil = 0
                   AND s.Durum = 1
-                  AND s.BitisTarihi IS NOT NULL
-                  AND s.BitisTarihi BETWEEN GETDATE() AND DATEADD(day, :gun, GETDATE())
-                ORDER BY s.BitisTarihi ASC
+                  AND s.SozlesmeTarihi IS NOT NULL
+                  AND s.SozlesmeTarihi BETWEEN GETDATE() AND DATEADD(day, :gun, GETDATE())
+                ORDER BY s.SozlesmeTarihi ASC
             ";
             
             $Stmt = $Db->prepare($Sql); 
@@ -322,8 +319,7 @@ class AlarmController
                     'id' => $Sozlesme['Id'],
                     'customerId' => $Sozlesme['MusteriId'],
                     'customer' => $Sozlesme['MusteriUnvan'],
-                    'contractNo' => $Sozlesme['SozlesmeNo'],
-                    'endDate' => $Sozlesme['BitisTarihi'],
+                    'endDate' => $Sozlesme['SozlesmeTarihi'],
                     'amount' => $Sozlesme['Tutar'],
                     'currency' => $Sozlesme['DovizCinsi']
                 ];

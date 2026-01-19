@@ -40,12 +40,6 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Belge No</label>
-          <div class="col-12 col-md-8">
-            <input type="text" class="form-control" id="stampTaxBelgeNo">
-          </div>
-        </div>
-        <div class="row mb-3">
           <label class="col-12 col-md-4 col-form-label">Açıklama</label>
           <div class="col-12 col-md-8">
             <textarea class="form-control" id="stampTaxAciklama" rows="2"></textarea>

@@ -47,7 +47,7 @@ class CalendarController
         $SozlesmeEtkinlikleri = $this->getContractEvents($MusteriId, $Ay, $Yil, $TamamlananlarDahil);
         $Etkinlikler = array_merge($Etkinlikler, $SozlesmeEtkinlikleri);
 
-        // 3. Teminat vade tarihleri
+        // 3. Teminat Termin Tarihi tarihleri
         $TeminatEtkinlikleri = $this->getGuaranteeEvents($MusteriId, $Ay, $Yil, $TamamlananlarDahil);
         $Etkinlikler = array_merge($Etkinlikler, $TeminatEtkinlikleri);
 
@@ -224,18 +224,14 @@ class CalendarController
                     s.Id,
                     s.MusteriId,
                     m.Unvan as MusteriUnvan,
-                    s.SozlesmeNo,
-                    s.BaslangicTarihi,
-                    s.BitisTarihi,
+                    s.SozlesmeTarihi,
                     s.Durum
                 FROM tbl_sozlesme s
                 LEFT JOIN tbl_musteri m ON s.MusteriId = m.Id
                 WHERE {$Kosullar}
-                  AND (
-                    (MONTH(s.BaslangicTarihi) = :month AND YEAR(s.BaslangicTarihi) = :year)
-                    OR (MONTH(s.BitisTarihi) = :month AND YEAR(s.BitisTarihi) = :year)
-                  )
-                ORDER BY s.BaslangicTarihi ASC
+                  AND MONTH(s.SozlesmeTarihi) = :month 
+                  AND YEAR(s.SozlesmeTarihi) = :year
+                ORDER BY s.SozlesmeTarihi ASC
             ";
             
             $Stmt = $Db->prepare($Sql); 
@@ -244,18 +240,17 @@ class CalendarController
             
             $Etkinlikler = [];
             foreach ($Sozlesmeler as $Sozlesme) {
-                if ($Sozlesme['BaslangicTarihi']) {
-                    $BaslangicAy = (int)date('n', strtotime($Sozlesme['BaslangicTarihi']));
-                    $BaslangicYil = (int)date('Y', strtotime($Sozlesme['BaslangicTarihi']));
-                    if ($BaslangicAy === $Ay && $BaslangicYil === $Yil) {
+                if ($Sozlesme['SozlesmeTarihi']) {
+                    $SozlesmeAy = (int)date('n', strtotime($Sozlesme['SozlesmeTarihi']));
+                    $SozlesmeYil = (int)date('Y', strtotime($Sozlesme['SozlesmeTarihi']));
+                    if ($SozlesmeAy === $Ay && $SozlesmeYil === $Yil) {
                         $Etkinlikler[] = [
-                            'id' => 'contract_start_' . $Sozlesme['Id'],
-                            'type' => 'contract_start',
+                            'id' => 'contract_' . $Sozlesme['Id'],
+                            'type' => 'contract',
                             'category' => 'contract',
                             'customerId' => $Sozlesme['MusteriId'],
                             'customer' => $Sozlesme['MusteriUnvan'],
-                            'title' => 'Sozlesme Baslangic: ' . $Sozlesme['SozlesmeNo'],
-                            'date' => $Sozlesme['BaslangicTarihi'],
+                            'date' => $Sozlesme['SozlesmeTarihi'],
                             'color' => '#0d6efd', // blue
                             'completed' => $Sozlesme['Durum'] != 1,
                             'relatedId' => $Sozlesme['Id'],
@@ -263,24 +258,6 @@ class CalendarController
                         ];
                     }
                 }
-                
-                if ($Sozlesme['BitisTarihi']) {
-                    $BitisAy = (int)date('n', strtotime($Sozlesme['BitisTarihi']));
-                    $BitisYil = (int)date('Y', strtotime($Sozlesme['BitisTarihi']));
-                    if ($BitisAy === $Ay && $BitisYil === $Yil) {
-                        $Etkinlikler[] = [
-                            'id' => 'contract_end_' . $Sozlesme['Id'],
-                            'type' => 'contract_end',
-                            'category' => 'contract',
-                            'customerId' => $Sozlesme['MusteriId'],
-                            'customer' => $Sozlesme['MusteriUnvan'],
-                            'title' => 'Sozlesme Bitis: ' . $Sozlesme['SozlesmeNo'],
-                            'date' => $Sozlesme['BitisTarihi'],
-                            'color' => '#6f42c1', // purple
-                            'completed' => $Sozlesme['Durum'] != 1,
-                            'relatedId' => $Sozlesme['Id'],
-                            'relatedType' => 'contract'
-                        ];
                     }
                 }
             }
@@ -292,7 +269,7 @@ class CalendarController
     }
 
     /**
-     * Teminat vade etkinliklerini getir
+     * Teminat termin tarihi etkinliklerini getir
      */
     private function getGuaranteeEvents(?int $MusteriId, int $Ay, int $Yil, bool $TamamlananlarDahil): array
     {
@@ -316,18 +293,17 @@ class CalendarController
                     t.Id,
                     t.MusteriId,
                     m.Unvan as MusteriUnvan,
-                    t.BelgeNo,
                     t.Tur,
-                    t.VadeTarihi,
+                    t.TerminTarihi,
                     t.Tutar,
-                    t.DovizCinsi,
+                    t.ParaBirimi,
                     t.Durum
                 FROM tbl_teminat t
                 LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
                 WHERE {$Kosullar}
-                  AND MONTH(t.VadeTarihi) = :month 
-                  AND YEAR(t.VadeTarihi) = :year
-                ORDER BY t.VadeTarihi ASC
+                  AND MONTH(t.TerminTarihi) = :month 
+                  AND YEAR(t.TerminTarihi) = :year
+                ORDER BY t.TerminTarihi ASC
             ";
             
             $Stmt = $Db->prepare($Sql); 
@@ -342,14 +318,14 @@ class CalendarController
                     'category' => 'guarantee',
                     'customerId' => $Teminat['MusteriId'],
                     'customer' => $Teminat['MusteriUnvan'],
-                    'title' => 'Teminat Vadesi: ' . $Teminat['BelgeNo'] . ' (' . $Teminat['Tur'] . ')',
-                    'date' => $Teminat['VadeTarihi'],
+                    'title' => 'Teminat Termin Tarihi: ' . $Teminat['Tur'],
+                    'date' => $Teminat['TerminTarihi'],
                     'color' => '#fd7e14', // orange
                     'completed' => $Teminat['Durum'] != 1,
                     'relatedId' => $Teminat['Id'],
                     'relatedType' => 'guarantee',
                     'amount' => $Teminat['Tutar'],
-                    'currency' => $Teminat['DovizCinsi']
+                    'currency' => $Teminat['ParaBirimi']
                 ];
             }
             
@@ -460,7 +436,7 @@ class CalendarController
             
             // Sozlesmeler
             $Sql = "
-                SELECT Id, MusteriId, SozlesmeNo,
+                SELECT Id, MusteriId,
                        CASE WHEN CAST(BaslangicTarihi AS DATE) = :date THEN 'start' ELSE 'end' END as EventType
                 FROM tbl_sozlesme 
                 WHERE Sil = 0 {$MusteriKosulu}
@@ -475,17 +451,17 @@ class CalendarController
                     'id' => $Sozlesme['Id'],
                     'type' => 'contract',
                     'eventType' => $Sozlesme['EventType'],
-                    'title' => $Sozlesme['SozlesmeNo'],
+                    'title' => 'Sözleşme',
                     'customerId' => $Sozlesme['MusteriId']
                 ];
             }
             
             // Teminatlar
             $Sql = "
-                SELECT Id, MusteriId, BelgeNo, Tur
+                SELECT Id, MusteriId, Tur
                 FROM tbl_teminat 
                 WHERE Sil = 0 {$MusteriKosulu}
-                  AND CAST(VadeTarihi AS DATE) = :date
+                  AND CAST(TerminTarihi AS DATE) = :date
             ";
             $Stmt = $Db->prepare($Sql); 
             $Stmt->execute($Parametreler);
@@ -496,7 +472,7 @@ class CalendarController
                     'id' => $Teminat['Id'],
                     'type' => 'guarantee',
                     'eventType' => 'due',
-                    'title' => $Teminat['BelgeNo'] . ' (' . $Teminat['Tur'] . ')',
+                    'title' => $Teminat['Tur'],
                     'customerId' => $Teminat['MusteriId']
                 ];
             }
@@ -528,7 +504,7 @@ class CalendarController
                 FROM tbl_takvim t
                 LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
                 WHERE t.Sil = 0 
-                  AND CAST(t.BaslangicTarihi AS DATE) = :date
+                  AND CAST(t.TerminTarihi AS DATE) = :date
             ";
             if ($MusteriId) {
                 $Sql .= " AND t.MusteriId = :customerId";
@@ -577,15 +553,14 @@ class CalendarController
                     m.Unvan as MusteriUnvan,
                     t.ProjeId,
                     p.ProjeAdi,
-                    t.BaslangicTarihi,
-                    t.BitisTarihi,
+                    t.TerminTarihi,
                     t.Ozet
                 FROM tbl_takvim t
                 LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id
                 LEFT JOIN tbl_proje p ON t.ProjeId = p.Id
                 WHERE {$Kosullar}
-                  AND (MONTH(t.BaslangicTarihi) = :month AND YEAR(t.BaslangicTarihi) = :year)
-                ORDER BY t.BaslangicTarihi ASC
+                  AND MONTH(t.TerminTarihi) = :month AND YEAR(t.TerminTarihi) = :year
+                ORDER BY t.TerminTarihi ASC
             ";
             
             $Stmt = $Db->prepare($Sql); 
@@ -602,7 +577,7 @@ class CalendarController
                     'customer' => $Kayit['MusteriUnvan'],
                     'title' => $Kayit['Ozet'],
                     'description' => $Kayit['ProjeAdi'] ? 'Proje: ' . $Kayit['ProjeAdi'] : null,
-                    'date' => $Kayit['BaslangicTarihi'],
+                    'date' => $Kayit['TerminTarihi'],
                     'color' => '#198754', // green
                     'completed' => false,
                     'relatedId' => $Kayit['Id'],

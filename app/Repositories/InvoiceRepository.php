@@ -111,7 +111,7 @@ class InvoiceRepository extends BaseRepository
     }
 
     /*
-     * Vadesi gecmis (odenmemis) faturalari, ilerideki takvim/alarm logic'inde kullanmak uzere cekebilecegimiz
+     * Termin tarihi gecmis (odenmemis) faturalari, ilerideki takvim/alarm logic'inde kullanmak uzere cekebilecegimiz
      * ek metod.
     */
     public function odenmemisFaturalar(): array
@@ -204,7 +204,7 @@ class InvoiceRepository extends BaseRepository
     public function takvimKayitlariniOlustur(int $FaturaId, int $MusteriId, ?int $ProjeId, string $Tarih, ?int $Sure, ?string $SureTipi, bool $HatirlatmaAktif, int $KullaniciId): void
     {
         $FaturaTarihi = (new \DateTime($Tarih))->format('Y-m-d');
-        $this->ekleTakvimKaydi($MusteriId, $ProjeId, $FaturaTarihi, $FaturaTarihi, "Fatura #{$FaturaId} - Tarih: {$FaturaTarihi}", $KullaniciId);
+        $this->ekleTakvimKaydi($MusteriId, $ProjeId, $FaturaTarihi, "Fatura #{$FaturaId} - Tarih: {$FaturaTarihi}", $KullaniciId);
 
         if ($HatirlatmaAktif && $Sure !== null && $Sure > 0) {
             $SureTipi = $SureTipi ?: 'gun';
@@ -225,7 +225,7 @@ class InvoiceRepository extends BaseRepository
             }
             $HatirlatmaTarihi = $HatirlatmaTarih->format('Y-m-d');
             $Ozet = "Fatura #{$FaturaId} Hatırlatması - Tarih: {$FaturaTarihi}";
-            $this->ekleTakvimKaydi($MusteriId, $ProjeId, $HatirlatmaTarihi, $HatirlatmaTarihi, $Ozet, $KullaniciId);
+            $this->ekleTakvimKaydi($MusteriId, $ProjeId, $HatirlatmaTarihi, $Ozet, $KullaniciId);
         }
     }
 
@@ -258,7 +258,7 @@ class InvoiceRepository extends BaseRepository
     /**
      * Tekil takvim kaydi ekleme helper'i
      */
-    private function ekleTakvimKaydi(int $MusteriId, ?int $ProjeId, string $BaslangicTarihi, string $BitisTarihi, string $Ozet, int $KullaniciId): void
+    private function ekleTakvimKaydi(int $MusteriId, ?int $ProjeId, string $TerminTarihi, string $Ozet, int $KullaniciId): void
     {
         // Guid olustur
         $Guid = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
@@ -269,15 +269,14 @@ class InvoiceRepository extends BaseRepository
             mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
         );
         
-        $Sql = "INSERT INTO tbl_takvim (Guid, MusteriId, ProjeId, BaslangicTarihi, BitisTarihi, Ozet, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil)
-            VALUES (:Guid, :MusteriId, :ProjeId, :BaslangicTarihi, :BitisTarihi, :Ozet, GETDATE(), :UserId, GETDATE(), :UserId2, 0)";
+        $Sql = "INSERT INTO tbl_takvim (Guid, MusteriId, ProjeId, TerminTarihi, Ozet, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil)
+            VALUES (:Guid, :MusteriId, :ProjeId, :TerminTarihi, :Ozet, GETDATE(), :UserId, GETDATE(), :UserId2, 0)";
         $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute([
             'Guid' => $Guid,
             'MusteriId' => $MusteriId,
             'ProjeId' => $ProjeId,
-            'BaslangicTarihi' => $BaslangicTarihi,
-            'BitisTarihi' => $BitisTarihi,
+            'TerminTarihi' => $TerminTarihi,
             'Ozet' => $Ozet,
             'UserId' => $KullaniciId,
             'UserId2' => $KullaniciId

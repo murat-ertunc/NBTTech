@@ -13,8 +13,6 @@ CREATE TABLE tbl_proje (
     
     -- Proje Bilgileri
     ProjeAdi NVARCHAR(255) NOT NULL,
-    BaslangicTarihi DATE NULL,
-    BitisTarihi DATE NULL,
     Butce DECIMAL(16,2) DEFAULT 0.00,
     Durum TINYINT DEFAULT 1,
     

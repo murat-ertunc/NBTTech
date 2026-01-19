@@ -3,14 +3,14 @@
 -- Parola: Super123!
 -- Rol: superadmin
 
-IF NOT EXISTS (SELECT 1 FROM tnm_user WHERE KullaniciAdi = 'superadmin')
-BEGIN
-    INSERT INTO tnm_user (KullaniciAdi, Parola, AdSoyad, Aktif, Rol)
-    VALUES (
-        'superadmin',
-        '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- Super123!
-        'Sistem Yöneticisi',
-        1,
-        'superadmin'
-    );
-END
+-- Mevcut kullanıcıyı sil ve yeniden oluştur
+DELETE FROM tnm_user WHERE KullaniciAdi = 'superadmin';
+
+INSERT INTO tnm_user (KullaniciAdi, Parola, AdSoyad, Aktif, Rol)
+VALUES (
+    'superadmin',
+    '$2y$10$bMnYukw1EYylEvP7voEmpurAaYt59dKUk3V7MqpUeXWkrN1o2.ytW', -- Super123!
+    'Sistem Yöneticisi',
+    1,
+    'superadmin'
+);

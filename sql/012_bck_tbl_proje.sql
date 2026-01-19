@@ -18,8 +18,6 @@ CREATE TABLE bck_tbl_proje (
     
     -- Proje Bilgileri
     ProjeAdi NVARCHAR(255) NOT NULL,
-    BaslangicTarihi DATE NULL,
-    BitisTarihi DATE NULL,
     Butce DECIMAL(16,2) NULL,
     Durum TINYINT NULL
 );

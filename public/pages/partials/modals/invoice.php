@@ -50,19 +50,11 @@
               </div>
             </div>
             <div class="row mb-2">
-              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Tutar <span class="text-danger">*</span></label>
+              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Döviz Cinsi <span class="text-danger">*</span></label>
               <div class="col-8">
-                <div class="input-group input-group-sm">
-                  <input type="number" step="0.01" class="form-control" id="invoiceTutar">
-                  <select class="form-select" id="invoiceDoviz" style="max-width: 120px;">
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div class="row mb-2">
-              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Açıklama</label>
-              <div class="col-8">
-                <input type="text" class="form-control form-control-sm" id="invoiceAciklama" placeholder="Fatura açıklaması">
+                <select class="form-select form-select-sm" id="invoiceDoviz">
+                  <option value="">Seçiniz...</option>
+                </select>
               </div>
             </div>
             <div class="row">
@@ -89,19 +81,19 @@
           </div>
           <div class="card-body py-3" id="tevkifatAlani" style="display: none;">
             <div class="row mb-2">
-              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Tevkifat Oranı 1</label>
+              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Tevkifat Oranı</label>
               <div class="col-8">
                 <div class="input-group input-group-sm">
-                  <input type="number" step="0.01" class="form-control" id="invoiceTevkifatOran1" placeholder="0.00">
+                  <input type="number" step="0.01" class="form-control" id="invoiceTevkifatOran1" placeholder="0.00" max="100">
                   <span class="input-group-text">%</span>
                 </div>
               </div>
             </div>
             <div class="row">
-              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Tevkifat Oranı 2</label>
+              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Müşteri Tevkifat Oranı</label>
               <div class="col-8">
                 <div class="input-group input-group-sm">
-                  <input type="number" step="0.01" class="form-control" id="invoiceTevkifatOran2" placeholder="0.00">
+                  <input type="number" step="0.01" class="form-control bg-light" id="invoiceTevkifatOran2" placeholder="0.00" readonly>
                   <span class="input-group-text">%</span>
                 </div>
               </div>
@@ -252,6 +244,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (tevkifatCheckbox && tevkifatAlani) {
         tevkifatCheckbox.addEventListener('change', function() {
             tevkifatAlani.style.display = this.checked ? 'block' : 'none';
+            // Tevkifat devre dışı bırakıldığında hesaplamaları güncelle
+            if (!this.checked) {
+                const tevkifatOran1 = document.getElementById('invoiceTevkifatOran1');
+                const tevkifatOran2 = document.getElementById('invoiceTevkifatOran2');
+                if (tevkifatOran1) tevkifatOran1.value = '';
+                if (tevkifatOran2) tevkifatOran2.value = '';
+            }
+            calculateInvoiceItemsTotals();
         });
     }
 
@@ -264,10 +264,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Tevkifat Oranı 1 değiştiğinde Tevkifat Oranı 2'yi otomatik hesapla
+    const tevkifatOran1 = document.getElementById('invoiceTevkifatOran1');
+    const tevkifatOran2 = document.getElementById('invoiceTevkifatOran2');
+    if (tevkifatOran1 && tevkifatOran2) {
+        tevkifatOran1.addEventListener('input', function() {
+            const oran1 = parseFloat(this.value) || 0;
+            const oran2 = Math.max(0, 100 - oran1);
+            tevkifatOran2.value = oran2.toFixed(2);
+            
+            // KDV hesaplamalarını güncelle
+            calculateInvoiceItemsTotals();
+        });
+    }
+
     // Kalem ekle butonu
     const btnAddItem = document.getElementById('btnAddInvoiceItem');
     if (btnAddItem) {
-        btnAddItem.addEventListener('click', function() {
+        // Önceki event listener'ları temizle
+        const newBtn = btnAddItem.cloneNode(true);
+        btnAddItem.parentNode.replaceChild(newBtn, btnAddItem);
+        
+        newBtn.addEventListener('click', function() {
+            const tbody = document.getElementById('invoiceItemsBody');
+            const currentItemCount = tbody ? tbody.querySelectorAll('tr').length : 0;
+            
+            if (currentItemCount >= 10) {
+                alert('Maksimum 10 kalem ekleyebilirsiniz.');
+                return;
+            }
+            
             addInvoiceItemRow();
         });
     }
@@ -322,12 +348,29 @@ function addInvoiceItemRow(data = null) {
     tr.dataset.row = window.invoiceItemCounter;
     
     tr.innerHTML = `
-        <td class="text-center align-middle row-number">${rowNum}</td>
-        <td><input type="number" class="form-control form-control-sm item-miktar" value="${formatNum(data?.Miktar, 0)}" min="0"></td>
-        <td><input type="text" class="form-control form-control-sm item-aciklama" value="${data?.Aciklama || ''}" placeholder="Açıklama girin..."></td>
-        <td><input type="number" class="form-control form-control-sm item-kdv" value="${formatNum(data?.KdvOran)}" min="0" max="100" step="0.01"></td>
-        <td><input type="number" class="form-control form-control-sm item-birimfiyat" value="${formatNum(data?.BirimFiyat)}" step="0.01" min="0"></td>
-        <td><input type="number" class="form-control form-control-sm item-tutar bg-light" value="${formatNum(data?.Tutar)}" readonly></td>
+        <td class="text-center align-middle row-number">
+          ${rowNum}
+        </td>
+        <td>
+          <input type="number" class="form-control form-control-sm item-miktar" value="${formatNum(data?.Miktar, 0)}" min="0">
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm item-aciklama" value="${data?.Aciklama || ''}" placeholder="Açıklama girin...">
+        </td>
+        <td>
+          <select class="form-control form-control-sm item-kdv">
+            <option ${formatNum(data?.KdvOran) == 1 ? 'selected' : ''}>1</option>
+            <option ${formatNum(data?.KdvOran) == 8 ? 'selected' : ''}>8</option>
+            <option ${formatNum(data?.KdvOran) == 18 ? 'selected' : ''}>18</option>
+            <option ${formatNum(data?.KdvOran) == 20 ? 'selected' : ''}>20</option>
+          </select>
+        </td>
+        <td>
+          <input type="number" class="form-control form-control-sm item-birimfiyat" value="${formatNum(data?.BirimFiyat)}" step="0.01" min="0">
+        </td>
+        <td>
+          <input type="number" class="form-control form-control-sm item-tutar bg-light" value="${formatNum(data?.Tutar)}" readonly>
+        </td>
         <td class="text-center align-middle">
             <button type="button" class="btn btn-outline-danger btn-sm btn-delete-item" title="Sil">
                 <i class="bi bi-trash"></i>
@@ -370,13 +413,20 @@ function calculateInvoiceItemsTotals() {
         toplamKdv += satirKdv;
     });
 
+    // Tevkifat oranını al ve KDV'ye uygula
+    const tevkifatAktif = document.getElementById('invoiceTevkifatAktif')?.checked || false;
+    const tevkifatOran1 = tevkifatAktif ? (parseFloat(document.getElementById('invoiceTevkifatOran1')?.value) || 0) : 0;
+    
+    // Tevkifat oranı varsa KDV'yi ona göre düşür
+    const kdvSonrasi = tevkifatOran1 > 0 ? toplamKdv * (tevkifatOran1 / 100) : toplamKdv;
+
     const toplamEl = document.getElementById('invoiceItemsToplam');
     const kdvEl = document.getElementById('invoiceItemsKdv');
     const genelToplamEl = document.getElementById('invoiceItemsGenelToplam');
     
     if (toplamEl) toplamEl.value = toplam.toFixed(2);
-    if (kdvEl) kdvEl.value = toplamKdv.toFixed(2);
-    if (genelToplamEl) genelToplamEl.value = (toplam + toplamKdv).toFixed(2);
+    if (kdvEl) kdvEl.value = kdvSonrasi.toFixed(2);
+    if (genelToplamEl) genelToplamEl.value = (toplam + kdvSonrasi).toFixed(2);
 }
 
 function updateItemRowNumbers() {

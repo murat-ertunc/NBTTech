@@ -13,7 +13,6 @@ CREATE TABLE tbl_teklif (
     ProjeId INT NULL,
     
     -- Teklif Bilgileri
-    TeklifNo NVARCHAR(50) NOT NULL,
     Konu NVARCHAR(255) NULL,
     Tutar DECIMAL(16,2) DEFAULT 0.00,
     ParaBirimi NVARCHAR(3) DEFAULT 'TRY',

@@ -76,7 +76,7 @@ class InvoiceController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        $Zorunlu = ['MusteriId', 'Tarih', 'Tutar'];
+        $Zorunlu = ['MusteriId', 'Tarih'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
                 Response::error("$Alan alani zorunludur.", 422);
@@ -89,7 +89,6 @@ class InvoiceController
         $Tutar = (float)$Girdi['Tutar'];
         $Tarih = trim((string)$Girdi['Tarih']); // YYYY-MM-DD formatinda gelmeli
         $Doviz = isset($Girdi['DovizCinsi']) ? trim((string)$Girdi['DovizCinsi']) : 'TL';
-        $Aciklama = isset($Girdi['Aciklama']) ? trim((string)$Girdi['Aciklama']) : null;
         
         // Yeni alanlar
         $FaturaNo = isset($Girdi['FaturaNo']) ? trim((string)$Girdi['FaturaNo']) : null;
@@ -115,14 +114,13 @@ class InvoiceController
         }
 
         $Repo = new InvoiceRepository();
-        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $Tarih, $Tutar, $Doviz, $Aciklama, $FaturaNo, $SupheliAlacak, $TevkifatAktif, $TevkifatOran1, $TevkifatOran2, $HatirlatmaAktif, $TakvimSure, $TakvimSureTipi, $Kalemler, $KullaniciId) {
+        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $Tarih, $Tutar, $Doviz, $FaturaNo, $SupheliAlacak, $TevkifatAktif, $TevkifatOran1, $TevkifatOran2, $HatirlatmaAktif, $TakvimSure, $TakvimSureTipi, $Kalemler, $KullaniciId) {
             $FaturaId = $Repo->ekle([
                 'MusteriId' => $MusteriId,
                 'ProjeId' => $ProjeId,
                 'Tarih' => $Tarih,
                 'Tutar' => $Tutar,
                 'DovizCinsi' => $Doviz,
-                'Aciklama' => $Aciklama,
                 'FaturaNo' => $FaturaNo,
                 'SupheliAlacak' => $SupheliAlacak,
                 'TevkifatAktif' => $TevkifatAktif,
@@ -188,7 +186,6 @@ class InvoiceController
             if (isset($Girdi['Tarih'])) $Guncellenecek['Tarih'] = $Girdi['Tarih'];
             if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
             if (isset($Girdi['DovizCinsi'])) $Guncellenecek['DovizCinsi'] = $Girdi['DovizCinsi'];
-            if (isset($Girdi['Aciklama'])) $Guncellenecek['Aciklama'] = $Girdi['Aciklama'];
             if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
             
             // Yeni alanlar

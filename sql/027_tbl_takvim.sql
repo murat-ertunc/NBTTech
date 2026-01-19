@@ -13,8 +13,7 @@ CREATE TABLE tbl_takvim (
     ProjeId INT NULL,
     
     -- Takvim Bilgileri
-    BaslangicTarihi DATE NOT NULL,
-    BitisTarihi DATE NOT NULL,
+    TerminTarihi DATE NOT NULL,
     Ozet NVARCHAR(255) NOT NULL,
     
     CONSTRAINT FK_takvim_musteri FOREIGN KEY (MusteriId) REFERENCES tbl_musteri(Id),
@@ -47,8 +46,7 @@ CREATE TABLE bck_tbl_takvim (
     ProjeId INT NULL,
     
     -- Takvim Bilgileri
-    BaslangicTarihi DATE NULL,
-    BitisTarihi DATE NULL,
+    TerminTarihi DATE NULL,
     Ozet NVARCHAR(255) NULL
 );
 GO

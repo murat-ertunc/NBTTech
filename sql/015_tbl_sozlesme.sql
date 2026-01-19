@@ -14,9 +14,7 @@ CREATE TABLE tbl_sozlesme (
     TeklifId INT NULL,
     
     -- Sözleşme Bilgileri
-    SozlesmeNo NVARCHAR(50) NOT NULL,
-    BaslangicTarihi DATE NULL,
-    BitisTarihi DATE NULL,
+    SozlesmeTarihi DATE NULL,
     Tutar DECIMAL(16,2) DEFAULT 0.00,
     ParaBirimi NVARCHAR(3) DEFAULT 'TRY',
     DosyaYolu NVARCHAR(255) NULL,

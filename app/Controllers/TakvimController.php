@@ -71,7 +71,7 @@ class TakvimController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        $Zorunlu = ['MusteriId', 'ProjeId', 'BaslangicTarihi', 'BitisTarihi', 'Ozet'];
+        $Zorunlu = ['MusteriId', 'ProjeId', 'TerminTarihi', 'Ozet'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
                 Response::error("$Alan alani zorunludur.", 422);
@@ -95,8 +95,7 @@ class TakvimController
         $YuklenecekVeri = [
             'MusteriId' => (int)$Girdi['MusteriId'],
             'ProjeId' => (int)$Girdi['ProjeId'],
-            'BaslangicTarihi' => $Girdi['BaslangicTarihi'],
-            'BitisTarihi' => $Girdi['BitisTarihi'],
+            'TerminTarihi' => $Girdi['TerminTarihi'],
             'Ozet' => trim((string)$Girdi['Ozet'])
         ];
 
@@ -122,8 +121,7 @@ class TakvimController
         }
 
         $Guncellenecek = [];
-        if (isset($Girdi['BaslangicTarihi'])) $Guncellenecek['BaslangicTarihi'] = $Girdi['BaslangicTarihi'];
-        if (isset($Girdi['BitisTarihi'])) $Guncellenecek['BitisTarihi'] = $Girdi['BitisTarihi'];
+        if (isset($Girdi['TerminTarihi'])) $Guncellenecek['TerminTarihi'] = $Girdi['TerminTarihi'];
         if (isset($Girdi['Ozet'])) {
             if (strlen($Girdi['Ozet']) > 255) {
                 Response::error('Ozet 255 karakteri gecemez.', 422);

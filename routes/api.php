@@ -20,7 +20,6 @@ $Router->add('GET', '/health', function () {
 
 // Kimlik dogrulama endpointleri
 $Router->add('POST', '/api/login', fn() => AuthController::login());
-$Router->add('POST', '/api/register', fn() => AuthController::register());
 $Router->add('POST', '/api/logout', fn() => AuthController::logout());
 $Router->add('POST', '/api/refresh', fn() => AuthController::refresh());
 

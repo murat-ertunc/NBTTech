@@ -1071,7 +1071,7 @@ const NbtDetailModal = {
                 { label: 'Tür', field: 'Tur' },
                 { label: 'Banka', field: 'BankaAdi' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
-                { label: 'Vade Tarihi', field: 'VadeTarihi', format: 'date' },
+                { label: 'Termin Tarihi', field: 'TerminTarihi', format: 'date' },
                 { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'teminat' }
             ],
             meeting: [

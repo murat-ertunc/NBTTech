@@ -62,56 +62,6 @@ class AuthController
         ]);
     }
 
-    public static function register(): void
-    {
-        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        $KullaniciAdi = trim((string) ($Girdi['username'] ?? ''));
-        $Parola = trim((string) ($Girdi['password'] ?? ''));
-        $AdSoyad = trim((string) ($Girdi['name'] ?? ''));
-        if ($KullaniciAdi === '' || $Parola === '' || $AdSoyad === '') {
-            Response::error('Kullanici adi, parola ve ad soyad zorunludur.', 422);
-            return;
-        }
-        if (strlen($AdSoyad) < 2) {
-            Response::error('Ad Soyad en az 2 karakter olmalidir.', 422);
-            return;
-        }
-        if (strlen($KullaniciAdi) < 3) {
-            Response::error('Kullanici adi en az 3 karakter olmalidir.', 422);
-            return;
-        }
-        if (strlen($Parola) < 6) {
-            Response::error('Parola en az 6 karakter olmalidir.', 422);
-            return;
-        }
-        $Repo = new UserRepository();
-        if ($Repo->kullaniciAdiIleBul($KullaniciAdi)) {
-            Response::error('Kullanici adi zaten kayitli.', 409);
-            return;
-        }
-        $Hash = password_hash($Parola, PASSWORD_BCRYPT);
-        [$Id, $Kayit] = Transaction::wrap(function () use ($Repo, $KullaniciAdi, $Hash, $AdSoyad) {
-            $YeniId = $Repo->olustur($KullaniciAdi, $Hash, $AdSoyad, 'user');
-            $Kayit = $Repo->bul($YeniId);
-            ActionLogger::insert('tnm_user', ['Id' => $YeniId], ['KullaniciAdi' => $KullaniciAdi, 'AdSoyad' => $AdSoyad, 'Rol' => 'user']);
-            return [$YeniId, $Kayit];
-        });
-
-        $TokenStr = Token::sign([
-            'userId' => $Id,
-            'role' => $Kayit['Rol'] ?? 'user',
-        ]);
-        Response::json([
-            'token' => $TokenStr,
-            'user' => [
-                'id' => $Id,
-                'name' => $Kayit['AdSoyad'] ?? $AdSoyad,
-                'username' => $Kayit['KullaniciAdi'] ?? $KullaniciAdi,
-                'role' => $Kayit['Rol'] ?? 'user',
-            ],
-        ], 201);
-    }
-
     public static function logout(): void
     {
         $Header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';

@@ -99,7 +99,3 @@ $Router->add('GET', '/parameters', function () {
 $Router->add('GET', '/login', function () {
 	require __DIR__ . '/../public/login.php';
 });
-
-$Router->add('GET', '/register', function () {
-	require __DIR__ . '/../public/register.php';
-});
