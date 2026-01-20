@@ -12,7 +12,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: LOGLAR ===== -->
-    <div id="view-logs">
+    <div id="view-logs" data-can="logs.read">
       <div class="card" id="panelLogs">
         <div class="card-header bg-primary text-white py-2">
           <span class="fw-semibold"><i class="bi bi-journal-text me-2"></i>İşlem Logları</span>

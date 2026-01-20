@@ -105,7 +105,7 @@
         <div class="card">
           <div class="card-header py-2 bg-light d-flex justify-content-between align-items-center">
             <span class="fw-semibold"><i class="bi bi-list-ul me-1"></i>Fatura Kalemleri</span>
-            <button type="button" class="btn btn-success btn-sm" id="btnAddInvoiceItem">
+            <button type="button" class="btn btn-success btn-sm" id="btnAddInvoiceItem" data-can-any="invoices.create,invoices.update">
               <i class="bi bi-plus-lg me-1"></i>Kalem Ekle
             </button>
           </div>
@@ -156,7 +156,7 @@
         <div class="card mt-3">
           <div class="card-header py-2 bg-light d-flex justify-content-between align-items-center">
             <span class="fw-semibold"><i class="bi bi-folder me-1"></i>Dosyalar</span>
-            <label class="btn btn-success btn-sm mb-0">
+            <label class="btn btn-success btn-sm mb-0" data-can-any="invoices.create,invoices.update">
               <i class="bi bi-upload me-1"></i>Dosya Ekle
               <input type="file" id="invoiceFileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif" style="display:none;">
             </label>
@@ -186,7 +186,7 @@
       </div>
       <div class="modal-footer py-2">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">İptal</button>
-        <button type="button" class="btn btn-primary btn-sm" id="btnSaveInvoice"><i class="bi bi-check-lg me-1"></i>Kaydet</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnSaveInvoice" data-can-any="invoices.create,invoices.update"><i class="bi bi-check-lg me-1"></i>Kaydet</button>
       </div>
     </div>
   </div>
@@ -324,7 +324,7 @@ function addInvoiceItemRow(data = null) {
           <input type="number" class="form-control form-control-sm item-tutar bg-light" value="${formatNum(data?.Tutar)}" readonly>
         </td>
         <td class="text-center align-middle">
-            <button type="button" class="btn btn-outline-danger btn-sm btn-delete-item" title="Sil">
+            <button type="button" class="btn btn-outline-danger btn-sm btn-delete-item" title="Sil" data-can-any="invoices.create,invoices.update">
                 <i class="bi bi-trash"></i>
             </button>
         </td>

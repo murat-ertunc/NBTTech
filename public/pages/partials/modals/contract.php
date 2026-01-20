@@ -40,7 +40,7 @@
           <label class="col-12 col-md-4 col-form-label">Tutar <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
             <div class="input-group">
-              <input type="number" step="0.01" class="form-control nbt-money-input" id="contractAmount" placeholder="0,00" required>
+               <input type="text" class="form-control nbt-money-input" id="contractAmount" placeholder="0,00" required value="0,00">
               <select class="form-select" id="contractCurrency" style="max-width: 90px;">
               </select>
             </div>
@@ -57,7 +57,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-        <button type="button" class="btn btn-primary" id="btnSaveContract">Kaydet</button>
+        <button type="button" class="btn btn-primary" id="btnSaveContract" data-can-any="contracts.create,contracts.update">Kaydet</button>
       </div>
     </div>
   </div>

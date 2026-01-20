@@ -100,6 +100,7 @@ const NbtUtils = {
         localStorage.removeItem(NBT.ROLE_KEY);
         localStorage.removeItem(NBT.USER_KEY);
         localStorage.removeItem('nbt_permissions');
+        document.cookie = 'nbt_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     },
 
     /**
@@ -152,11 +153,12 @@ const NbtUtils = {
     /**
      * Ondalik sayi formatlama - basindaki 0'i korur (0.34, 0.65 vb.)
      * Input'lara deger yuklerken kullanilir
+     * NULL/undefined/empty -> '0.00' olarak gosterilir
      */
     formatDecimal(value, decimals = 2) {
-        if (value === null || value === undefined || value === '') return '';
+        if (value === null || value === undefined || value === '') return (0).toFixed(decimals);
         const num = parseFloat(value);
-        if (isNaN(num)) return '';
+        if (isNaN(num)) return (0).toFixed(decimals);
         return num.toFixed(decimals);
     },
 
@@ -318,6 +320,17 @@ const NbtParams = {
     },
 
     /**
+     * Pasif olarak isaretlenmis durum kodlarini getir
+     * Bu durumlara sahip kayitlar select listelerinde gorünmez
+     * @param entity proje|teklif|sozlesme|teminat
+     * @param forceRefresh Cache'i yenileyerek guncel veri al
+     */
+    async getPasifDurumKodlari(entity, forceRefresh = false) {
+        const statuses = await this.getStatuses(entity, forceRefresh);
+        return statuses.filter(s => s.Pasif === true).map(s => String(s.Kod));
+    },
+
+    /**
      * Durum badge HTML'i olustur
      * @param entity proje|teklif|sozlesme|teminat
      * @param kod Durum kodu (1, 2, 3 vb.)
@@ -437,8 +450,20 @@ const NbtParams = {
 // =============================================
 const NbtPermission = {
     _cache: null,
+    _permissions: [],
+    _permSet: null,
     _cacheTime: 0,
     _cacheTtl: 5 * 60 * 1000, // 5 dakika
+    _observer: null,
+    _setPermissions(permData) {
+        this._cache = permData || null;
+        this._cacheTime = Date.now();
+        const list = Array.isArray(permData?.permissionlar) ? permData.permissionlar : [];
+        this._permissions = list;
+        this._permSet = new Set(list);
+        window.__PERMS__ = list;
+        return list;
+    },
     
     /**
      * LocalStorage'dan permission bilgilerini al
@@ -461,8 +486,7 @@ const NbtPermission = {
             // API yaniti {data: {...}} formatinda donuyor
             const permData = resp.data || resp;
             if (permData && (permData.permissionlar || permData.roller)) {
-                this._cache = permData;
-                this._cacheTime = Date.now();
+                this._setPermissions(permData);
                 localStorage.setItem('nbt_permissions', JSON.stringify(permData));
                 // Global event dispatch et - diger scriptler bunu bekleyebilir
                 window.dispatchEvent(new CustomEvent('nbt:permissions:ready', { detail: permData }));
@@ -473,6 +497,7 @@ const NbtPermission = {
         }
         const stored = this._getFromStorage();
         if (stored) {
+            this._setPermissions(stored);
             window.dispatchEvent(new CustomEvent('nbt:permissions:ready', { detail: stored }));
         }
         return stored;
@@ -482,19 +507,17 @@ const NbtPermission = {
      * Permission verilerini dondur (cached)
      */
     async getData() {
-        // Memory cache gecerli mi?
-        if (this._cache && (Date.now() - this._cacheTime) < this._cacheTtl) {
-            return this._cache;
+        const token = NbtUtils?.getToken ? NbtUtils.getToken() : null;
+        if (token) {
+            const fresh = await this.load();
+            if (fresh) return fresh;
         }
-        // Storage'dan dene
         const stored = this._getFromStorage();
         if (stored) {
-            this._cache = stored;
-            this._cacheTime = Date.now();
+            this._setPermissions(stored);
             return stored;
         }
-        // API'den yukle
-        return await this.load();
+        return null;
     },
     
     /**
@@ -503,11 +526,11 @@ const NbtPermission = {
      * @returns {boolean}
      */
     can(permission) {
-        const data = this._cache || this._getFromStorage();
-        if (!data) return false;
-        
-        // Permission listesinde var mi?
-        return Array.isArray(data.permissionlar) && data.permissionlar.includes(permission);
+        if (this._permSet && this._permSet.size > 0) {
+            return this._permSet.has(permission);
+        }
+        const list = Array.isArray(window.__PERMS__) ? window.__PERMS__ : [];
+        return list.includes(permission);
     },
     
     /**
@@ -580,36 +603,93 @@ const NbtPermission = {
     clearCache() {
         this._cache = null;
         this._cacheTime = 0;
+        this._permissions = [];
+        this._permSet = null;
+        window.__PERMS__ = [];
         localStorage.removeItem('nbt_permissions');
     },
     
     /**
      * HTML elementi permission'a gore gizle/goster
-     * data-permission="users.create" attribute'u ile kullanilir
+     * data-can="users.create" attribute'u ile kullanilir
      */
-    applyToElements() {
-        document.querySelectorAll('[data-permission]').forEach(el => {
-            const permission = el.dataset.permission;
-            if (!this.can(permission)) {
-                el.style.display = 'none';
+    applyToElements(root = document) {
+        const elements = [];
+
+        if (root && root.nodeType === 1) {
+            elements.push(root);
+        }
+
+        const scoped = root && root.querySelectorAll
+            ? root.querySelectorAll('[data-can], [data-can-any], [data-can-all], [data-can-module]')
+            : [];
+
+        elements.push(...scoped);
+
+        elements.forEach(el => {
+            if (!el || el.nodeType !== 1) return;
+
+            if (el.dataset.can) {
+                const permission = el.dataset.can.trim();
+                if (!this.can(permission)) {
+                    el.remove();
+                }
+                return;
+            }
+
+            if (el.dataset.canAny) {
+                const permissions = el.dataset.canAny.split(',').map(p => p.trim()).filter(Boolean);
+                if (!this.canAny(permissions)) {
+                    el.remove();
+                }
+                return;
+            }
+
+            if (el.dataset.canAll) {
+                const permissions = el.dataset.canAll.split(',').map(p => p.trim()).filter(Boolean);
+                if (!this.canAll(permissions)) {
+                    el.remove();
+                }
+                return;
+            }
+
+            if (el.dataset.canModule) {
+                const modul = el.dataset.canModule.trim();
+                if (!this.canAccessModule(modul)) {
+                    el.remove();
+                }
             }
         });
-        
-        // data-permission-any="users.create,users.update" icin
-        document.querySelectorAll('[data-permission-any]').forEach(el => {
-            const permissions = el.dataset.permissionAny.split(',').map(p => p.trim());
-            if (!this.canAny(permissions)) {
-                el.style.display = 'none';
-            }
+    },
+
+
+    observe() {
+        if (this._observer || !window.MutationObserver) return;
+
+        this._observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType !== 1) return;
+                    this.applyToElements(node);
+                });
+            });
         });
-        
-        // data-module-access="users" icin
-        document.querySelectorAll('[data-module-access]').forEach(el => {
-            const modul = el.dataset.moduleAccess;
-            if (!this.canAccessModule(modul)) {
-                el.style.display = 'none';
-            }
-        });
+
+        this._observer.observe(document.body, { childList: true, subtree: true });
+    },
+
+    async init() {
+        if (!NbtUtils?.getToken) return;
+        const token = NbtUtils.getToken();
+        if (!token) return;
+        // Cookie 7 gün geçerli olsun (token TTL ile uyumlu)
+        const ExpireDate = new Date();
+        ExpireDate.setDate(ExpireDate.getDate() + 7);
+        document.cookie = `nbt_token=${encodeURIComponent(token)}; path=/; expires=${ExpireDate.toUTCString()}; samesite=lax`;
+
+        const data = await this.getData();
+        this.applyToElements();
+        this.observe();
     }
 };
 
@@ -644,13 +724,19 @@ const NbtApi = {
                 throw new Error('Oturum suresi doldu');
             }
             if (response.status === 403) {
-                throw new Error(data.error || 'Bu islem icin yetkiniz yok');
+                const msg = data?.error?.message || data?.message || data?.error || 'Bu işlem için yetkiniz yok.';
+                throw new Error(msg);
             }
             if (response.status === 404) {
                 throw new Error(data.error || 'Kayit bulunamadi');
             }
             if (response.status === 422) {
-                throw new Error(data.error || 'Validasyon hatasi');
+                const err = new Error(data?.error?.message || data?.message || data?.error || 'Doğrulama hatası');
+                if (data?.error?.fields) {
+                    err.fields = data.error.fields;
+                }
+                err.code = data?.error?.code || 'VALIDATION_ERROR';
+                throw err;
             }
             if (response.status >= 500) {
                 throw new Error(data.error || 'Sunucu hatasi');
@@ -796,6 +882,7 @@ const NbtListToolbar = {
                            placeholder="${options.placeholder || 'Ara...'}" />
                 </div>` : '';
         
+        const addPermissionAttr = options.addPermission ? ` data-can="${options.addPermission}"` : '';
         return `
             <div class="d-flex align-items-center gap-2 p-2 bg-light border-bottom nbt-toolbar">
                 ${searchHtml}
@@ -804,7 +891,7 @@ const NbtListToolbar = {
                     <i class="bi bi-funnel"></i>
                 </button>` : ''}
                 ${options.onAdd ? `
-                <button type="button" class="btn btn-success btn-sm" data-toolbar="add" title="Yeni Ekle">
+                <button type="button" class="btn btn-success btn-sm" data-toolbar="add" title="Yeni Ekle"${addPermissionAttr}>
                     <i class="bi bi-plus-lg me-1"></i><span class="d-none d-md-inline">Ekle</span>
                 </button>` : ''}
             </div>
@@ -1076,6 +1163,16 @@ const NbtModal = {
             }
         });
         
+        // Para/tutar inputlarina default 0 degerini ata (nbt-money-input class'ina sahip olanlar)
+        // HTML5 number input'lari icin sayi degeri kullanilmali
+        modal.querySelectorAll('input.nbt-money-input').forEach(el => {
+            if (el.type === 'number') {
+                el.value = '0';
+            } else {
+                el.value = '0,00';
+            }
+        });
+        
         this.clearError(modalId);
     },
     
@@ -1166,6 +1263,26 @@ const NbtDetailModal = {
             calendar: 'bi-calendar3'
         };
 
+        const permissionModuleMap = {
+            customer: 'customers',
+            invoice: 'invoices',
+            payment: 'payments',
+            project: 'projects',
+            offer: 'offers',
+            contract: 'contracts',
+            guarantee: 'guarantees',
+            meeting: 'meetings',
+            contact: 'contacts',
+            stampTax: 'stamp_taxes',
+            file: 'files',
+            calendar: 'calendar'
+        };
+
+        const moduleName = permissionModuleMap[entityType] || null;
+        const canEditPermission = moduleName ? NbtPermission.can(`${moduleName}.update`) : false;
+        const canDeletePermission = moduleName ? NbtPermission.can(`${moduleName}.delete`) : false;
+        const canReadPermission = moduleName ? NbtPermission.can(`${moduleName}.read`) : false;
+
         const titleEl = document.getElementById('entityDetailModalTitle');
         if (titleEl) {
             titleEl.innerHTML = `<i class="bi ${icons[entityType] || 'bi-eye'} me-2"></i>${titles[entityType] || 'Detay'}`;
@@ -1179,7 +1296,7 @@ const NbtDetailModal = {
 
         const editBtn = document.getElementById('btnEntityDetailEdit');
         if (editBtn) {
-            if (onEdit) {
+            if (onEdit && canEditPermission) {
                 editBtn.classList.remove('d-none');
                 editBtn.onclick = () => {
                     NbtModal.close('entityDetailModal');
@@ -1192,7 +1309,7 @@ const NbtDetailModal = {
 
         const pageBtn = document.getElementById('btnEntityDetailPage');
         if (pageBtn) {
-            if (entityType === 'customer') {
+            if (entityType === 'customer' && canReadPermission) {
                 pageBtn.classList.remove('d-none');
                 pageBtn.onclick = () => {
                     NbtModal.close('entityDetailModal');
@@ -1206,7 +1323,7 @@ const NbtDetailModal = {
 
         const deleteBtn = document.getElementById('btnEntityDetailDelete');
         if (deleteBtn) {
-            if (onDelete) {
+            if (onDelete && canDeletePermission) {
                 deleteBtn.classList.remove('d-none');
                 deleteBtn.onclick = () => {
                     onDelete(this._currentId, this._currentData);
@@ -1936,6 +2053,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    NbtPermission.init();
+
     const footerDateTime = document.getElementById('footerDateTime');
     if (footerDateTime) {
         const updateTime = () => {
@@ -2002,3 +2121,7 @@ window.NbtModal = NbtModal;
 window.NbtDetailModal = NbtDetailModal;
 window.NbtRouter = NbtRouter;
 window.NbtCalendar = NbtCalendar;
+window.NbtPermission = NbtPermission;
+window.can = (permission) => NbtPermission.can(permission);
+window.canAny = (permissions) => NbtPermission.canAny(permissions);
+window.canAll = (permissions) => NbtPermission.canAll(permissions);

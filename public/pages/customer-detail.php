@@ -3,6 +3,9 @@
  * Musteri Detay Sayfasi - Server-Rendered
  * URL: /customer/{id}
  * 
+ * RBAC: Tab'lar server-side permission kontrolu ile render edilir.
+ * Permission yoksa tab DOM'a eklenmez.
+ * 
  * Tab degistirme URL'yi degistirmiyor, sadece JS state'i degisiyor
  */
 
@@ -14,10 +17,53 @@ $activeNav = 'customers';
 $currentPage = 'customer';
 
 require __DIR__ . '/partials/header.php';
+
+// Tab permission mapping - tab key => required permission
+$TabPermissions = [
+    'bilgi'        => 'customers.read',
+    'kisiler'      => 'contacts.read',
+    'gorusme'      => 'meetings.read',
+    'projeler'     => 'projects.read',
+    'teklifler'    => 'offers.read',
+    'sozlesmeler'  => 'contracts.read',
+    'takvim'       => 'calendar.read',
+    'damgavergisi' => 'stamp_taxes.read',
+    'teminatlar'   => 'guarantees.read',
+    'faturalar'    => 'invoices.read',
+    'odemeler'     => 'payments.read',
+    'dosyalar'     => 'files.read'
+];
+
+// Tab gorsel bilgileri
+$TabInfo = [
+    'bilgi'        => ['icon' => 'bi-info-circle', 'label' => 'Bilgi'],
+    'kisiler'      => ['icon' => 'bi-people', 'label' => 'Kişiler'],
+    'gorusme'      => ['icon' => 'bi-chat-dots', 'label' => 'Görüşme'],
+    'projeler'     => ['icon' => 'bi-kanban', 'label' => 'Projeler'],
+    'teklifler'    => ['icon' => 'bi-file-earmark-text', 'label' => 'Teklif'],
+    'sozlesmeler'  => ['icon' => 'bi-file-text', 'label' => 'Sözleşme'],
+    'takvim'       => ['icon' => 'bi-calendar3', 'label' => 'Takvim'],
+    'damgavergisi' => ['icon' => 'bi-percent', 'label' => 'Damga Vergisi'],
+    'teminatlar'   => ['icon' => 'bi-shield-check', 'label' => 'Teminat'],
+    'faturalar'    => ['icon' => 'bi-receipt', 'label' => 'Fatura'],
+    'odemeler'     => ['icon' => 'bi-cash-stack', 'label' => 'Ödeme'],
+    'dosyalar'     => ['icon' => 'bi-folder', 'label' => 'Dosyalar']
+];
+
+// Izinli tab'lari filtrele
+$AllowedTabs = [];
+foreach ($TabPermissions as $TabKey => $Permission) {
+    if ($can($Permission)) {
+        $AllowedTabs[] = $TabKey;
+    }
+}
+
+// Ilk izinli tab active olacak
+$DefaultTab = !empty($AllowedTabs) ? $AllowedTabs[0] : null;
 ?>
 
     <!-- ===== VIEW: MÜŞTERİ DETAY ===== -->
-    <div id="view-customer-detail" data-customer-id="<?= (int)$MusteriId ?>">
+    <div id="view-customer-detail" data-customer-id="<?= (int)$MusteriId ?>" data-default-tab="<?= htmlspecialchars($DefaultTab ?? '', ENT_QUOTES, 'UTF-8') ?>" data-allowed-tabs="<?= htmlspecialchars(json_encode($AllowedTabs), ENT_QUOTES, 'UTF-8') ?>">
       <!-- Müşteri Başlık -->
       <div class="card mb-3 border-0 shadow-sm">
         <div class="card-body py-2">
@@ -28,81 +74,45 @@ require __DIR__ . '/partials/header.php';
                 <small class="text-muted" id="customerDetailCode"></small>
               </div>
             </div>
+            <?php if ($can('customers.update')): ?>
             <button type="button" class="btn btn-primary btn-sm" id="btnEditCustomer">
               <i class="bi bi-pencil me-1"></i>Düzenle
             </button>
+            <?php endif; ?>
           </div>
         </div>
       </div>
 
+      <?php if (empty($AllowedTabs)): ?>
+      <!-- Hic izinli tab yoksa empty state -->
+      <div class="alert alert-warning">
+        <i class="bi bi-shield-exclamation me-2"></i>
+        Bu müşterinin detaylarını görüntülemek için yeterli yetkiniz bulunmamaktadır.
+      </div>
+      <?php else: ?>
       <!-- Tab Menüsü -->
       <ul class="nav nav-tabs" id="customerTabs" role="tablist">
+        <?php 
+        $IsFirst = true;
+        foreach ($AllowedTabs as $TabKey): 
+            $Info = $TabInfo[$TabKey] ?? ['icon' => 'bi-circle', 'label' => ucfirst($TabKey)];
+        ?>
         <li class="nav-item" role="presentation">
-          <button class="nav-link active" data-tab="bilgi" type="button">
-            <i class="bi bi-info-circle me-1"></i>Bilgi
+          <button class="nav-link<?= $IsFirst ? ' active' : '' ?>" data-tab="<?= htmlspecialchars($TabKey, ENT_QUOTES, 'UTF-8') ?>" type="button">
+            <i class="bi <?= htmlspecialchars($Info['icon'], ENT_QUOTES, 'UTF-8') ?> me-1"></i><?= htmlspecialchars($Info['label'], ENT_QUOTES, 'UTF-8') ?>
           </button>
         </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="kisiler" type="button">
-            <i class="bi bi-people me-1"></i>Kişiler
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="gorusme" type="button">
-            <i class="bi bi-chat-dots me-1"></i>Görüşme
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="projeler" type="button">
-            <i class="bi bi-kanban me-1"></i>Projeler
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="teklifler" type="button">
-            <i class="bi bi-file-earmark-text me-1"></i>Teklif
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="sozlesmeler" type="button">
-            <i class="bi bi-file-text me-1"></i>Sözleşme
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="takvim" type="button">
-            <i class="bi bi-calendar3 me-1"></i>Takvim
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="damgavergisi" type="button">
-            <i class="bi bi-percent me-1"></i>Damga Vergisi
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="teminatlar" type="button">
-            <i class="bi bi-shield-check me-1"></i>Teminat
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="faturalar" type="button">
-            <i class="bi bi-receipt me-1"></i>Fatura
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="odemeler" type="button">
-            <i class="bi bi-cash-stack me-1"></i>Ödeme
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" data-tab="dosyalar" type="button">
-            <i class="bi bi-folder me-1"></i>Dosyalar
-          </button>
-        </li>
+        <?php 
+            $IsFirst = false;
+        endforeach; 
+        ?>
       </ul>
 
       <!-- Tab İçerikleri -->
       <div id="customerTabContent" class="mt-3">
         <!-- JS ile doldurulacak -->
       </div>
+      <?php endif; ?>
     </div>
 
 <?php require __DIR__ . '/partials/modals/project.php'; ?>

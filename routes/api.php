@@ -207,7 +207,12 @@ resource('files', App\Controllers\FileController::class, [
 resourceInstance('calendar', App\Controllers\CalendarController::class, ['only' => ['index']]);
 $Router->add('GET', '/api/calendar/day/{date}', guard('calendar.read', fn($P) => (new App\Controllers\CalendarController())->day($P['date'])));
 
-resource('takvim', App\Controllers\TakvimController::class);
+// Takvim endpoint'leri calendar.* permission'lari ile korunur
+$Router->add('GET', '/api/takvim', guard('calendar.read', fn($P) => App\Controllers\TakvimController::index($P)));
+$Router->add('GET', '/api/takvim/{id}', guard('calendar.read', fn($P) => App\Controllers\TakvimController::show($P)));
+$Router->add('POST', '/api/takvim', guard('calendar.create', fn($P) => App\Controllers\TakvimController::store($P)));
+$Router->add('PUT', '/api/takvim/{id}', guard('calendar.update', fn($P) => App\Controllers\TakvimController::update($P)));
+$Router->add('DELETE', '/api/takvim/{id}', guard('calendar.delete', fn($P) => App\Controllers\TakvimController::delete($P)));
 
 // =============================================
 // READ-ONLY MODULLER

@@ -595,10 +595,10 @@ const CustomerModule = {
                         ${cells}
                         <td class="text-center px-3">
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay">
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay" data-can="customers.read">
                                     <i class="bi bi-eye"></i>
                                 </button>
-                                <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete" data-id="${row.Id}" title="Sil">
+                                <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete" data-id="${row.Id}" title="Sil" data-can="customers.delete">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
@@ -972,7 +972,21 @@ const CustomerDetailModule = {
         
         try {
             const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
-            const projects = response.data || [];
+            let projects = response.data || [];
+            
+            // Pasif durumdaki projeleri filtrele (secilen proje hariç)
+            // forceRefresh=true ile her zaman guncel pasif durumlarini al
+            const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
+            
+            projects = projects.filter(p => {
+                // Eger proje zaten secili ise gostermeye devam et
+                if (selectedValue && parseInt(p.Id) === parseInt(selectedValue)) {
+                    return true;
+                }
+                // Pasif duruma sahip projeleri gizle
+                return !pasifKodlar.includes(String(p.Durum));
+            });
+            
             projects.forEach(p => {
                 const option = document.createElement('option');
                 option.value = p.Id;
@@ -1018,6 +1032,21 @@ const CustomerDetailModule = {
         dosyalar: { title: 'Dosyalar', icon: 'bi-folder', endpoint: '/api/files', key: 'files' }
     },
 
+    tabPermissions: {
+        bilgi: 'customers.read',
+        kisiler: 'contacts.read',
+        gorusme: 'meetings.read',
+        projeler: 'projects.read',
+        teklifler: 'offers.read',
+        sozlesmeler: 'contracts.read',
+        takvim: 'calendar.read',
+        damgavergisi: 'stamp_taxes.read',
+        teminatlar: 'guarantees.read',
+        faturalar: 'invoices.read',
+        odemeler: 'payments.read',
+        dosyalar: 'files.read'
+    },
+
     async init(customerId, initialTab = null) {
         this.pageSize = NbtParams.getPaginationDefault();
         this.customerId = parseInt(customerId, 10);
@@ -1025,6 +1054,23 @@ const CustomerDetailModule = {
             NbtToast.error('Geçersiz müşteri ID');
             NbtRouter.navigate('/customers');
             return;
+        }
+        
+        // Server-side render edilen izinli tab listesini al
+        const detailView = document.getElementById('view-customer-detail');
+        if (detailView) {
+            const allowedTabsAttr = detailView.dataset.allowedTabs;
+            const defaultTabAttr = detailView.dataset.defaultTab;
+            if (allowedTabsAttr) {
+                try {
+                    this._serverAllowedTabs = JSON.parse(allowedTabsAttr);
+                } catch (e) {
+                    this._serverAllowedTabs = null;
+                }
+            }
+            if (defaultTabAttr) {
+                this._serverDefaultTab = defaultTabAttr;
+            }
         }
         
         // Durum parametrelerini onceden yukle (badge'ler icin)
@@ -1038,7 +1084,15 @@ const CustomerDetailModule = {
         
         await this.loadCustomer();
         this.bindEvents();
-        const tabToOpen = initialTab && this.tabConfig[initialTab] ? initialTab : 'bilgi';
+        // Tab permission'lar artik server-side uygulandigi icin bu gereksiz, yine de guvenlik icin calistir
+        this.applyTabPermissions();
+        // Server'dan gelen default tab'i tercih et
+        const preferredTab = this._serverDefaultTab || (initialTab && this.tabConfig[initialTab] ? initialTab : 'bilgi');
+        const tabToOpen = this.resolveInitialTab(preferredTab);
+        if (!tabToOpen) {
+            this.renderNoAccess();
+            return;
+        }
         this.switchTab(tabToOpen);
     },
 
@@ -1064,21 +1118,64 @@ const CustomerDetailModule = {
             document.getElementById('customerDetailCode').textContent = musteriKodu;
             AppState.currentCustomer = this.data.customer;
 
-            await Promise.all([
-                this.loadRelatedData('projects', '/api/projects'),
-                this.loadRelatedData('invoices', '/api/invoices'),
-                this.loadRelatedData('payments', '/api/payments'),
-                this.loadRelatedData('offers', '/api/offers'),
-                this.loadRelatedData('contracts', '/api/contracts'),
-                this.loadRelatedData('guarantees', '/api/guarantees'),
-                this.loadRelatedData('meetings', '/api/meetings'),
-                this.loadRelatedData('contacts', '/api/contacts'),
-                this.loadRelatedData('stampTaxes', '/api/stamp-taxes'),
-                this.loadRelatedData('files', '/api/files'),
-                this.loadRelatedData('calendars', '/api/takvim')
-            ]);
+            const loadTasks = [];
+            if (this.isTabPermitted('projeler')) loadTasks.push(this.loadRelatedData('projects', '/api/projects'));
+            if (this.isTabPermitted('faturalar')) loadTasks.push(this.loadRelatedData('invoices', '/api/invoices'));
+            if (this.isTabPermitted('odemeler')) loadTasks.push(this.loadRelatedData('payments', '/api/payments'));
+            if (this.isTabPermitted('teklifler')) loadTasks.push(this.loadRelatedData('offers', '/api/offers'));
+            if (this.isTabPermitted('sozlesmeler')) loadTasks.push(this.loadRelatedData('contracts', '/api/contracts'));
+            if (this.isTabPermitted('teminatlar')) loadTasks.push(this.loadRelatedData('guarantees', '/api/guarantees'));
+            if (this.isTabPermitted('gorusme')) loadTasks.push(this.loadRelatedData('meetings', '/api/meetings'));
+            if (this.isTabPermitted('kisiler')) loadTasks.push(this.loadRelatedData('contacts', '/api/contacts'));
+            if (this.isTabPermitted('damgavergisi')) loadTasks.push(this.loadRelatedData('stampTaxes', '/api/stamp-taxes'));
+            if (this.isTabPermitted('dosyalar')) loadTasks.push(this.loadRelatedData('files', '/api/files'));
+            if (this.isTabPermitted('takvim')) loadTasks.push(this.loadRelatedData('calendars', '/api/takvim'));
+
+            await Promise.all(loadTasks);
         } catch (err) {
             NbtToast.error(err.message);
+        }
+    },
+
+    isTabPermitted(tab) {
+        // Server'dan gelen izinli tab listesi varsa onu kullan (guvenilir)
+        if (this._serverAllowedTabs && Array.isArray(this._serverAllowedTabs)) {
+            return this._serverAllowedTabs.includes(tab);
+        }
+        // Fallback: client-side permission kontrolu
+        const perm = this.tabPermissions[tab];
+        if (!perm) return false;
+        return NbtPermission.can(perm);
+    },
+
+    resolveInitialTab(preferredTab) {
+        if (preferredTab && this.isTabPermitted(preferredTab)) return preferredTab;
+        // Server'dan gelen izinli tab listesi varsa onu kullan
+        if (this._serverAllowedTabs && Array.isArray(this._serverAllowedTabs) && this._serverAllowedTabs.length > 0) {
+            return this._serverAllowedTabs[0];
+        }
+        // Fallback: client-side permission kontrolu
+        const allowedTabs = Object.keys(this.tabConfig).filter(key => this.isTabPermitted(key));
+        return allowedTabs.length > 0 ? allowedTabs[0] : null;
+    },
+
+    applyTabPermissions() {
+        document.querySelectorAll('#customerTabs .nav-link').forEach(btn => {
+            const tabKey = btn.dataset.tab;
+            if (!this.isTabPermitted(tabKey)) {
+                btn.remove();
+            }
+        });
+    },
+
+    renderNoAccess() {
+        const container = document.getElementById('customerTabContent');
+        if (container) {
+            container.innerHTML = `
+                <div class="alert alert-warning mb-0">
+                    Bu sayfayı görüntüleme yetkiniz yok.
+                </div>
+            `;
         }
     },
 
@@ -1128,6 +1225,15 @@ const CustomerDetailModule = {
     },
 
     switchTab(tab) {
+        if (!this.isTabPermitted(tab)) {
+            const fallback = this.resolveInitialTab(tab);
+            if (!fallback) {
+                this.renderNoAccess();
+                return;
+            }
+            tab = fallback;
+        }
+
         this.activeTab = tab;
         
         document.querySelectorAll('#customerTabs .nav-link').forEach(btn => {
@@ -1138,6 +1244,7 @@ const CustomerDetailModule = {
         const container = document.getElementById('customerTabContent');
         container.innerHTML = this.renderTabContent(tab);
         this.bindTabEvents(container, tab);
+        NbtPermission.applyToElements(container);
         
         // Filtre select'lerini doldur (status ve currency)
         this.populateFilterSelects(container);
@@ -1197,9 +1304,50 @@ const CustomerDetailModule = {
         }
     },
 
+    getModuleFromAddType(addType) {
+        const map = {
+            contact: 'contacts',
+            meeting: 'meetings',
+            project: 'projects',
+            offer: 'offers',
+            contract: 'contracts',
+            calendar: 'calendar',
+            stamptax: 'stamp_taxes',
+            guarantee: 'guarantees',
+            invoice: 'invoices',
+            payment: 'payments',
+            file: 'files'
+        };
+        return map[addType] || null;
+    },
+
+    getModuleFromTableId(tableId) {
+        const map = {
+            projeler: 'projects',
+            teklifler: 'offers',
+            sozlesmeler: 'contracts',
+            teminatlar: 'guarantees',
+            gorusme: 'meetings',
+            kisiler: 'contacts',
+            damgavergisi: 'stamp_taxes',
+            takvim: 'calendar',
+            faturalar: 'invoices',
+            odemeler: 'payments',
+            dosyalar: 'files'
+        };
+        return map[tableId] || null;
+    },
+
+    getPermissionAttr(moduleName, action) {
+        if (!moduleName || !action) return '';
+        return ` data-can="${moduleName}.${action}"`;
+    },
+
     // ========== STANDART PANEL YAPISI ==========
     renderPanel(config) {
         const { id, title, icon, filterFields, columns, data, addType, emptyMsg } = config;
+        const moduleName = this.getModuleFromAddType(addType);
+        const addPermissionAttr = this.getPermissionAttr(moduleName, 'create');
 
         const tableHtml = this.renderDataTable(id, columns, data, emptyMsg);
 
@@ -1208,7 +1356,7 @@ const CustomerDetailModule = {
                 <div class="card-header py-2 d-flex justify-content-between align-items-center bg-white">
                     <span class="fw-semibold"><i class="bi ${icon} me-2"></i>${title}</span>
                     <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-success btn-sm" data-add="${addType}">
+                        <button type="button" class="btn btn-success btn-sm" data-add="${addType}"${addPermissionAttr}>
                             <i class="bi bi-plus-lg me-1"></i>Ekle
                         </button>
                         <div class="btn-group btn-group-sm">
@@ -1231,6 +1379,10 @@ const CustomerDetailModule = {
     },
 
     renderDataTable(id, columns, data, emptyMsg, isFiltered = false, config = {}) {
+        const moduleName = this.getModuleFromTableId(id);
+        const viewPermissionAttr = this.getPermissionAttr(moduleName, 'read');
+        const editPermissionAttr = this.getPermissionAttr(moduleName, 'update');
+        const deletePermissionAttr = this.getPermissionAttr(moduleName, 'delete');
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + '<th class="bg-light text-center px-3" style="width:130px;">İşlem</th>';
 
         // Filter row - her kolon icin gelismis filtreler
@@ -1334,7 +1486,7 @@ const CustomerDetailModule = {
             // Dosya indirme butonu (DosyaYolu varsa goster)
             const hasFile = row.DosyaYolu || row.DosyaId;
             const downloadBtn = hasFile ? `
-                <button class="btn btn-outline-info btn-sm" type="button" data-action="download" data-id="${row.Id}" data-file="${row.DosyaYolu || ''}" title="İndir">
+                <button class="btn btn-outline-info btn-sm" type="button" data-action="download" data-id="${row.Id}" data-file="${row.DosyaYolu || ''}" title="İndir"${viewPermissionAttr}>
                     <i class="bi bi-download"></i>
                 </button>` : '';
             
@@ -1344,13 +1496,13 @@ const CustomerDetailModule = {
                     <td class="text-center px-3">
                         <div class="btn-group btn-group-sm">
                             ${downloadBtn}
-                            <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay">
+                            <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay"${viewPermissionAttr}>
                                 <i class="bi bi-eye"></i>
                             </button>
-                            <button class="btn btn-outline-secondary btn-sm" type="button" data-action="edit" data-id="${row.Id}" title="Düzenle">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" data-action="edit" data-id="${row.Id}" title="Düzenle"${editPermissionAttr}>
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete" data-id="${row.Id}" title="Sil">
+                            <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete" data-id="${row.Id}" title="Sil"${deletePermissionAttr}>
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -3276,10 +3428,10 @@ const InvoiceModule = {
                         ${cells}
                         <td class="text-center px-3">
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay">
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay" data-can="invoices.read">
                                     <i class="bi bi-eye"></i>
                                 </button>
-                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=faturalar" title="Müşteriye Git">
+                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=faturalar" title="Müşteriye Git" data-can="customers.read">
                                     <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
                             </div>
@@ -3510,7 +3662,12 @@ const InvoiceModule = {
             if (musteriId) {
                 try {
                     const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
-                    const projects = response.data || [];
+                    let projects = response.data || [];
+                    
+                    // Pasif durumdaki projeleri filtrele
+                    const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
+                    projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
+                    
                     projects.forEach(p => {
                         projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
                     });
@@ -4119,10 +4276,10 @@ const PaymentModule = {
                         ${cells}
                         <td class="text-center px-3">
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay">
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay" data-can="payments.read">
                                     <i class="bi bi-eye"></i>
                                 </button>
-                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=odemeler" title="Müşteriye Git">
+                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=odemeler" title="Müşteriye Git" data-can="customers.read">
                                     <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
                             </div>
@@ -5438,10 +5595,10 @@ const ProjectModule = {
                         ${cells}
                         <td class="text-center px-3">
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay">
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay" data-can="projects.read">
                                     <i class="bi bi-eye"></i>
                                 </button>
-                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=projeler" title="Müşteriye Git">
+                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=projeler" title="Müşteriye Git" data-can="customers.read">
                                     <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
                             </div>
@@ -6327,7 +6484,7 @@ const ParameterModule = {
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-${group.color}">${items.length} kayıt</span>
                         ${(this.activeGroup.startsWith('durum_') || this.activeGroup === 'doviz') ? 
-                            `<button class="btn btn-sm btn-${group.color}" id="btnAddParameter">
+                            `<button class="btn btn-sm btn-${group.color}" id="btnAddParameter" data-can="parameters.create">
                                 <i class="bi bi-plus-lg me-1"></i>Yeni Ekle
                             </button>` : ''}
                     </div>
@@ -6420,14 +6577,14 @@ const ParameterModule = {
                         ${item.Kod === 'pagination_default' ? `
                             <input type="number" class="form-control form-control-sm" 
                                    id="param_${item.Id}" value="${item.Deger}" 
-                                   min="5" max="100" style="width:100px;">
+                                   min="5" max="100" style="width:100px;" data-can="parameters.update">
                         ` : `
                             <input type="text" class="form-control form-control-sm" 
-                                   id="param_${item.Id}" value="${NbtUtils.escapeHtml(item.Deger || '')}">
+                                   id="param_${item.Id}" value="${NbtUtils.escapeHtml(item.Deger || '')}" data-can="parameters.update">
                         `}
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-primary" data-action="save-general" data-id="${item.Id}">
+                        <button class="btn btn-sm btn-primary" data-action="save-general" data-id="${item.Id}" data-can="parameters.update">
                             <i class="bi bi-check-lg"></i> Kaydet
                         </button>
                     </td>
@@ -6478,26 +6635,26 @@ const ParameterModule = {
                         </td>
                         <td>
                             <div class="form-check form-switch">
-                                <input class="form-check-input hatirlatma-aktif-toggle" type="checkbox" 
+                                    <input class="form-check-input hatirlatma-aktif-toggle" type="checkbox" 
                                        id="aktif_${key}" data-key="${key}" 
                                        data-aktif-id="${aktifItem?.Id || ''}"
-                                       ${isAktif ? 'checked' : ''}>
+                                           ${isAktif ? 'checked' : ''} data-can="parameters.update">
                             </div>
                         </td>
                         <td>
                             <div class="input-group input-group-sm" style="width:120px;">
-                                <input type="number" class="form-control hatirlatma-gun-input" 
+                                    <input type="number" class="form-control hatirlatma-gun-input" 
                                        id="gun_${key}" data-key="${key}"
                                        data-gun-id="${gunItem.Id}"
                                        value="${gunItem.Deger || 0}" 
-                                       min="0" max="365" ${!isAktif ? 'disabled' : ''}>
+                                           min="0" max="365" ${!isAktif ? 'disabled' : ''} data-can="parameters.update">
                                 <span class="input-group-text">gün</span>
                             </div>
                         </td>
                         <td>
-                            <button class="btn btn-sm btn-primary" data-action="save-hatirlatma" 
+                                <button class="btn btn-sm btn-primary" data-action="save-hatirlatma" 
                                     data-key="${key}" data-gun-id="${gunItem.Id}" 
-                                    data-aktif-id="${aktifItem?.Id || ''}">
+                                    data-aktif-id="${aktifItem?.Id || ''}" data-can="parameters.update">
                                 <i class="bi bi-check-lg"></i>
                             </button>
                         </td>
@@ -6506,7 +6663,7 @@ const ParameterModule = {
             
             html += `</tbody></table></div>
                     <div class="mt-2">
-                        <button class="btn btn-success" id="btnSaveAllHatirlatma">
+                        <button class="btn btn-success" id="btnSaveAllHatirlatma" data-can="parameters.update">
                             <i class="bi bi-check-all me-1"></i> Tümünü Kaydet
                         </button>
                     </div>
@@ -6544,22 +6701,22 @@ const ParameterModule = {
                     <td>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" data-action="toggle-active" 
-                                   data-id="${item.Id}" ${isActive ? 'checked' : ''}>
+                                   data-id="${item.Id}" ${isActive ? 'checked' : ''} data-can="parameters.update">
                         </div>
                     </td>
                     <td>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="defaultCurrency" 
-                                   data-action="set-default" data-id="${item.Id}" 
-                                   ${isDefault ? 'checked' : ''}>
+                                data-action="set-default" data-id="${item.Id}" 
+                                   ${isDefault ? 'checked' : ''} data-can="parameters.update">
                         </div>
                     </td>
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" data-action="edit" data-id="${item.Id}" title="Düzenle">
+                            <button class="btn btn-outline-primary" data-action="edit" data-id="${item.Id}" title="Düzenle" data-can="parameters.update">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-outline-danger" data-action="delete" data-id="${item.Id}" title="Sil">
+                            <button class="btn btn-outline-danger" data-action="delete" data-id="${item.Id}" title="Sil" data-can="parameters.delete">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -6573,6 +6730,9 @@ const ParameterModule = {
 
     // Durum icerigi (string dondurur)
     renderStatusContent(items) {
+        // Pasif kolonu sadece durum_proje icin gosterilir
+        const showPasifColumn = this.activeGroup === 'durum_proje';
+        
         let html = `
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -6582,6 +6742,7 @@ const ParameterModule = {
                             <th style="width:150px;">Badge</th>
                             <th style="width:80px;">Aktif</th>
                             <th style="width:100px;">Varsayılan</th>
+                            ${showPasifColumn ? '<th style="width:100px;" title="Bu duruma sahip projeler select listelerinde görünmez">Pasifleştir</th>' : ''}
                             <th style="width:100px;">İşlem</th>
                         </tr>
                     </thead>
@@ -6591,6 +6752,7 @@ const ParameterModule = {
             const badgeClass = item.Deger === 'warning' || item.Deger === 'light' ? `bg-${item.Deger} text-dark` : `bg-${item.Deger || 'secondary'}`;
             const isActive = item.Aktif === true || item.Aktif === 1 || item.Aktif === '1';
             const isDefault = item.Varsayilan === true || item.Varsayilan === 1 || item.Varsayilan === '1';
+            const isPasif = item.Pasif === true || item.Pasif === 1 || item.Pasif === '1';
             html += `
                 <tr data-id="${item.Id}">
                     <td><span class="fw-semibold">${NbtUtils.escapeHtml(item.Etiket)}</span></td>
@@ -6598,22 +6760,29 @@ const ParameterModule = {
                     <td>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" data-action="toggle-active" 
-                                   data-id="${item.Id}" ${isActive ? 'checked' : ''}>
+                                   data-id="${item.Id}" ${isActive ? 'checked' : ''} data-can="parameters.update">
                         </div>
                     </td>
                     <td>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="defaultStatus_${this.activeGroup}" 
-                                   data-action="set-default" data-id="${item.Id}" 
-                                   ${isDefault ? 'checked' : ''}>
+                                data-action="set-default" data-id="${item.Id}" 
+                                   ${isDefault ? 'checked' : ''} data-can="parameters.update">
                         </div>
                     </td>
+                    ${showPasifColumn ? `
+                    <td>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" data-action="toggle-pasif" 
+                                   data-id="${item.Id}" ${isPasif ? 'checked' : ''} data-can="parameters.update">
+                        </div>
+                    </td>` : ''}
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" data-action="edit" data-id="${item.Id}" title="Düzenle">
+                            <button class="btn btn-outline-primary" data-action="edit" data-id="${item.Id}" title="Düzenle" data-can="parameters.update">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-outline-danger" data-action="delete" data-id="${item.Id}" title="Sil">
+                            <button class="btn btn-outline-danger" data-action="delete" data-id="${item.Id}" title="Sil" data-can="parameters.delete">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -6792,6 +6961,26 @@ const ParameterModule = {
                     NbtToast.success(checkbox.checked ? 'Aktif edildi' : 'Pasif edildi');
                     await this.loadData();
                     this.renderSidebar();
+                } catch (err) {
+                    checkbox.checked = !checkbox.checked;
+                    NbtToast.error(err.message);
+                }
+            });
+        });
+
+        // Pasifleştir toggle (sadece proje durumlari icin)
+        container.querySelectorAll('[data-action="toggle-pasif"]').forEach(checkbox => {
+            checkbox.addEventListener('change', async () => {
+                const id = checkbox.dataset.id;
+                try {
+                    await NbtApi.put(`/api/parameters/${id}`, { Pasif: checkbox.checked });
+                    NbtToast.success(checkbox.checked ? 'Bu duruma sahip projeler select listelerinde görünmeyecek' : 'Pasifleştirme kaldırıldı');
+                    await this.loadData();
+                    this.renderTabContent();
+                    // NbtParams cache'ini temizle ki güncel durum alınsın
+                    if (NbtParams._cache.statuses) {
+                        NbtParams._cache.statuses = {};
+                    }
                 } catch (err) {
                     checkbox.checked = !checkbox.checked;
                     NbtToast.error(err.message);
@@ -7166,7 +7355,8 @@ const UserModule = {
         toolbarContainer.innerHTML = NbtListToolbar.create({
             onSearch: false,
             onAdd: true,
-            onFilter: false
+            onFilter: false,
+            addPermission: 'users.create'
         });
 
         const panel = document.getElementById('panelUsers');
@@ -7326,8 +7516,8 @@ const UserModule = {
                         ${cells}
                         <td class="text-center px-3">
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${row.Id}" title="Düzenle"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${row.Id}" title="Sil"><i class="bi bi-trash"></i></button>
+                                <button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${row.Id}" title="Düzenle" data-can="users.update"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${row.Id}" title="Sil" data-can="users.delete"><i class="bi bi-trash"></i></button>
                             </div>
                         </td>
                     </tr>`;
@@ -7702,7 +7892,7 @@ const MyAccountModule = {
 const AlarmsModule = {
     _eventsBound: false,
     alarms: [],
-    selectedTab: 'invoice', // invoice, calendar, guarantee, offer
+    selectedTab: 'invoice', // invoice, doubtful, calendar, guarantee, offer
 
     async init() {
         await this.loadAlarms();
@@ -7724,6 +7914,7 @@ const AlarmsModule = {
     getGroupedAlarms() {
         const grouped = {
             invoice: { label: 'Ödenmemiş Faturalar', icon: 'bi-receipt', color: 'danger', items: [], count: 0, total: 0, totalByCurrency: {} },
+            doubtful: { label: 'Şüpheli Alacaklar', icon: 'bi-exclamation-triangle', color: 'warning', items: [], count: 0, total: 0, totalByCurrency: {} },
             calendar: { label: 'Yaklaşan Takvim İşleri', icon: 'bi-calendar-event', color: 'warning', items: [], count: 0 },
             guarantee: { label: 'Termin Tarihi Geçen Teminatlar', icon: 'bi-shield-check', color: 'info', items: [], count: 0, total: 0, totalByCurrency: {} },
             offer: { label: 'Geçerliliği Dolan Teklifler', icon: 'bi-file-earmark-text', color: 'primary', items: [], count: 0 }
@@ -7831,6 +8022,15 @@ const AlarmsModule = {
                 <th class="text-nowrap text-center">Gecikme</th>
                 <th class="text-nowrap text-end">Fatura Tutarı</th>
                 <th class="text-nowrap text-end">Kalan Bakiye</th>`;
+        } else if (this.selectedTab === 'doubtful') {
+            html += `
+                <th class="text-nowrap">Müşteri</th>
+                <th class="text-nowrap">Proje</th>
+                <th class="text-nowrap">Fatura No</th>
+                <th class="text-nowrap text-center">Fatura Tarihi</th>
+                <th class="text-nowrap text-center">Gecikme</th>
+                <th class="text-nowrap text-end">Fatura Tutarı</th>
+                <th class="text-nowrap text-end">Kalan Bakiye</th>`;
         } else if (this.selectedTab === 'calendar') {
             html += `
                 <th class="text-nowrap">Müşteri</th>
@@ -7859,7 +8059,9 @@ const AlarmsModule = {
         html += '</tr></thead><tbody>';
 
         items.forEach(item => {
-            html += '<tr>';
+            // Supheli alacak olan faturalar icin warning arka plan
+            const rowClass = (this.selectedTab === 'invoice' && item.supheliAlacak) ? 'table-warning' : '';
+            html += `<tr class="${rowClass}">`;
             
             if (this.selectedTab === 'invoice') {
                 const gecikmeClass = item.delayDays > 30 ? 'bg-danger text-white' : (item.delayDays > 7 ? 'bg-warning text-dark' : 'bg-secondary');
@@ -7875,6 +8077,21 @@ const AlarmsModule = {
                     </td>
                     <td class="text-end">${NbtUtils.formatMoney(item.invoiceAmount, item.currency)}</td>
                     <td class="text-end"><span class="text-danger fw-bold">${NbtUtils.formatMoney(item.balance, item.currency)}</span></td>`;
+                    
+            } else if (this.selectedTab === 'doubtful') {
+                const gecikmeClass = item.delayDays > 30 ? 'bg-danger text-white' : (item.delayDays > 7 ? 'bg-warning text-dark' : 'bg-secondary');
+                html += `
+                    <td>
+                        <a href="/customer/${item.customerId}" class="text-decoration-none fw-medium">${NbtUtils.escapeHtml(item.customer || '')}</a>
+                    </td>
+                    <td>${NbtUtils.escapeHtml(item.project || '-')}</td>
+                    <td><span class="text-muted">${NbtUtils.escapeHtml(item.invoiceNo || '-')}</span></td>
+                    <td class="text-center">${NbtUtils.formatDate(item.invoiceDate)}</td>
+                    <td class="text-center">
+                        <span class="badge ${gecikmeClass}">${item.delayDays > 0 ? item.delayDays + ' gün' : '-'}</span>
+                    </td>
+                    <td class="text-end">${NbtUtils.formatMoney(item.invoiceAmount, item.currency)}</td>
+                    <td class="text-end"><span class="text-warning fw-bold">${NbtUtils.formatMoney(item.balance, item.currency)}</span></td>`;
                     
             } else if (this.selectedTab === 'calendar') {
                 const durumClass = item.daysRemaining < 0 ? 'bg-danger' : (item.daysRemaining === 0 ? 'bg-warning text-dark' : 'bg-info');
@@ -7918,7 +8135,7 @@ const AlarmsModule = {
 
         html += '</tbody>';
         
-        // Toplam satiri ekle (invoice ve guarantee icin)
+        // Toplam satiri ekle (invoice, doubtful ve guarantee icin)
         if (group && group.totalByCurrency && Object.keys(group.totalByCurrency).length > 0) {
             const toplamStr = this.formatTotalsByCurrency(group.totalByCurrency);
             
@@ -7930,6 +8147,16 @@ const AlarmsModule = {
                         </td>
                         <td class="text-end border-top-2">-</td>
                         <td class="text-end border-top-2 text-danger">${toplamStr}</td>
+                    </tr>
+                </tfoot>`;
+            } else if (this.selectedTab === 'doubtful') {
+                html += `<tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td colspan="5" class="text-end border-top-2">
+                            <i class="bi bi-calculator me-1"></i>Toplam (${group.count} kayıt):
+                        </td>
+                        <td class="text-end border-top-2">-</td>
+                        <td class="text-end border-top-2 text-warning">${toplamStr}</td>
                     </tr>
                 </tfoot>`;
             } else if (this.selectedTab === 'guarantee') {
@@ -8214,10 +8441,10 @@ const OfferModule = {
                         ${cells}
                         <td class="text-center px-3">
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay">
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay" data-can="offers.read">
                                     <i class="bi bi-eye"></i>
                                 </button>
-                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=teklifler" title="Müşteriye Git">
+                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=teklifler" title="Müşteriye Git" data-can="customers.read">
                                     <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
                             </div>
@@ -8423,7 +8650,12 @@ const OfferModule = {
             if (musteriId) {
                 try {
                     const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
-                    const projects = response.data || [];
+                    let projects = response.data || [];
+                    
+                    // Pasif durumdaki projeleri filtrele
+                    const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
+                    projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
+                    
                     projects.forEach(p => {
                         projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
                     });
@@ -8783,10 +9015,10 @@ const ContractModule = {
                         ${cells}
                         <td class="text-center px-3">
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay">
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay" data-can="contracts.read">
                                     <i class="bi bi-eye"></i>
                                 </button>
-                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=sozlesmeler" title="Müşteriye Git">
+                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=sozlesmeler" title="Müşteriye Git" data-can="customers.read">
                                     <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
                             </div>
@@ -8992,7 +9224,12 @@ const ContractModule = {
             if (musteriId) {
                 try {
                     const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
-                    const projects = response.data || [];
+                    let projects = response.data || [];
+                    
+                    // Pasif durumdaki projeleri filtrele
+                    const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
+                    projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
+                    
                     projects.forEach(p => {
                         projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
                     });
@@ -9344,10 +9581,10 @@ const GuaranteeModule = {
                         ${cells}
                         <td class="text-center px-3">
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay">
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="view" data-id="${row.Id}" title="Detay" data-can="guarantees.read">
                                     <i class="bi bi-eye"></i>
                                 </button>
-                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=teminatlar" title="Müşteriye Git">
+                                <a class="btn btn-outline-info btn-sm" href="/customer/${row.MusteriId}?tab=teminatlar" title="Müşteriye Git" data-can="customers.read">
                                     <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
                             </div>
@@ -9571,7 +9808,12 @@ const GuaranteeModule = {
             if (musteriId) {
                 try {
                     const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
-                    const projects = response.data || [];
+                    let projects = response.data || [];
+                    
+                    // Pasif durumdaki projeleri filtrele
+                    const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
+                    projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
+                    
                     projects.forEach(p => {
                         projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
                     });
@@ -9868,20 +10110,30 @@ const PasswordModule = {
 // Bu fonksiyon sadece sayfa yuklendiginde ilgili modulu init etmek icin kullanilmaktadir.
 
 function setupRoutes() {
+    const initIfPermitted = (viewId, permission, initFn) => {
+        const view = document.getElementById(viewId);
+        if (!view) return;
+
+        const run = () => {
+            if (!permission || NbtPermission.can(permission)) {
+                view.classList.remove('d-none');
+                initFn();
+            } else {
+                view.classList.add('d-none');
+            }
+        };
+
+        NbtPermission.waitForReady().then(run);
+    };
+
     // Dashboard modulu
     NbtRouter.register('dashboard', () => {
-        const view = document.getElementById('view-dashboard');
-        if (view) {
-            view.classList.remove('d-none');
-            DashboardModule.init();
-        }
+        initIfPermitted('view-dashboard', 'dashboard.read', () => DashboardModule.init());
     });
 
     // Musteri detay
     NbtRouter.register('customer', (params) => {
-        const view = document.getElementById('view-customer-detail');
-        if (view) {
-            view.classList.remove('d-none');
+        initIfPermitted('view-customer-detail', 'customers.read', () => {
             // ID'yi data attribute'dan veya params'dan al
             const detailEl = document.getElementById('view-customer-detail');
             const id = parseInt(params.id || detailEl?.dataset?.customerId);
@@ -9890,79 +10142,47 @@ function setupRoutes() {
                 const tabParam = params.tab || null;
                 CustomerDetailModule.init(id, tabParam);
             }
-        }
+        });
     });
 
     // Faturalar
     NbtRouter.register('invoices', () => {
-        const view = document.getElementById('view-invoices');
-        if (view) {
-            view.classList.remove('d-none');
-            InvoiceModule.init();
-        }
+        initIfPermitted('view-invoices', 'invoices.read', () => InvoiceModule.init());
     });
 
     // Odemeler
     NbtRouter.register('payments', () => {
-        const view = document.getElementById('view-payments');
-        if (view) {
-            view.classList.remove('d-none');
-            PaymentModule.init();
-        }
+        initIfPermitted('view-payments', 'payments.read', () => PaymentModule.init());
     });
 
     // Projeler
     NbtRouter.register('projects', () => {
-        const view = document.getElementById('view-projects');
-        if (view) {
-            view.classList.remove('d-none');
-            ProjectModule.init();
-        }
+        initIfPermitted('view-projects', 'projects.read', () => ProjectModule.init());
     });
 
     // Teklifler
     NbtRouter.register('offers', () => {
-        const view = document.getElementById('view-offers');
-        if (view) {
-            view.classList.remove('d-none');
-            OfferModule.init();
-        }
+        initIfPermitted('view-offers', 'offers.read', () => OfferModule.init());
     });
 
     // Sozlesmeler
     NbtRouter.register('contracts', () => {
-        const view = document.getElementById('view-contracts');
-        if (view) {
-            view.classList.remove('d-none');
-            ContractModule.init();
-        }
+        initIfPermitted('view-contracts', 'contracts.read', () => ContractModule.init());
     });
 
     // Teminatlar
     NbtRouter.register('guarantees', () => {
-        const view = document.getElementById('view-guarantees');
-        if (view) {
-            view.classList.remove('d-none');
-            GuaranteeModule.init();
-        }
+        initIfPermitted('view-guarantees', 'guarantees.read', () => GuaranteeModule.init());
     });
 
     // Kullanicilar
     NbtRouter.register('users', () => {
-        const view = document.getElementById('view-users');
-        if (view) {
-            view.classList.remove('d-none');
-            UserModule.init();
-        }
+        initIfPermitted('view-users', 'users.read', () => UserModule.init());
     });
 
     // Loglar
     NbtRouter.register('logs', () => {
-        const view = document.getElementById('view-logs');
-        if (view) {
-            view.classList.remove('d-none');
-            LogModule.init();
-        }
+        initIfPermitted('view-logs', 'logs.read', () => LogModule.init());
     });
 
     // Hesabim
@@ -9976,20 +10196,12 @@ function setupRoutes() {
 
     // Alarmlar
     NbtRouter.register('alarms', () => {
-        const view = document.getElementById('view-alarms');
-        if (view) {
-            view.classList.remove('d-none');
-            AlarmsModule.init();
-        }
+        initIfPermitted('view-alarms', 'alarms.read', () => AlarmsModule.init());
     });
 
     // Parametreler
     NbtRouter.register('parameters', () => {
-        const view = document.getElementById('view-parameters');
-        if (view) {
-            view.classList.remove('d-none');
-            ParameterModule.init();
-        }
+        initIfPermitted('view-parameters', 'parameters.read', () => ParameterModule.init());
     });
 }
 
@@ -10017,12 +10229,7 @@ function setupGlobalEvents() {
     // data-route attribute'lari artik sadece aktif durumu belirlemek icin
     // Link interception KALDIRILDI - tum href'ler dogal sayfa yuklemesi yapar
 
-    // Permission bazli menu gorunurlugu
-    // Sistem menusu: roles, users veya permissions modulune erisilebiliyorsa goster
-    const sistemMenuGosterilsinMi = NbtPermission.canAny(['roles.read', 'users.read', 'permissions.read']);
-    if (!sistemMenuGosterilsinMi) {
-        document.getElementById('systemMenu')?.classList.add('d-none');
-    }
+    // Permission bazli menu gorunurlugu data-can ile otomatik uygulanir
 
     // Modul eventlerini bind et
     CustomerModule.bindEvents();

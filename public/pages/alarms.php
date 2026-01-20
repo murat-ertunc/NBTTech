@@ -13,7 +13,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: ALARMLAR ===== -->
-    <div id="view-alarms">
+    <div id="view-alarms" data-can="alarms.read">
       <!-- Sayfa Başlığı -->
       <div class="card mb-3 border-0 shadow-sm">
         <div class="card-body py-2">
@@ -27,7 +27,7 @@ require __DIR__ . '/partials/header.php';
                 <small class="text-muted" id="alarmsSummary">Yükleniyor...</small>
               </div>
             </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRefreshAlarms">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRefreshAlarms" data-can="alarms.read">
               <i class="bi bi-arrow-clockwise me-1"></i>Yenile
             </button>
           </div>
@@ -40,6 +40,12 @@ require __DIR__ . '/partials/header.php';
           <button class="nav-link active" data-alarm-tab="invoice" type="button">
             <i class="bi bi-receipt me-1"></i>Ödenmemiş Faturalar
             <span class="badge bg-primary ms-1" id="alarmCountInvoice">0</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-alarm-tab="doubtful" type="button">
+            <i class="bi bi-exclamation-triangle me-1"></i>Şüpheli Alacaklar
+            <span class="badge bg-primary ms-1" id="alarmCountDoubtful">0</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">

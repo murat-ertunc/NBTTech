@@ -40,15 +40,15 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Tarih</label>
+          <label class="col-12 col-md-4 col-form-label">Tarih <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
             <input type="date" class="form-control" id="paymentTarih" value="<?= date('Y-m-d') ?>">
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Tutar</label>
+          <label class="col-12 col-md-4 col-form-label">Tutar <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
-            <input type="number" step="0.01" class="form-control nbt-money-input" id="paymentTutar" placeholder="0,00">
+            <input type="text" class="form-control nbt-money-input" id="paymentTutar" placeholder="0,00" value="0,00">
           </div>
         </div>
         <div class="row mb-3">
@@ -60,7 +60,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-        <button type="button" class="btn btn-primary" id="btnSavePayment">Kaydet</button>
+        <button type="button" class="btn btn-primary" id="btnSavePayment" data-can-any="payments.create,payments.update">Kaydet</button>
       </div>
     </div>
   </div>

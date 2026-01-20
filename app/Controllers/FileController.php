@@ -9,7 +9,7 @@ use App\Repositories\FileRepository;
 
 class FileController
 {
-    private static string $uploadDir = __DIR__ . '/../../storage/uploads/';
+    private static string $UploadDir = __DIR__ . '/../../storage/uploads/';
 
     public static function index(): void
     {
@@ -47,9 +47,9 @@ class FileController
         }
 
         // Hem 'file' hem 'dosya' adini kabul et
-        $fileKey = isset($_FILES['file']) ? 'file' : (isset($_FILES['dosya']) ? 'dosya' : null);
-        if (!$fileKey || $_FILES[$fileKey]['error'] !== UPLOAD_ERR_OK) {
-            $errorMessages = [
+        $DosyaAnahtari = isset($_FILES['file']) ? 'file' : (isset($_FILES['dosya']) ? 'dosya' : null);
+        if (!$DosyaAnahtari || $_FILES[$DosyaAnahtari]['error'] !== UPLOAD_ERR_OK) {
+            $HataMesajlari = [
                 UPLOAD_ERR_INI_SIZE => 'Dosya boyutu sunucu limitini asiyor.',
                 UPLOAD_ERR_FORM_SIZE => 'Dosya boyutu form limitini asiyor.',
                 UPLOAD_ERR_PARTIAL => 'Dosya kismen yuklendi.',
@@ -58,9 +58,9 @@ class FileController
                 UPLOAD_ERR_CANT_WRITE => 'Dosya yazilamadi.',
                 UPLOAD_ERR_EXTENSION => 'Dosya uzantisi engellendi.'
             ];
-            $errorCode = $_FILES[$fileKey]['error'] ?? UPLOAD_ERR_NO_FILE;
-            $errorMsg = $errorMessages[$errorCode] ?? 'Dosya yuklenemedi.';
-            Response::error($errorMsg, 422);
+            $HataKodu = $_FILES[$DosyaAnahtari]['error'] ?? UPLOAD_ERR_NO_FILE;
+            $HataMesaji = $HataMesajlari[$HataKodu] ?? 'Dosya yuklenemedi.';
+            Response::error($HataMesaji, 422);
             return;
         }
 
@@ -70,10 +70,10 @@ class FileController
         
         // FaturaId varsa faturadan MusteriId al
         if ($FaturaId && $MusteriId <= 0) {
-            $invoiceRepo = new \App\Repositories\InvoiceRepository();
-            $fatura = $invoiceRepo->bul($FaturaId);
-            if ($fatura) {
-                $MusteriId = (int)$fatura['MusteriId'];
+            $FaturaRepo = new \App\Repositories\InvoiceRepository();
+            $Fatura = $FaturaRepo->bul($FaturaId);
+            if ($Fatura) {
+                $MusteriId = (int)$Fatura['MusteriId'];
             }
         }
         
@@ -82,20 +82,20 @@ class FileController
             return;
         }
 
-        $File = $_FILES[$fileKey];
-        $OriginalName = $File['name'];
-        $FileSize = $File['size'];
-        $FileType = $File['type'];
-        $TempPath = $File['tmp_name'];
+        $DosyaBilgisi = $_FILES[$DosyaAnahtari];
+        $OriginalName = $DosyaBilgisi['name'];
+        $DosyaBoyutu = $DosyaBilgisi['size'];
+        $DosyaTipi = $DosyaBilgisi['type'];
+        $GeciciYol = $DosyaBilgisi['tmp_name'];
 
-        $maxSize = 10 * 1024 * 1024;
-        if ($FileSize > $maxSize) {
-            $sizeMB = round($FileSize / (1024 * 1024), 2);
-            Response::error("Dosya boyutu cok buyuk ({$sizeMB}MB). Maksimum 10MB yuklenebilir.", 422);
+        $MaksimumBoyut = 10 * 1024 * 1024;
+        if ($DosyaBoyutu > $MaksimumBoyut) {
+            $BoyutMB = round($DosyaBoyutu / (1024 * 1024), 2);
+            Response::error("Dosya boyutu cok buyuk ({$BoyutMB}MB). Maksimum 10MB yuklenebilir.", 422);
             return;
         }
 
-        $allowedTypes = [
+        $IzinliTipler = [
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -110,23 +110,23 @@ class FileController
             'application/octet-stream'
         ];
         
-        $allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'txt', 'zip', 'rar'];
-        $Extension = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
+        $IzinliUzantilar = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'txt', 'zip', 'rar'];
+        $Uzanti = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
         
-        if (!in_array($Extension, $allowedExtensions)) {
+        if (!in_array($Uzanti, $IzinliUzantilar)) {
             Response::error('Bu dosya turu desteklenmiyor. Izin verilen turler: PDF, Word, Excel, Resimler, TXT, ZIP, RAR', 422);
             return;
         }
 
-        $SafeName = uniqid() . '_' . time() . '.' . $Extension;
+        $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
         
-        if (!is_dir(self::$uploadDir)) {
-            mkdir(self::$uploadDir, 0755, true);
+        if (!is_dir(self::$UploadDir)) {
+            mkdir(self::$UploadDir, 0755, true);
         }
 
-        $DestPath = self::$uploadDir . $SafeName;
+        $HedefYol = self::$UploadDir . $GuvenliAd;
         
-        if (!move_uploaded_file($TempPath, $DestPath)) {
+        if (!move_uploaded_file($GeciciYol, $HedefYol)) {
             Response::error('Dosya kaydedilemedi.', 500);
             return;
         }
@@ -137,20 +137,20 @@ class FileController
             'ProjeId' => isset($_POST['ProjeId']) && $_POST['ProjeId'] ? (int)$_POST['ProjeId'] : null,
             'FaturaId' => $FaturaId,
             'DosyaAdi' => $OriginalName,
-            'DosyaYolu' => 'storage/uploads/' . $SafeName,
-            'DosyaTipi' => $FileType,
-            'DosyaBoyutu' => $FileSize,
+            'DosyaYolu' => 'storage/uploads/' . $GuvenliAd,
+            'DosyaTipi' => $DosyaTipi,
+            'DosyaBoyutu' => $DosyaBoyutu,
             'Aciklama' => isset($_POST['Aciklama']) ? trim((string)$_POST['Aciklama']) : null
         ];
 
         try {
             $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
             Response::json(['id' => $Id, 'path' => $YuklenecekVeri['DosyaYolu']], 201);
-        } catch (\Exception $e) {
-            if (file_exists($DestPath)) {
-                unlink($DestPath);
+        } catch (\Exception $E) {
+            if (file_exists($HedefYol)) {
+                unlink($HedefYol);
             }
-            Response::error('Dosya kaydedilemedi: ' . $e->getMessage(), 500);
+            Response::error('Dosya kaydedilemedi: ' . $E->getMessage(), 500);
         }
     }
 
@@ -242,17 +242,17 @@ class FileController
             return;
         }
 
-        $FilePath = __DIR__ . '/../../' . $Dosya['DosyaYolu'];
+        $TamDosyaYolu = __DIR__ . '/../../' . $Dosya['DosyaYolu'];
         
-        if (!file_exists($FilePath)) {
+        if (!file_exists($TamDosyaYolu)) {
             Response::error('Dosya bulunamadi.', 404);
             return;
         }
 
         header('Content-Type: ' . ($Dosya['DosyaTipi'] ?: 'application/octet-stream'));
         header('Content-Disposition: attachment; filename="' . $Dosya['DosyaAdi'] . '"');
-        header('Content-Length: ' . filesize($FilePath));
-        readfile($FilePath);
+        header('Content-Length: ' . filesize($TamDosyaYolu));
+        readfile($TamDosyaYolu);
         exit;
     }
 }

@@ -52,6 +52,7 @@ $Logo = config('app.logo', '/assets/logo.png');
     const AnahtarRol = 'nbt_role';
     const AnahtarKullanici = 'nbt_user';
     const AnahtarSekme = 'nbt_tab_id';
+    const AnahtarPermissions = 'nbt_permissions';
 
     document.title = `${UygulamaAyar.name || 'NbtProject'} | Giriş`;
     document.getElementById('brandName').textContent = UygulamaAyar.name || 'NbtProject';
@@ -89,7 +90,12 @@ $Logo = config('app.logo', '/assets/logo.png');
         });
         const Veri = await Yanıt.json().catch(() => ({}));
         if (!Yanıt.ok) throw new Error(Veri.error || 'Giriş yapılamadı.');
+        localStorage.removeItem(AnahtarPermissions);
         localStorage.setItem(AnahtarToken, Veri.token);
+        // Cookie 7 gün geçerli olsun (token TTL ile uyumlu)
+        const ExpireDate = new Date();
+        ExpireDate.setDate(ExpireDate.getDate() + 7);
+        document.cookie = `nbt_token=${encodeURIComponent(Veri.token)}; path=/; expires=${ExpireDate.toUTCString()}; samesite=lax`;
         if (Veri.user?.role) localStorage.setItem(AnahtarRol, Veri.user.role);
         if (Veri.user) localStorage.setItem(AnahtarKullanici, JSON.stringify(Veri.user));
         window.location.href = '/';

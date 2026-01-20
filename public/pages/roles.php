@@ -12,7 +12,7 @@ $currentPage = 'roles';
 require __DIR__ . '/partials/header.php';
 ?>
 
-<div class="container-fluid py-4">
+    <div class="container-fluid py-4" data-can="roles.read">
     <!-- Sayfa Basligi -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -22,7 +22,7 @@ require __DIR__ . '/partials/header.php';
             </h1>
             <p class="text-muted mb-0">Sistem rolleri ve yetki atamalari</p>
         </div>
-        <button type="button" class="btn btn-primary" id="btnYeniRol" data-permission="roles.create">
+        <button type="button" class="btn btn-primary" id="btnYeniRol" data-can="roles.create">
             <i class="bi bi-plus-lg me-1"></i>
             Yeni Rol
         </button>
@@ -77,16 +77,20 @@ require __DIR__ . '/partials/header.php';
             <div class="modal-body">
                 <form id="rolForm">
                     <input type="hidden" id="rolId">
+
+                    <div class="alert alert-danger d-none" id="rolFormErrors"></div>
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Rol Adı <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="rolAdi" maxlength="50" required>
+                            <div class="invalid-feedback" id="rolAdiError"></div>
                             <div class="form-text">Türkçe karakterler kullanabilirsiniz.</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Rol Kodu <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="rolKodu" maxlength="30" required pattern="[a-z][a-z0-9_]{2,29}">
+                            <div class="invalid-feedback" id="rolKoduError"></div>
                             <div class="form-text">Küçük harf, rakam ve alt çizgi (örn: editor, veri_girisi)</div>
                         </div>
                     </div>
@@ -95,6 +99,7 @@ require __DIR__ . '/partials/header.php';
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Seviye (0-99)</label>
                             <input type="number" class="form-control" id="rolSeviye" min="0" max="99" value="0">
+                            <div class="invalid-feedback" id="rolSeviyeError"></div>
                             <div class="form-text">Yüksek seviye daha yetkili.</div>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -109,12 +114,13 @@ require __DIR__ . '/partials/header.php';
                     <div class="mb-3">
                         <label class="form-label">Açıklama</label>
                         <textarea class="form-control" id="rolAciklama" rows="2" maxlength="250"></textarea>
+                        <div class="invalid-feedback" id="rolAciklamaError"></div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-                <button type="button" class="btn btn-primary" id="btnRolKaydet">
+                <button type="button" class="btn btn-primary" id="btnRolKaydet" data-can-any="roles.create,roles.update">
                     <i class="bi bi-save me-1"></i> Kaydet
                 </button>
             </div>
@@ -153,7 +159,7 @@ require __DIR__ . '/partials/header.php';
                     <button type="button" class="btn btn-outline-secondary btn-sm" id="btnTumunuKaldir">Tümünü Kaldır</button>
                 </div>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-                <button type="button" class="btn btn-primary" id="btnPermissionKaydet">
+                <button type="button" class="btn btn-primary" id="btnPermissionKaydet" data-can="roles.update">
                     <i class="bi bi-save me-1"></i> Kaydet
                 </button>
             </div>
@@ -255,11 +261,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                             <i class="bi bi-key"></i>
                         </button>
                         <button type="button" class="btn btn-outline-secondary" onclick="rolDuzenle(${rol.Id})" title="Düzenle"
-                            data-permission="roles.update" ${rol.SistemRolu == 1 ? 'disabled' : ''}>
+                            data-can="roles.update" ${rol.SistemRolu == 1 ? 'disabled' : ''}>
                             <i class="bi bi-pencil-square"></i>
                         </button>
                         <button type="button" class="btn btn-outline-danger" onclick="rolSil(${rol.Id})" title="Sil"
-                            data-permission="roles.delete" ${rol.SistemRolu == 1 ? 'disabled' : ''}>
+                            data-can="roles.delete" ${rol.SistemRolu == 1 ? 'disabled' : ''}>
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>
@@ -273,6 +279,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Yeni rol butonu
     document.getElementById('btnYeniRol').addEventListener('click', function() {
+        clearRoleErrors();
         document.getElementById('rolId').value = '';
         document.getElementById('rolForm').reset();
         document.getElementById('rolModalBaslik').textContent = 'Yeni Rol';
@@ -280,8 +287,54 @@ document.addEventListener('DOMContentLoaded', async function() {
         rolModal.show();
     });
     
+    function clearRoleErrors() {
+        document.getElementById('rolFormErrors')?.classList.add('d-none');
+        document.getElementById('rolFormErrors').innerHTML = '';
+        const fields = ['rolAdi', 'rolKodu', 'rolSeviye', 'rolAciklama', 'rolAktif'];
+        fields.forEach(id => {
+            const input = document.getElementById(id);
+            const errorEl = document.getElementById(`${id}Error`);
+            if (input) input.classList.remove('is-invalid');
+            if (errorEl) errorEl.textContent = '';
+        });
+    }
+
+    function showRoleErrors(fields) {
+        if (!fields || typeof fields !== 'object') return;
+        const fieldMap = {
+            RolAdi: 'rolAdi',
+            RolKodu: 'rolKodu',
+            Seviye: 'rolSeviye',
+            Aciklama: 'rolAciklama',
+            Aktif: 'rolAktif'
+        };
+
+        const list = [];
+        Object.keys(fields).forEach(key => {
+            const messages = Array.isArray(fields[key]) ? fields[key] : [fields[key]];
+            messages.forEach(msg => list.push(msg));
+
+            const targetId = fieldMap[key];
+            if (targetId) {
+                const input = document.getElementById(targetId);
+                const errorEl = document.getElementById(`${targetId}Error`);
+                if (input) input.classList.add('is-invalid');
+                if (errorEl) errorEl.textContent = messages[0] || '';
+            }
+        });
+
+        if (list.length > 0) {
+            const alert = document.getElementById('rolFormErrors');
+            if (alert) {
+                alert.innerHTML = '<ul class="mb-0">' + list.map(m => `<li>${NbtUtils.escapeHtml(m)}</li>`).join('') + '</ul>';
+                alert.classList.remove('d-none');
+            }
+        }
+    }
+
     // Rol kaydet
     document.getElementById('btnRolKaydet').addEventListener('click', async function() {
+        clearRoleErrors();
         const id = document.getElementById('rolId').value;
         const data = {
             RolKodu: document.getElementById('rolKodu').value.trim(),
@@ -292,7 +345,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
         
         if (!data.RolKodu || !data.RolAdi) {
-            NbtToast.error('Rol kodu ve adı zorunludur.');
+            const fieldErrors = {};
+            if (!data.RolKodu) fieldErrors.RolKodu = ['Rol kodu zorunludur.'];
+            if (!data.RolAdi) fieldErrors.RolAdi = ['Rol adı zorunludur.'];
+            showRoleErrors(fieldErrors);
             return;
         }
         
@@ -312,7 +368,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                 NbtToast.error(resp.message || resp.error || 'İşlem başarısız');
             }
         } catch (err) {
-            NbtToast.error('Hata oluştu');
+            if (err?.fields) {
+                showRoleErrors(err.fields);
+            } else {
+                NbtToast.error(err?.message || 'İşlem başarısız');
+            }
         }
     });
     
@@ -322,6 +382,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             const resp = await NbtApi.get('/api/roles/' + id);
             const rol = resp.data || resp;
             if (rol && rol.Id) {
+                clearRoleErrors();
                 document.getElementById('rolId').value = rol.Id;
                 document.getElementById('rolKodu').value = rol.RolKodu;
                 document.getElementById('rolKodu').disabled = true;
@@ -374,7 +435,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 NbtToast.error(resp.message || resp.error || 'Silinemedi');
             }
         } catch (err) {
-            NbtToast.error('Hata oluştu');
+            NbtToast.error(err?.message || 'Silme işlemi başarısız');
         }
     };
     
@@ -468,7 +529,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             permissionModal.show();
             
         } catch (err) {
-            NbtToast.error('Yetkiler yüklenemedi');
+            NbtToast.error(err?.message || 'Yetkiler yüklenemedi');
         }
     };
     
@@ -527,7 +588,14 @@ document.addEventListener('DOMContentLoaded', async function() {
                 NbtToast.error(resp.message || resp.error || 'Kayıt başarısız');
             }
         } catch (err) {
-            NbtToast.error('Hata oluştu');
+            if (err?.fields) {
+                const list = Object.values(err.fields).flat();
+                if (list.length > 0) {
+                    NbtToast.error(list[0]);
+                    return;
+                }
+            }
+            NbtToast.error(err?.message || 'Kayıt başarısız');
         }
     });
     

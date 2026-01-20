@@ -12,7 +12,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: PROJELER ===== -->
-    <div id="view-projects">
+    <div id="view-projects" data-can="projects.read">
       <div class="card" id="panelProjects">
         <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
           <span class="fw-semibold"><i class="bi bi-kanban me-2"></i>Projeler</span>

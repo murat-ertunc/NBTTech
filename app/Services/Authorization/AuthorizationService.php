@@ -195,11 +195,12 @@ class AuthorizationService
     public function kullaniciPermissionlariGetir(int $UserId): array
     {
         $this->superadminPermissionlariniTamamla($UserId);
+        $SuperadminMi = $this->kullaniciSuperadminMi($UserId);
         $CacheKey = sprintf(self::CACHE_PREFIX_PERMISSION, $UserId);
         
         // Cache'den dene
-        $CachedData = $this->Redis->setAl($CacheKey);
-        if (!empty($CachedData)) {
+        $CachedData = $SuperadminMi ? [] : $this->Redis->setAl($CacheKey);
+        if (!$SuperadminMi && !empty($CachedData)) {
             return $CachedData;
         }
         

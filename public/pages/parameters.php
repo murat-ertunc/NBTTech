@@ -15,7 +15,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: PARAMETRELER ===== -->
-    <div id="view-parameters">
+    <div id="view-parameters" data-can="parameters.read">
       <!-- Sayfa Başlığı -->
       <div class="card mb-3 border-0 shadow-sm">
         <div class="card-body py-2">
@@ -29,7 +29,7 @@ require __DIR__ . '/partials/header.php';
                 <small class="text-muted" id="parametersSummary">Sistem tanımlamaları ve ayarları</small>
               </div>
             </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRefreshParameters">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRefreshParameters" data-can="parameters.read">
               <i class="bi bi-arrow-clockwise me-1"></i>Yenile
             </button>
           </div>

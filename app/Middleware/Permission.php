@@ -39,7 +39,8 @@ class Permission
         $AuthService = AuthorizationService::getInstance();
         
         if (!$AuthService->can($UserId, $PermissionKodu)) {
-            Response::error("Bu islem icin yetkiniz yok: {$PermissionKodu}", 403);
+            self::logForbidden($UserId, [$PermissionKodu], 'izinGerekli');
+            Response::forbidden();
             return false;
         }
         
@@ -64,8 +65,8 @@ class Permission
         $AuthService = AuthorizationService::getInstance();
         
         if (!$AuthService->izinlerdenBiriVarMi($UserId, $PermissionKodlari)) {
-            $PermissionStr = implode(', ', $PermissionKodlari);
-            Response::error("Bu islem icin su yetkilerden birine sahip olmalisiniz: {$PermissionStr}", 403);
+            self::logForbidden($UserId, $PermissionKodlari, 'izinlerdenBiriGerekli');
+            Response::forbidden();
             return false;
         }
         
@@ -90,8 +91,8 @@ class Permission
         $AuthService = AuthorizationService::getInstance();
         
         if (!$AuthService->tumIzinlerVarMi($UserId, $PermissionKodlari)) {
-            $PermissionStr = implode(', ', $PermissionKodlari);
-            Response::error("Bu islem icin tum su yetkilere sahip olmalisiniz: {$PermissionStr}", 403);
+            self::logForbidden($UserId, $PermissionKodlari, 'tumIzinlerGerekli');
+            Response::forbidden();
             return false;
         }
         
@@ -116,7 +117,8 @@ class Permission
         $AuthService = AuthorizationService::getInstance();
         
         if (!$AuthService->modulErisimVarMi($UserId, $ModulAdi)) {
-            Response::error("Bu modul icin erisim yetkiniz yok: {$ModulAdi}", 403);
+            self::logForbidden($UserId, [$ModulAdi . '.*'], 'modulErisimGerekli');
+            Response::forbidden();
             return false;
         }
         
@@ -150,10 +152,40 @@ class Permission
         
         // Yetki kontrolu
         if (!$AuthService->can($UserId, $PermissionKodu)) {
-            Response::error("Baska kullanicilarin kayitlari icin yetkiniz yok.", 403);
+            self::logForbidden($UserId, [$PermissionKodu], 'kendiKaydiVeyaIzin');
+            Response::forbidden();
             return false;
         }
         
         return true;
+    }
+
+    private static function logForbidden(?int $UserId, array $PermissionKodlari, string $Kaynak): void
+    {
+        $UserInfo = $UserId ? (string) $UserId : 'null';
+        $PermissionStr = implode(', ', $PermissionKodlari);
+        $Cevriler = array_map([self::class, 'izinCevir'], $PermissionKodlari);
+        $CeviriStr = implode(', ', $Cevriler);
+
+        error_log("[RBAC] Yetkisiz islem: userId={$UserInfo} kaynak={$Kaynak} permissions={$PermissionStr} ceviri={$CeviriStr}");
+    }
+
+    private static function izinCevir(string $PermissionKodu): string
+    {
+        $Harita = config('permissions_tr.permissionlar', []);
+        if (isset($Harita[$PermissionKodu])) {
+            return $Harita[$PermissionKodu];
+        }
+
+        $Parcalar = explode('.', $PermissionKodu, 2);
+        if (count($Parcalar) !== 2) {
+            return $PermissionKodu;
+        }
+
+        $Moduller = config('permissions_tr.moduller', []);
+        $Aksiyonlar = config('permissions_tr.aksiyonlar', []);
+        $Modul = $Moduller[$Parcalar[0]] ?? $Parcalar[0];
+        $Aksiyon = $Aksiyonlar[$Parcalar[1]] ?? $Parcalar[1];
+        return $Modul . ': ' . $Aksiyon;
     }
 }

@@ -12,7 +12,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: TEMİNATLAR ===== -->
-    <div id="view-guarantees">
+    <div id="view-guarantees" data-can="guarantees.read">
       <div class="card" id="panelGuarantees">
         <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
           <span class="fw-semibold"><i class="bi bi-shield-check me-2"></i>Teminatlar</span>

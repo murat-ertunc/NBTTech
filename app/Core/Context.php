@@ -55,11 +55,21 @@ class Context
         return self::$SekmeId;
     }
 
+    /**
+     * @deprecated Rol tabanli yetkilendirme kaldirildi.
+     *             Permission sistemini kullanin: AuthorizationService::can()
+     * @see \App\Services\Authorization\AuthorizationService
+     */
     public static function setRol(?string $Rol): void
     {
         self::$Rol = $Rol;
     }
 
+    /**
+     * @deprecated Rol tabanli yetkilendirme kaldirildi.
+     *             Permission sistemini kullanin: AuthorizationService::can()
+     * @see \App\Services\Authorization\AuthorizationService
+     */
     public static function rol(): ?string
     {
         return self::$Rol;

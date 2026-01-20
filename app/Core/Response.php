@@ -19,4 +19,29 @@ class Response
         }
         self::json($Govde, $DurumKodu);
     }
+
+    public static function validationError(array $AlanHatalari, string $Mesaj = 'Doğrulama hatası'): void
+    {
+        $Govde = [
+            'ok' => false,
+            'error' => [
+                'code' => 'VALIDATION_ERROR',
+                'message' => $Mesaj,
+                'fields' => $AlanHatalari
+            ]
+        ];
+        self::json($Govde, 422);
+    }
+
+    public static function forbidden(string $Mesaj = 'Bu işlem için yetkiniz yok.'): void
+    {
+        $Govde = [
+            'ok' => false,
+            'error' => [
+                'code' => 'FORBIDDEN',
+                'message' => $Mesaj
+            ]
+        ];
+        self::json($Govde, 403);
+    }
 }

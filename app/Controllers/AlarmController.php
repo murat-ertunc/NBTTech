@@ -91,6 +91,22 @@ class AlarmController
             ];
         }
 
+        // 5. Supheli alacak faturalari
+        $SupheliAlacaklar = $this->supheliAlacakFaturalariniGetir();
+        if ($SupheliAlacaklar['count'] > 0) {
+            $Alarmlar[] = [
+                'id' => 'doubtful_receivables',
+                'type' => 'doubtful',
+                'priority' => 'high',
+                'title' => 'Şüpheli Alacaklar',
+                'description' => $SupheliAlacaklar['count'] . ' adet şüpheli alacak kaydı mevcut',
+                'total' => $SupheliAlacaklar['total'],
+                'totalByCurrency' => $SupheliAlacaklar['totalByCurrency'] ?? [],
+                'count' => $SupheliAlacaklar['count'],
+                'items' => $SupheliAlacaklar['items']
+            ];
+        }
+
         Response::json([
             'success' => true,
             'data' => $Alarmlar,
@@ -118,6 +134,7 @@ class AlarmController
                     f.Tarih,
                     f.Tutar,
                     f.DovizCinsi,
+                    f.SupheliAlacak,
                     ISNULL(
                         (SELECT SUM(o.Tutar) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil = 0), 
                         0
@@ -174,7 +191,8 @@ class AlarmController
                         'delayDays' => $GecikmeGun,
                         'invoiceAmount' => $FaturaTutari,
                         'balance' => $Kalan,
-                        'currency' => $ParaBirimi
+                        'currency' => $ParaBirimi,
+                        'supheliAlacak' => (int)($Fatura['SupheliAlacak'] ?? 0) === 1
                     ];
                     $ToplamOdenmemis += $Kalan;
                 }
@@ -407,6 +425,101 @@ class AlarmController
             ];
         } catch (\Exception $e) {
             return ['count' => 0, 'items' => []];
+        }
+    }
+
+    /**
+     * Supheli alacak olarak isaretlenmis faturalari getir
+     */
+    private function supheliAlacakFaturalariniGetir(): array
+    {
+        try {
+            $Db = Database::connection();
+            
+            $Sql = "
+                SELECT 
+                    f.Id,
+                    f.MusteriId,
+                    m.Unvan as MusteriUnvan,
+                    f.ProjeId,
+                    p.ProjeAdi,
+                    f.FaturaNo,
+                    f.Tarih,
+                    f.Tutar,
+                    f.DovizCinsi,
+                    ISNULL(
+                        (SELECT SUM(o.Tutar) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil = 0), 
+                        0
+                    ) as ToplamOdeme
+                FROM tbl_fatura f
+                LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
+                LEFT JOIN tbl_proje p ON f.ProjeId = p.Id
+                WHERE f.Sil = 0 
+                  AND m.Sil = 0
+                  AND f.SupheliAlacak = 1
+                ORDER BY f.Tarih ASC
+            ";
+            
+            $Stmt = $Db->query($Sql);
+            $Faturalar = $Stmt->fetchAll();
+            
+            $Kalemler = [];
+            $ToplamAlacak = 0;
+            $ParaBirimiToplam = [];
+            $Bugun = new \DateTime();
+            
+            foreach ($Faturalar as $Fatura) {
+                $FaturaTutari = (float)$Fatura['Tutar'];
+                $OdenenTutar = (float)$Fatura['ToplamOdeme'];
+                $Kalan = $FaturaTutari - $OdenenTutar;
+                $ParaBirimi = $Fatura['DovizCinsi'] ?? 'TRY';
+                
+                // Kalan bakiye olmasa bile supheli alacak listesine dahil et
+                $FaturaTarihi = new \DateTime($Fatura['Tarih']);
+                $Fark = $Bugun->diff($FaturaTarihi);
+                $GecikmeGun = $Fark->days;
+                
+                if ($FaturaTarihi > $Bugun) {
+                    $GecikmeGun = -$GecikmeGun;
+                }
+                
+                // Para birimi bazinda topla (sadece kalan bakiyeyi)
+                if ($Kalan > 0.01) {
+                    if (!isset($ParaBirimiToplam[$ParaBirimi])) {
+                        $ParaBirimiToplam[$ParaBirimi] = 0;
+                    }
+                    $ParaBirimiToplam[$ParaBirimi] += $Kalan;
+                    $ToplamAlacak += $Kalan;
+                }
+                
+                $Kalemler[] = [
+                    'id' => $Fatura['Id'],
+                    'customerId' => $Fatura['MusteriId'],
+                    'customer' => $Fatura['MusteriUnvan'],
+                    'projectId' => $Fatura['ProjeId'],
+                    'project' => $Fatura['ProjeAdi'] ?? '-',
+                    'invoiceNo' => $Fatura['FaturaNo'] ?? '-',
+                    'invoiceDate' => $Fatura['Tarih'],
+                    'delayDays' => $GecikmeGun,
+                    'invoiceAmount' => $FaturaTutari,
+                    'balance' => $Kalan,
+                    'currency' => $ParaBirimi
+                ];
+            }
+            
+            // Gecikme gunune gore sirala
+            usort($Kalemler, function($a, $b) {
+                return $b['delayDays'] - $a['delayDays'];
+            });
+            
+            return [
+                'count' => count($Kalemler),
+                'total' => $ToplamAlacak,
+                'totalByCurrency' => $ParaBirimiToplam,
+                'items' => $Kalemler
+            ];
+        } catch (\Exception $e) {
+            return ['count' => 0, 'total' => 0, 'totalByCurrency' => [], 'items' => []];
         }
     }
 }

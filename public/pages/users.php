@@ -12,7 +12,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: KULLANICILAR ===== -->
-    <div id="view-users">
+    <div id="view-users" data-can="users.read">
       <div class="card" id="panelUsers">
         <div class="card-header bg-primary text-white py-2">
           <span class="fw-semibold"><i class="bi bi-person-gear me-2"></i>Kullanıcılar</span>

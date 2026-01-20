@@ -12,7 +12,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: ÖDEMELER ===== -->
-    <div id="view-payments">
+    <div id="view-payments" data-can="payments.read">
       <div class="card" id="panelPayments">
         <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
           <span class="fw-semibold"><i class="bi bi-cash-stack me-2"></i>Ödemeler</span>

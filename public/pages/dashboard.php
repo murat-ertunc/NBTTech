@@ -11,13 +11,13 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: DASHBOARD ===== -->
-    <div id="view-dashboard">
+    <div id="view-dashboard" data-can="dashboard.read">
       <!-- Dashboard Grid: 2 Panel -->
       <div class="row g-2 mb-3">
         
         <!-- PANEL 1: ALARMLAR -->
         <div class="col-lg-4 col-sm-12">
-          <div class="card h-100" id="panelAlarms">
+          <div class="card h-100" id="panelAlarms" data-can="alarms.read">
             <div class="card-header bg-warning text-dark py-2 d-flex justify-content-between align-items-center">
               <span class="fw-semibold"><i class="bi bi-bell-fill me-2"></i>Alarmlar</span>
               <span class="badge bg-dark" id="alarmCount">0</span>
@@ -30,7 +30,7 @@ require __DIR__ . '/partials/header.php';
 
         <!-- PANEL 2: TAKVİM -->
         <div class="col-lg-8 col-sm-12">
-          <div class="card h-100" id="panelCalendar">
+          <div class="card h-100" id="panelCalendar" data-can="calendar.read">
             <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
               <span class="fw-semibold"><i class="bi bi-calendar3 me-2"></i>Takvim</span>
               <div class="btn-group btn-group-sm">
@@ -48,7 +48,7 @@ require __DIR__ . '/partials/header.php';
 
       <!-- İstatistik Kartları (Alt Kısım) -->
       <div class="row g-2">
-        <div class="col-6 col-md-3">
+        <div class="col-6 col-md-3" data-can="customers.read">
           <div class="card h-100 border-0 shadow-sm">
             <div class="card-body py-3 px-3 text-center">
               <div class="fs-3 fw-bold text-primary" id="statCustomers">0</div>
@@ -56,7 +56,7 @@ require __DIR__ . '/partials/header.php';
             </div>
           </div>
         </div>
-        <div class="col-6 col-md-3">
+        <div class="col-6 col-md-3" data-can="projects.read">
           <div class="card h-100 border-0 shadow-sm">
             <div class="card-body py-3 px-3 text-center">
               <div class="fs-3 fw-bold text-info" id="statProjects">0</div>
@@ -64,7 +64,7 @@ require __DIR__ . '/partials/header.php';
             </div>
           </div>
         </div>
-        <div class="col-6 col-md-3">
+        <div class="col-6 col-md-3" data-can="invoices.read">
           <div class="card h-100 border-0 shadow-sm">
             <div class="card-body py-3 px-3 text-center">
               <div class="fs-3 fw-bold text-danger" id="statPending">0 ₺</div>
@@ -72,7 +72,7 @@ require __DIR__ . '/partials/header.php';
             </div>
           </div>
         </div>
-        <div class="col-6 col-md-3">
+        <div class="col-6 col-md-3" data-can="payments.read">
           <div class="card h-100 border-0 shadow-sm">
             <div class="card-body py-3 px-3 text-center">
               <div class="fs-3 fw-bold text-success" id="statCollected">0 ₺</div>

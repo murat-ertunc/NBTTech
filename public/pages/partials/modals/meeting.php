@@ -62,7 +62,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-        <button type="button" class="btn btn-primary" id="btnSaveMeeting">Kaydet</button>
+        <button type="button" class="btn btn-primary" id="btnSaveMeeting" data-can-any="meetings.create,meetings.update">Kaydet</button>
       </div>
     </div>
   </div>

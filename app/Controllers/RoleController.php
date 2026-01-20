@@ -92,23 +92,23 @@ class RoleController
         $Hatalar = [];
         
         if (empty($Girdi['RolKodu'])) {
-            $Hatalar[] = 'Rol kodu zorunludur.';
+            $Hatalar['RolKodu'][] = 'Rol kodu zorunludur.';
         } elseif (!preg_match('/^[a-z][a-z0-9_]{2,29}$/', $Girdi['RolKodu'])) {
-            $Hatalar[] = 'Rol kodu 3-30 karakter, kucuk harf ile baslamali, sadece kucuk harf, rakam ve alt cizgi icermelidir.';
+            $Hatalar['RolKodu'][] = 'Rol kodu 3-30 karakter, kucuk harf ile baslamali, sadece kucuk harf, rakam ve alt cizgi icermelidir.';
         }
         
         if (empty($Girdi['RolAdi'])) {
-            $Hatalar[] = 'Rol adi zorunludur.';
+            $Hatalar['RolAdi'][] = 'Rol adi zorunludur.';
         } elseif (mb_strlen($Girdi['RolAdi']) > 50) {
-            $Hatalar[] = 'Rol adi en fazla 50 karakter olabilir.';
+            $Hatalar['RolAdi'][] = 'Rol adi en fazla 50 karakter olabilir.';
         }
         
         if (isset($Girdi['Seviye']) && (!is_numeric($Girdi['Seviye']) || $Girdi['Seviye'] < 0 || $Girdi['Seviye'] > 99)) {
-            $Hatalar[] = 'Seviye 0-99 arasinda olmalidir.';
+            $Hatalar['Seviye'][] = 'Seviye 0-99 arasinda olmalidir.';
         }
         
         if (!empty($Hatalar)) {
-            Response::error($Hatalar, 422);
+            Response::validationError($Hatalar);
             return;
         }
         
@@ -130,7 +130,16 @@ class RoleController
             ], 201);
             
         } catch (\InvalidArgumentException $E) {
-            Response::error($E->getMessage(), 422);
+            $Mesaj = $E->getMessage();
+            $AlanHatalari = [];
+            if (stripos($Mesaj, 'rol kodu') !== false) {
+                $AlanHatalari['RolKodu'][] = $Mesaj;
+            } elseif (stripos($Mesaj, 'rol adi') !== false) {
+                $AlanHatalari['RolAdi'][] = $Mesaj;
+            } else {
+                $AlanHatalari['Genel'][] = $Mesaj;
+            }
+            Response::validationError($AlanHatalari);
         } catch (\Exception $E) {
             Response::error('Rol olusturulurken hata olustu.', 500);
         }
@@ -164,19 +173,19 @@ class RoleController
         $Hatalar = [];
         
         if (isset($Girdi['RolKodu']) && !preg_match('/^[a-z][a-z0-9_]{2,29}$/', $Girdi['RolKodu'])) {
-            $Hatalar[] = 'Rol kodu 3-30 karakter, kucuk harf ile baslamali, sadece kucuk harf, rakam ve alt cizgi icermelidir.';
+            $Hatalar['RolKodu'][] = 'Rol kodu 3-30 karakter, kucuk harf ile baslamali, sadece kucuk harf, rakam ve alt cizgi icermelidir.';
         }
         
         if (isset($Girdi['RolAdi']) && mb_strlen($Girdi['RolAdi']) > 50) {
-            $Hatalar[] = 'Rol adi en fazla 50 karakter olabilir.';
+            $Hatalar['RolAdi'][] = 'Rol adi en fazla 50 karakter olabilir.';
         }
         
         if (isset($Girdi['Seviye']) && (!is_numeric($Girdi['Seviye']) || $Girdi['Seviye'] < 0 || $Girdi['Seviye'] > 99)) {
-            $Hatalar[] = 'Seviye 0-99 arasinda olmalidir.';
+            $Hatalar['Seviye'][] = 'Seviye 0-99 arasinda olmalidir.';
         }
         
         if (!empty($Hatalar)) {
-            Response::error($Hatalar, 422);
+            Response::validationError($Hatalar);
             return;
         }
         
@@ -192,7 +201,16 @@ class RoleController
             ]);
             
         } catch (\InvalidArgumentException $E) {
-            Response::error($E->getMessage(), 422);
+            $Mesaj = $E->getMessage();
+            $AlanHatalari = [];
+            if (stripos($Mesaj, 'rol kodu') !== false) {
+                $AlanHatalari['RolKodu'][] = $Mesaj;
+            } elseif (stripos($Mesaj, 'rol adi') !== false) {
+                $AlanHatalari['RolAdi'][] = $Mesaj;
+            } else {
+                $AlanHatalari['Genel'][] = $Mesaj;
+            }
+            Response::validationError($AlanHatalari);
         } catch (\Exception $E) {
             Response::error('Rol guncellenirken hata olustu.', 500);
         }
@@ -227,7 +245,7 @@ class RoleController
             ]);
             
         } catch (\InvalidArgumentException $E) {
-            Response::error($E->getMessage(), 422);
+            Response::validationError(['Genel' => [$E->getMessage()]]);
         } catch (\Exception $E) {
             Response::error('Rol silinirken hata olustu.', 500);
         }

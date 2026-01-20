@@ -85,7 +85,8 @@ class ParameterController
                 'Kod' => $Durum['Kod'],
                 'Etiket' => $Durum['Etiket'],
                 'Deger' => $Durum['Deger'],
-                'Varsayilan' => (bool)$Durum['Varsayilan']
+                'Varsayilan' => (bool)$Durum['Varsayilan'],
+                'Pasif' => (bool)($Durum['Pasif'] ?? false)
             ];
         }
         
@@ -200,6 +201,7 @@ class ParameterController
         if (isset($Girdi['Deger'])) $Guncellenecek['Deger'] = trim((string)$Girdi['Deger']);
         if (isset($Girdi['Etiket'])) $Guncellenecek['Etiket'] = trim((string)$Girdi['Etiket']);
         if (isset($Girdi['Sira'])) $Guncellenecek['Sira'] = (int)$Girdi['Sira'];
+        if (isset($Girdi['Pasif'])) $Guncellenecek['Pasif'] = (bool)$Girdi['Pasif'] ? 1 : 0;
         if (isset($Girdi['Aktif'])) {
             $Repo->aktiflikDegistir($Id, (bool)$Girdi['Aktif'], $KullaniciId);
         }
@@ -344,23 +346,23 @@ class ParameterController
         $Repo = new ParameterRepository();
         
         Transaction::wrap(function () use ($Repo, $Girdi, $KullaniciId) {
-            foreach ($Girdi as $type => $settings) {
+            foreach ($Girdi as $Tip => $Ayarlar) {
                 // Gun parametresini guncelle
-                if (isset($settings['gun'])) {
-                    $gunParamAd = $type . '_hatirlatma_gun';
-                    if ($type === 'teklif') $gunParamAd = 'teklif_gecerlilik_hatirlatma_gun';
-                    if ($type === 'teminat') $gunParamAd = 'teminat_termin_hatirlatma_gun';
+                if (isset($Ayarlar['gun'])) {
+                    $GunParametreAdi = $Tip . '_hatirlatma_gun';
+                    if ($Tip === 'teklif') $GunParametreAdi = 'teklif_gecerlilik_hatirlatma_gun';
+                    if ($Tip === 'teminat') $GunParametreAdi = 'teminat_termin_hatirlatma_gun';
                     
-                    $Repo->degerGuncelle($gunParamAd, (string)$settings['gun'], $KullaniciId);
+                    $Repo->degerGuncelle($GunParametreAdi, (string)$Ayarlar['gun'], $KullaniciId);
                 }
                 
                 // Aktif parametresini guncelle
-                if (isset($settings['aktif'])) {
-                    $aktifParamAd = $type . '_hatirlatma_aktif';
-                    if ($type === 'teklif') $aktifParamAd = 'teklif_gecerlilik_hatirlatma_aktif';
-                    if ($type === 'teminat') $aktifParamAd = 'teminat_termin_hatirlatma_aktif';
+                if (isset($Ayarlar['aktif'])) {
+                    $AktifParametreAdi = $Tip . '_hatirlatma_aktif';
+                    if ($Tip === 'teklif') $AktifParametreAdi = 'teklif_gecerlilik_hatirlatma_aktif';
+                    if ($Tip === 'teminat') $AktifParametreAdi = 'teminat_termin_hatirlatma_aktif';
                     
-                    $Repo->degerGuncelle($aktifParamAd, $settings['aktif'] ? '1' : '0', $KullaniciId);
+                    $Repo->degerGuncelle($AktifParametreAdi, $Ayarlar['aktif'] ? '1' : '0', $KullaniciId);
                 }
             }
         });

@@ -12,7 +12,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: SÖZLEŞMELER ===== -->
-    <div id="view-contracts">
+    <div id="view-contracts" data-can="contracts.read">
       <div class="card" id="panelContracts">
         <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
           <span class="fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>Sözleşmeler</span>

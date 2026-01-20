@@ -74,8 +74,8 @@ class GuaranteeController
     public static function store(): void
     {
         // Hem JSON hem FormData destegi
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-        if (strpos($contentType, 'application/json') !== false) {
+        $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         } else {
             // multipart/form-data
@@ -100,19 +100,19 @@ class GuaranteeController
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = __DIR__ . '/../../storage/uploads/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
+            $YuklemeKlasoru = __DIR__ . '/../../storage/uploads/';
+            if (!is_dir($YuklemeKlasoru)) {
+                mkdir($YuklemeKlasoru, 0755, true);
             }
             
             $OriginalName = $_FILES['dosya']['name'];
-            $Extension = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
-            $SafeName = uniqid() . '_' . time() . '.' . $Extension;
-            $DestPath = $uploadDir . $SafeName;
+            $Uzanti = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $HedefYol = $YuklemeKlasoru . $GuvenliAd;
             
-            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $DestPath)) {
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
                 $DosyaAdi = $OriginalName;
-                $DosyaYolu = 'storage/uploads/' . $SafeName;
+                $DosyaYolu = 'storage/uploads/' . $GuvenliAd;
             }
         }
 
@@ -159,15 +159,15 @@ class GuaranteeController
         }
 
         // Hem JSON hem FormData destegi
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-        if (strpos($contentType, 'application/json') !== false) {
+        $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        } elseif (strpos($contentType, 'multipart/form-data') !== false) {
+        } elseif (strpos($IcerikTipi, 'multipart/form-data') !== false) {
             // PUT isteklerinde $_POST bos kalir, bu yuzden $_POST kullaniyoruz
             // Ancak PHP multipart/form-data'yi PUT icin otomatik parse etmez
             // Frontend POST gibi davranir ve $_POST dolar
             $Girdi = $_POST;
-        } elseif (strpos($contentType, 'application/x-www-form-urlencoded') !== false) {
+        } elseif (strpos($IcerikTipi, 'application/x-www-form-urlencoded') !== false) {
             // PUT icin urlencoded veri parse ediliyor
             parse_str(file_get_contents('php://input'), $Girdi);
         } else {
@@ -208,19 +208,19 @@ class GuaranteeController
                 }
             }
 
-            $uploadDir = __DIR__ . '/../../storage/uploads/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
+            $YuklemeKlasoru = __DIR__ . '/../../storage/uploads/';
+            if (!is_dir($YuklemeKlasoru)) {
+                mkdir($YuklemeKlasoru, 0755, true);
             }
             
             $OriginalName = $_FILES['dosya']['name'];
-            $Extension = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
-            $SafeName = uniqid() . '_' . time() . '.' . $Extension;
-            $DestPath = $uploadDir . $SafeName;
+            $Uzanti = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $HedefYol = $YuklemeKlasoru . $GuvenliAd;
             
-            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $DestPath)) {
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
                 $DosyaGuncellemesi['DosyaAdi'] = $OriginalName;
-                $DosyaGuncellemesi['DosyaYolu'] = 'storage/uploads/' . $SafeName;
+                $DosyaGuncellemesi['DosyaYolu'] = 'storage/uploads/' . $GuvenliAd;
             }
         }
 
