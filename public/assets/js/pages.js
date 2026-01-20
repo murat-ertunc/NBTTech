@@ -7213,11 +7213,11 @@ const UserModule = {
             const value = this.columnFilters[field];
             if (!value) return;
             
-            // Rol ve Aktif alani icin exact match
-            if (field === 'Rol') {
+            // RollerStr alani icin text arama (multi-role destegi)
+            if (field === 'RollerStr') {
                 filtered = filtered.filter(item => {
-                    const cellValue = String(item[field] ?? '');
-                    return cellValue === value;
+                    const cellValue = String(item.RollerStr ?? '');
+                    return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
                 });
                 return;
             }
@@ -7258,10 +7258,21 @@ const UserModule = {
         const columns = [
             { field: 'AdSoyad', label: 'Ad Soyad' },
             { field: 'KullaniciAdi', label: 'Kullanıcı Adı' },
-            { field: 'Rol', label: 'Rol', render: v => {
-                const roles = { superadmin: 'danger', admin: 'warning', user: 'info' };
-                return `<span class="badge bg-${roles[v] || 'secondary'}">${v}</span>`;
-            }, isSelect: true },
+            { field: 'Roller', label: 'Roller', render: (v, row) => {
+                // Yeni RBAC: Roller dizisi
+                if (row.Roller && Array.isArray(row.Roller) && row.Roller.length > 0) {
+                    return row.Roller.map(rol => {
+                        const bgClass = rol.Seviye >= 100 ? 'danger' : rol.Seviye >= 50 ? 'warning' : 'info';
+                        return `<span class="badge bg-${bgClass} me-1">${rol.RolAdi}</span>`;
+                    }).join('');
+                }
+                // Eski sistem fallback: Tek Rol alani
+                if (row.Rol) {
+                    const roles = { superadmin: 'danger', admin: 'warning', user: 'info' };
+                    return `<span class="badge bg-${roles[row.Rol] || 'secondary'}">${row.Rol}</span>`;
+                }
+                return '<span class="text-muted">-</span>';
+            }, isSelect: false },
             { field: 'Aktif', label: 'Durum', render: v => 
                 (v === true || v === 1 || v === '1') ? '<span class="badge bg-success">Aktif</span>' : 
                     '<span class="badge bg-danger">Pasif</span>',
@@ -7275,16 +7286,9 @@ const UserModule = {
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             
-            // Rol alani icin select
-            if (c.field === 'Rol') {
-                return `<th class="p-1">
-                    <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="users">
-                        <option value="">Tümü</option>
-                        <option value="superadmin" ${currentValue === 'superadmin' ? 'selected' : ''}>Super Admin</option>
-                        <option value="admin" ${currentValue === 'admin' ? 'selected' : ''}>Admin</option>
-                        <option value="user" ${currentValue === 'user' ? 'selected' : ''}>User</option>
-                    </select>
-                </th>`;
+            // Roller alani icin text arama (multi-role destegi)
+            if (c.field === 'Roller') {
+                return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Rol ara..." data-column-filter="RollerStr" data-table-id="users" value="${NbtUtils.escapeHtml(this.columnFilters['RollerStr'] || '')}"></th>`;
             }
             
             // Aktif alani icin select

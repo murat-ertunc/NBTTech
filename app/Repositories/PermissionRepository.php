@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Core\Transaction;
 use App\Services\Authorization\AuthorizationService;
 
 /**
@@ -128,6 +129,32 @@ class PermissionRepository extends BaseRepository
             'Aciklama'       => $Veri['Aciklama'] ?? null,
             'Aktif'          => 1
         ], $KullaniciId);
+        
+        // Superadmin rolune otomatik ata
+        $SuperadminRol = $this->Db->query("SELECT Id FROM tnm_rol WHERE RolKodu = 'superadmin' AND Sil = 0")
+            ->fetch(\PDO::FETCH_ASSOC);
+        if ($SuperadminRol && isset($SuperadminRol['Id'])) {
+            $RolId = (int) $SuperadminRol['Id'];
+            $VarMiSql = "SELECT 1 FROM tnm_rol_permission WHERE RolId = :RolId AND PermissionId = :PermissionId AND Sil = 0";
+            $VarMiStmt = $this->Db->prepare($VarMiSql);
+            $VarMiStmt->execute([':RolId' => $RolId, ':PermissionId' => $EklenenId]);
+            if (!$VarMiStmt->fetch()) {
+                Transaction::wrap(function () use ($RolId, $EklenenId, $KullaniciId) {
+                    $EkleSql = "
+                        INSERT INTO tnm_rol_permission (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, RolId, PermissionId)
+                        VALUES (NEWID(), SYSUTCDATETIME(), :EkleyenUserId, SYSUTCDATETIME(), :DegistirenUserId, 0, :RolId, :PermissionId)
+                    ";
+                    $Stmt = $this->Db->prepare($EkleSql);
+                    $Stmt->execute([
+                        ':RolId' => $RolId,
+                        ':PermissionId' => $EklenenId,
+                        ':EkleyenUserId' => $KullaniciId,
+                        ':DegistirenUserId' => $KullaniciId
+                    ]);
+                });
+                AuthorizationService::getInstance()->rolKullanicilarininCacheTemizle($RolId);
+            }
+        }
         
         // Cache temizle
         AuthorizationService::getInstance()->tumCacheTemizle();

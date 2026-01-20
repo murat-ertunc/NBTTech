@@ -6,6 +6,7 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\CustomerRepository;
+use App\Services\Authorization\AuthorizationService;
 use App\Services\Logger\ActionLogger;
 
 class CustomerController
@@ -18,7 +19,10 @@ class CustomerController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        $Rol = Context::rol();
+        
+        // Permission bazli scope kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        $TumunuGorebilir = $AuthService->tumunuGorebilirMi($KullaniciId, 'customers');
         
         // Pagination parametreleri
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
@@ -28,8 +32,8 @@ class CustomerController
         // Arama parametresi
         $Arama = isset($_GET['search']) ? trim((string)$_GET['search']) : '';
         
-        if ($Rol === 'superadmin') {
-            // Superadmin ve admin tum musterileri ekleyen kullanici bilgisiyle gorsun
+        if ($TumunuGorebilir) {
+            // customers.read_all yetkisi var - tum musterileri gorsun
             if ($SayfalamaAktif) {
                 $Sonuc = $Repo->tumAktiflerSiraliPaginated($Sayfa, $Limit, $Arama);
                 Response::json($Sonuc);
@@ -38,6 +42,7 @@ class CustomerController
                 Response::json(['data' => $Satirlar]);
             }
         } else {
+            // Sadece kendi olusturdugu musterileri gorsun
             if ($SayfalamaAktif) {
                 $Sonuc = $Repo->kullaniciyaGoreAktiflerPaginated($KullaniciId, $Sayfa, $Limit, $Arama);
                 Response::json($Sonuc);
@@ -66,9 +71,12 @@ class CustomerController
         }
 
         $Repo = new CustomerRepository();
-        $Rol = Context::rol();
+        
+        // Permission bazli scope kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        $TumunuGorebilir = $AuthService->tumunuGorebilirMi($KullaniciId, 'customers');
 
-        $Musteri = $Rol === 'superadmin'
+        $Musteri = $TumunuGorebilir
             ? $Repo->bul($Id)
             : $Repo->sahipliKayitBul($Id, $KullaniciId);
 
@@ -204,15 +212,19 @@ class CustomerController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        $Rol = Context::rol();
-        $Mevcut = $Rol === 'superadmin'
+        
+        // Permission bazli scope kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        $TumunuDuzenleyebilir = $AuthService->tumunuDuzenleyebilirMi($KullaniciId, 'customers');
+        
+        $Mevcut = $TumunuDuzenleyebilir
             ? $Repo->bul($Id)
             : $Repo->sahipliKayitBul($Id, $KullaniciId);
         if (!$Mevcut) {
             Response::error('Musteri bulunamadi.', 404);
             return;
         }
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId, $Rol, $Mevcut) {
+        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId, $TumunuDuzenleyebilir, $Mevcut) {
             $GuncellenecekVeri = [];
             if (isset($Girdi['Unvan'])) {
                 $GuncellenecekVeri['Unvan'] = mb_substr(trim((string) $Girdi['Unvan']), 0, 150);
@@ -245,7 +257,7 @@ class CustomerController
                 $GuncellenecekVeri['Web'] = $Girdi['Web'] ? mb_substr(trim((string) $Girdi['Web']), 0, 150) : null;
             }
             if (!empty($GuncellenecekVeri)) {
-                $Repo->guncelle($Id, $GuncellenecekVeri, $KullaniciId, $Rol === 'superadmin' ? [] : ['EkleyenUserId' => $KullaniciId]);
+                $Repo->guncelle($Id, $GuncellenecekVeri, $KullaniciId, $TumunuDuzenleyebilir ? [] : ['EkleyenUserId' => $KullaniciId]);
             }
         });
 
@@ -288,17 +300,21 @@ class CustomerController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        $Rol = Context::rol();
-        $Mevcut = $Rol === 'superadmin'
+        
+        // Permission bazli scope kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        $TumunuDuzenleyebilir = $AuthService->tumunuDuzenleyebilirMi($KullaniciId, 'customers');
+        
+        $Mevcut = $TumunuDuzenleyebilir
             ? $Repo->bul($Id)
             : $Repo->sahipliKayitBul($Id, $KullaniciId);
         if (!$Mevcut) {
             Response::error('Musteri bulunamadi.', 404);
             return;
         }
-        Transaction::wrap(function () use ($Repo, $Id, $KullaniciId, $Rol, $Mevcut) {
+        Transaction::wrap(function () use ($Repo, $Id, $KullaniciId, $TumunuDuzenleyebilir, $Mevcut) {
             $Repo->yedekle($Id, 'bck_tbl_musteri', $KullaniciId);
-            $Repo->softSil($Id, $KullaniciId, $Rol === 'superadmin' ? [] : ['EkleyenUserId' => $KullaniciId]);
+            $Repo->softSil($Id, $KullaniciId, $TumunuDuzenleyebilir ? [] : ['EkleyenUserId' => $KullaniciId]);
             ActionLogger::delete('tbl_musteri', ['Id' => $Id, 'EkleyenUserId' => $Mevcut['EkleyenUserId'] ?? $KullaniciId]);
         });
 

@@ -506,9 +506,6 @@ const NbtPermission = {
         const data = this._cache || this._getFromStorage();
         if (!data) return false;
         
-        // Superadmin her seye yetkili
-        if (data.superadmin === true) return true;
-        
         // Permission listesinde var mi?
         return Array.isArray(data.permissionlar) && data.permissionlar.includes(permission);
     },
@@ -573,37 +570,9 @@ const NbtPermission = {
     canAccessModule(modul) {
         const data = this._cache || this._getFromStorage();
         if (!data) return false;
-        if (data.superadmin === true) return true;
-        
         return data.moduller && data.moduller[modul] && data.moduller[modul].length > 0;
     },
     
-    /**
-     * Superadmin mi?
-     * @returns {boolean}
-     */
-    isSuperAdmin() {
-        const data = this._cache || this._getFromStorage();
-        return data?.superadmin === true;
-    },
-    
-    /**
-     * Kullanicinin rollerini dondur
-     * @returns {string[]}
-     */
-    getRoles() {
-        const data = this._cache || this._getFromStorage();
-        return data?.roller || [];
-    },
-    
-    /**
-     * Belirtilen role sahip mi?
-     * @param {string} role 
-     * @returns {boolean}
-     */
-    hasRole(role) {
-        return this.getRoles().includes(role);
-    },
     
     /**
      * Cache'i temizle (logout veya rol degisikligi sonrasi)

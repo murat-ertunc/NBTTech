@@ -4,6 +4,7 @@ namespace App\Services\Authorization;
 
 use App\Core\Redis;
 use App\Core\Database;
+use App\Core\Transaction;
 
 /**
  * Yetkilendirme Servisi
@@ -33,8 +34,11 @@ class AuthorizationService
     /** @var int Cache TTL (saniye) */
     private int $CacheTtl;
     
-    /** @var string Permission cache key prefix */
+    /** @var string User permission cache key prefix */
     private const CACHE_PREFIX_PERMISSION = 'user:%d:permissions';
+    
+    /** @var string Role permission cache key prefix */
+    private const CACHE_PREFIX_ROLE_PERMISSION = 'role:%d:permissions';
     
     /** @var string Role cache key prefix */
     private const CACHE_PREFIX_ROLE = 'user:%d:roles';
@@ -81,10 +85,18 @@ class AuthorizationService
      * @param string $PermissionKodu Ornek: "users.create", "invoices.read"
      * @return bool
      */
-    public function izinVarMi(int $UserId, string $PermissionKodu): bool
+    public function can(int $UserId, string $PermissionKodu): bool
     {
         $Permissionlar = $this->kullaniciPermissionlariGetir($UserId);
         return in_array($PermissionKodu, $Permissionlar, true);
+    }
+    
+    /**
+     * @deprecated Use can() instead
+     */
+    public function izinVarMi(int $UserId, string $PermissionKodu): bool
+    {
+        return $this->can($UserId, $PermissionKodu);
     }
     
     /**
@@ -96,8 +108,12 @@ class AuthorizationService
      */
     public function izinlerdenBiriVarMi(int $UserId, array $PermissionKodlari): bool
     {
-        $Permissionlar = $this->kullaniciPermissionlariGetir($UserId);
-        return !empty(array_intersect($PermissionKodlari, $Permissionlar));
+        foreach ($PermissionKodlari as $PermissionKodu) {
+            if ($this->can($UserId, $PermissionKodu)) {
+                return true;
+            }
+        }
+        return false;
     }
     
     /**
@@ -109,8 +125,12 @@ class AuthorizationService
      */
     public function tumIzinlerVarMi(int $UserId, array $PermissionKodlari): bool
     {
-        $Permissionlar = $this->kullaniciPermissionlariGetir($UserId);
-        return empty(array_diff($PermissionKodlari, $Permissionlar));
+        foreach ($PermissionKodlari as $PermissionKodu) {
+            if (!$this->can($UserId, $PermissionKodu)) {
+                return false;
+            }
+        }
+        return true;
     }
     
     /**
@@ -134,34 +154,32 @@ class AuthorizationService
     }
     
     /**
-     * Kullanicinin belirtilen role sahip olup olmadigini kontrol eder
+     * Kullanicinin belirtilen moduldeki tum kayitlari gorup goremeyecegini kontrol eder
+     * Ornek: tumunuGorebilirMi($UserId, 'customers') => customers.read_all yetkisi var mi?
      * 
      * @param int $UserId
-     * @param string $RolKodu Ornek: "admin", "editor"
+     * @param string $ModulAdi Ornek: "customers", "users"
      * @return bool
      */
-    public function rolVarMi(int $UserId, string $RolKodu): bool
+    public function tumunuGorebilirMi(int $UserId, string $ModulAdi): bool
     {
-        $Roller = $this->kullaniciRolleriGetir($UserId);
-        
-        foreach ($Roller as $Rol) {
-            if ($Rol['RolKodu'] === $RolKodu) {
-                return true;
-            }
-        }
-        
-        return false;
+        $PermissionKodu = $ModulAdi . '.read_all';
+        return $this->can($UserId, $PermissionKodu);
     }
     
     /**
-     * Kullanici superadmin mi kontrol eder
+     * Kullanicinin belirtilen moduldeki tum kayitlari duzenleyip duzenleyemeyecegini kontrol eder
+     * Ornek: tumunuDuzenleyebilirMi($UserId, 'customers') => customers.update_all yetkisi var mi?
      * 
      * @param int $UserId
+     * @param string $ModulAdi Ornek: "customers", "users"
      * @return bool
      */
-    public function superadminMi(int $UserId): bool
+    public function tumunuDuzenleyebilirMi(int $UserId, string $ModulAdi): bool
     {
-        return $this->rolVarMi($UserId, 'superadmin');
+        // read_all varsa update icin de scope kalksin (veya ayri update_all tanimlanabilir)
+        $PermissionKodu = $ModulAdi . '.read_all';
+        return $this->can($UserId, $PermissionKodu);
     }
     
     // =========================================================================
@@ -176,6 +194,7 @@ class AuthorizationService
      */
     public function kullaniciPermissionlariGetir(int $UserId): array
     {
+        $this->superadminPermissionlariniTamamla($UserId);
         $CacheKey = sprintf(self::CACHE_PREFIX_PERMISSION, $UserId);
         
         // Cache'den dene
@@ -211,6 +230,75 @@ class AuthorizationService
         }
         
         return $Permissionlar;
+    }
+
+    /**
+     * Superadmin rolunun tum permissionlara sahip olmasini garanti eder
+     * 
+     * @param int $UserId
+     * @return void
+     */
+    private function superadminPermissionlariniTamamla(int $UserId): void
+    {
+        if (!$this->kullaniciSuperadminMi($UserId)) {
+            return;
+        }
+        
+        $SuperadminRolId = $this->superadminRolIdGetir();
+        if (!$SuperadminRolId) {
+            return;
+        }
+        
+        $ToplamPermission = (int) $this->Db->query("SELECT COUNT(*) FROM tnm_permission WHERE Sil = 0 AND Aktif = 1")
+            ->fetchColumn();
+        $AtananStmt = $this->Db->prepare("\n            SELECT COUNT(DISTINCT p.Id)\n            FROM tnm_permission p\n            INNER JOIN tnm_rol_permission rp ON rp.PermissionId = p.Id AND rp.RolId = :RolId AND rp.Sil = 0\n            WHERE p.Sil = 0 AND p.Aktif = 1\n        ");
+        $AtananStmt->execute([':RolId' => $SuperadminRolId]);
+        $AtananPermission = (int) $AtananStmt->fetchColumn();
+        
+        if ($AtananPermission >= $ToplamPermission) {
+            return;
+        }
+        
+        Transaction::wrap(function () use ($SuperadminRolId) {
+            $UpdateSql = "\n                UPDATE tnm_rol_permission\n                SET Sil = 0, DegisiklikZamani = SYSUTCDATETIME(), DegistirenUserId = 1\n                WHERE RolId = :RolId AND Sil = 1\n                  AND PermissionId IN (SELECT Id FROM tnm_permission WHERE Sil = 0 AND Aktif = 1)\n            ";
+            $UpdateStmt = $this->Db->prepare($UpdateSql);
+            $UpdateStmt->execute([':RolId' => $SuperadminRolId]);
+            
+            $InsertSql = "\n                INSERT INTO tnm_rol_permission (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, RolId, PermissionId)\n                SELECT NEWID(), SYSUTCDATETIME(), 1, SYSUTCDATETIME(), 1, 0, :RolIdInsert, p.Id\n                FROM tnm_permission p\n                WHERE p.Sil = 0 AND p.Aktif = 1\n                  AND NOT EXISTS (\n                      SELECT 1 FROM tnm_rol_permission rp\n                      WHERE rp.RolId = :RolIdCheck AND rp.PermissionId = p.Id AND rp.Sil = 0\n                  )\n            ";
+            $InsertStmt = $this->Db->prepare($InsertSql);
+            $InsertStmt->execute([
+                ':RolIdInsert' => $SuperadminRolId,
+                ':RolIdCheck' => $SuperadminRolId
+            ]);
+        });
+        
+        $this->rolKullanicilarininCacheTemizle($SuperadminRolId);
+    }
+    
+    /**
+     * Kullanici superadmin rolune sahip mi kontrol eder
+     * 
+     * @param int $UserId
+     * @return bool
+     */
+    private function kullaniciSuperadminMi(int $UserId): bool
+    {
+        $Sql = "\n            SELECT 1\n            FROM tnm_user_rol ur\n            INNER JOIN tnm_rol r ON r.Id = ur.RolId AND r.Sil = 0\n            WHERE ur.UserId = :UserId AND ur.Sil = 0 AND r.RolKodu = 'superadmin'\n        ";
+        $Stmt = $this->Db->prepare($Sql);
+        $Stmt->execute([':UserId' => $UserId]);
+        return (bool) $Stmt->fetchColumn();
+    }
+    
+    /**
+     * Superadmin rol Id getirir
+     * 
+     * @return int|null
+     */
+    private function superadminRolIdGetir(): ?int
+    {
+        $Row = $this->Db->query("SELECT Id FROM tnm_rol WHERE RolKodu = 'superadmin' AND Sil = 0")
+            ->fetch(\PDO::FETCH_ASSOC);
+        return $Row ? (int) $Row['Id'] : null;
     }
     
     /**
@@ -252,30 +340,13 @@ class AuthorizationService
         return $Roller ?: [];
     }
     
-    /**
-     * Kullanicinin en yuksek rol seviyesini dondurur
-     * 
-     * @param int $UserId
-     * @return int
-     */
-    public function kullaniciEnYuksekSeviye(int $UserId): int
-    {
-        $Roller = $this->kullaniciRolleriGetir($UserId);
-        
-        if (empty($Roller)) {
-            return 0;
-        }
-        
-        return max(array_column($Roller, 'Seviye'));
-    }
-    
     // =========================================================================
     // SUBSET CONSTRAINT METODLARI
     // =========================================================================
     
     /**
-     * Bir kullanicinin baska bir kullaniciya rol atayip atayamayacagini kontrol eder
-     * Kural: Sadece kendi seviyesinden dusuk rolleri atayabilir
+    * Bir kullanicinin baska bir kullaniciya rol atayip atayamayacagini kontrol eder
+    * Kural: Atanan rolun permission seti, kullanicinin permission setinin alt kumesi olmalidir
      * 
      * @param int $AtayanUserId Rol atayan kullanici
      * @param int $RolId Atanacak rol
@@ -283,19 +354,14 @@ class AuthorizationService
      */
     public function rolAtayabilirMi(int $AtayanUserId, int $RolId): bool
     {
-        // Superadmin her rolu atayabilir
-        if ($this->superadminMi($AtayanUserId)) {
+        $RolPermissionlari = $this->rolPermissionlariGetir($RolId);
+        
+        if (empty($RolPermissionlari)) {
             return true;
         }
         
-        // Atayan kullanicinin en yuksek seviyesi
-        $AtayanSeviye = $this->kullaniciEnYuksekSeviye($AtayanUserId);
-        
-        // Atanacak rolun seviyesi
-        $RolSeviye = $this->rolSeviyesiGetir($RolId);
-        
-        // Kendi seviyesinden dusuk rolleri atayabilir
-        return $RolSeviye < $AtayanSeviye;
+        $KullaniciPermissionlari = $this->kullaniciPermissionlariGetir($AtayanUserId);
+        return empty(array_diff($RolPermissionlari, $KullaniciPermissionlari));
     }
     
     /**
@@ -308,13 +374,8 @@ class AuthorizationService
      */
     public function rolePermissionEkleyebilirMi(int $EkleyenUserId, string $PermissionKodu): bool
     {
-        // Superadmin her permissioni ekleyebilir
-        if ($this->superadminMi($EkleyenUserId)) {
-            return true;
-        }
-        
         // Kullanici bu permission'a sahip mi?
-        return $this->izinVarMi($EkleyenUserId, $PermissionKodu);
+        return $this->can($EkleyenUserId, $PermissionKodu);
     }
     
     /**
@@ -326,14 +387,6 @@ class AuthorizationService
      */
     public function rolePermissionlarEkleyebilirMi(int $EkleyenUserId, array $PermissionKodlari): array
     {
-        // Superadmin hepsini ekleyebilir
-        if ($this->superadminMi($EkleyenUserId)) {
-            return [
-                'izinVerilenler' => $PermissionKodlari,
-                'izinVerilmeyenler' => []
-            ];
-        }
-        
         $KullaniciPermissionlari = $this->kullaniciPermissionlariGetir($EkleyenUserId);
         
         $IzinVerilenler = array_intersect($PermissionKodlari, $KullaniciPermissionlari);
@@ -353,24 +406,22 @@ class AuthorizationService
      */
     public function atanabilirRolleriGetir(int $UserId): array
     {
-        // Superadmin tum rolleri atayabilir
-        if ($this->superadminMi($UserId)) {
-            return $this->tumRolleriGetir();
+        $Roller = $this->tumRolleriGetir();
+        if (empty($Roller)) {
+            return [];
         }
         
-        $KullaniciSeviye = $this->kullaniciEnYuksekSeviye($UserId);
+        $KullaniciPermissionlari = $this->kullaniciPermissionlariGetir($UserId);
+        $Atanabilir = [];
         
-        $Sql = "
-            SELECT Id, RolKodu, RolAdi, Seviye, Aciklama
-            FROM tnm_rol
-            WHERE Sil = 0 AND Aktif = 1 AND Seviye < :Seviye
-            ORDER BY Seviye DESC
-        ";
+        foreach ($Roller as $Rol) {
+            $RolPermissionlari = $this->rolPermissionlariGetir((int)$Rol['Id']);
+            if (empty($RolPermissionlari) || empty(array_diff($RolPermissionlari, $KullaniciPermissionlari))) {
+                $Atanabilir[] = $Rol;
+            }
+        }
         
-        $Stmt = $this->Db->prepare($Sql);
-        $Stmt->execute([':Seviye' => $KullaniciSeviye]);
-        
-        return $Stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        return $Atanabilir;
     }
     
     // =========================================================================
@@ -394,6 +445,19 @@ class AuthorizationService
     }
     
     /**
+     * Rol permission cache'ini temizler
+     * 
+     * @param int $RolId
+     * @return void
+     */
+    public function rolPermissionCacheTemizle(int $RolId): void
+    {
+        $RolePermissionKey = sprintf(self::CACHE_PREFIX_ROLE_PERMISSION, $RolId);
+        $this->Redis->sil($RolePermissionKey);
+        $this->Redis->sil($RolePermissionKey . ':ttl');
+    }
+    
+    /**
      * Bir role sahip tum kullanicilarin cache'ini temizler
      * Rol guncellendikten sonra cagrilmali
      * 
@@ -402,6 +466,7 @@ class AuthorizationService
      */
     public function rolKullanicilarininCacheTemizle(int $RolId): int
     {
+        $this->rolPermissionCacheTemizle($RolId);
         $Sql = "
             SELECT UserId FROM tnm_user_rol 
             WHERE RolId = :RolId AND Sil = 0
@@ -428,6 +493,7 @@ class AuthorizationService
     {
         $this->Redis->patternIleSil('user:*:permissions*');
         $this->Redis->patternIleSil('user:*:roles');
+        $this->Redis->patternIleSil('role:*:permissions*');
         $this->Redis->sil(self::CACHE_KEY_ALL_PERMISSIONS);
         $this->Redis->sil(self::CACHE_KEY_ALL_ROLES);
     }
@@ -435,22 +501,6 @@ class AuthorizationService
     // =========================================================================
     // YARDIMCI METODLAR
     // =========================================================================
-    
-    /**
-     * Rolun seviyesini getirir
-     * 
-     * @param int $RolId
-     * @return int
-     */
-    private function rolSeviyesiGetir(int $RolId): int
-    {
-        $Sql = "SELECT Seviye FROM tnm_rol WHERE Id = :Id AND Sil = 0";
-        $Stmt = $this->Db->prepare($Sql);
-        $Stmt->execute([':Id' => $RolId]);
-        $Sonuc = $Stmt->fetch(\PDO::FETCH_ASSOC);
-        
-        return $Sonuc ? (int) $Sonuc['Seviye'] : 0;
-    }
     
     /**
      * Tum rolleri getirir (cached)
@@ -535,6 +585,12 @@ class AuthorizationService
      */
     public function rolPermissionlariGetir(int $RolId): array
     {
+        $RolePermissionKey = sprintf(self::CACHE_PREFIX_ROLE_PERMISSION, $RolId);
+        $Cached = $this->Redis->setAl($RolePermissionKey);
+        if (!empty($Cached)) {
+            return $Cached;
+        }
+        
         $Sql = "
             SELECT p.PermissionKodu
             FROM tnm_permission p
@@ -548,7 +604,14 @@ class AuthorizationService
         $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute([':RolId' => $RolId]);
         
-        return $Stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+        $Permissionlar = $Stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+        if (!empty($Permissionlar)) {
+            $this->Redis->sil($RolePermissionKey);
+            $this->Redis->setEkle($RolePermissionKey, ...$Permissionlar);
+            $this->Redis->kaydet($RolePermissionKey . ':ttl', '1', $this->CacheTtl);
+        }
+        
+        return $Permissionlar;
     }
     
     /**
@@ -580,8 +643,7 @@ class AuthorizationService
         return [
             'roller' => array_column($Roller, 'RolKodu'),
             'permissionlar' => $Permissionlar,
-            'moduller' => $ModulPermissionlari,
-            'superadmin' => $this->superadminMi($UserId)
+            'moduller' => $ModulPermissionlari
         ];
     }
     

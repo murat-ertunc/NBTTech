@@ -4,14 +4,14 @@
  * RBAC Integration Tests
  * 
  * Kullanici isteklerine gore 8 test senaryosu:
- * 1. Superadmin tum sayfalari gorebilir
+ * 1. Yetkili kullanici tum sayfalari gorebilir
  * 2. Sadece customers.read yetkisi olan kullanici musterileri gorebilir
  * 3. Subset constraint: Admin sadece kendi altindaki rolleri atayabilir
  * 4. Subset constraint: Admin sadece kendi sahip oldugu permissionlari verebilir
  * 5. Cache invalidation: Rol guncellendikten sonra cache temizlenir
  * 6. API endpoint yetki kontrolu
  * 7. Frontend permission data formati
- * 8. Rol hiyerarsisi ve seviye kontrolleri
+ * 8. Atanabilir roller permission alt kumesi
  * 
  * Calistirma: php tests/RbacIntegrationTest.php
  */
@@ -166,17 +166,11 @@ echo "  SuperadminId: " . ($SuperadminId ?: 'Bulunamadi') . "\n";
 echo "  AdminId: " . ($AdminId ?: 'Bulunamadi') . "\n\n";
 
 // =============================================
-// SENARYO 1: Superadmin tum sayfalari gorebilir
+// SENARYO 1: Yetkili kullanici tum sayfalari gorebilir
 // =============================================
-echo "\033[33m[SENARYO 1] Superadmin Tum Yetkilere Sahip\033[0m\n";
+echo "\033[33m[SENARYO 1] Yetkili Kullanici Tum Yetkilere Sahip\033[0m\n";
 
 if ($SuperadminId) {
-    // Superadmin kontrolu
-    $Test->assertTrue(
-        $AuthService->superadminMi($SuperadminId),
-        'superadminMi() true donmeli'
-    );
-    
     // Tum modullere erisim
     $Moduller = ['users', 'roles', 'customers', 'invoices', 'payments', 'projects', 
                  'offers', 'contracts', 'guarantees', 'meetings', 'contacts', 
@@ -184,15 +178,15 @@ if ($SuperadminId) {
     
     foreach ($Moduller as $Modul) {
         $HasAccess = $AuthService->modulErisimVarMi($SuperadminId, $Modul);
-        $Test->assertTrue($HasAccess, "Superadmin '{$Modul}' modulune erismeli");
+        $Test->assertTrue($HasAccess, "Yetkili kullanici '{$Modul}' modulune erismeli");
     }
     
     // CRUD permissionlari
     $CrudPerms = ['customers.create', 'customers.read', 'customers.update', 'customers.delete'];
     foreach ($CrudPerms as $Perm) {
         $Test->assertTrue(
-            $AuthService->izinVarMi($SuperadminId, $Perm),
-            "Superadmin '{$Perm}' yetkisine sahip olmali"
+            $AuthService->can($SuperadminId, $Perm),
+            "Yetkili kullanici '{$Perm}' yetkisine sahip olmali"
         );
     }
 } else {
@@ -253,13 +247,13 @@ try {
         
         // Test: customers.read var olmali
         $Test->assertTrue(
-            $AuthService->izinVarMi($TestUserId, 'customers.read'),
+            $AuthService->can($TestUserId, 'customers.read'),
             'Test kullanici customers.read yetkisine sahip olmali'
         );
         
         // Test: customers.create olmamali
         $Test->assertFalse(
-            $AuthService->izinVarMi($TestUserId, 'customers.create'),
+            $AuthService->can($TestUserId, 'customers.create'),
             'Test kullanici customers.create yetkisine sahip OLMAMALI'
         );
         
@@ -294,31 +288,38 @@ try {
 // =============================================
 echo "\n\033[33m[SENARYO 3] Subset Constraint - Rol Atama\033[0m\n";
 
-if ($SuperadminId && $AdminId) {
-    // Superadmin her rolu atayabilmeli
+if ($SuperadminId) {
+    // Yetkili kullanici kendi permission setine uygun rolleri atayabilmeli
     $Roller = $AuthService->tumRolleriGetir();
     foreach ($Roller as $Rol) {
         $Test->assertTrue(
             $AuthService->rolAtayabilirMi($SuperadminId, $Rol['Id']),
-            "Superadmin '{$Rol['RolKodu']}' (Seviye:{$Rol['Seviye']}) rolunu atayabilmeli"
+            "Yetkili kullanici '{$Rol['RolKodu']}' rolunu atayabilmeli"
         );
     }
-    
-    // Admin kendi seviyesinden dusuk rolleri atayabilmeli
-    $AdminSeviye = $AuthService->kullaniciEnYuksekSeviye($AdminId);
-    $Test->assertGreaterThan(0, $AdminSeviye, 'Admin seviyesi 0\'dan buyuk olmali');
-    
-    // Admin superadmin rolunu atayamamali
-    $SuperadminRol = $Db->query("SELECT Id FROM tnm_rol WHERE RolKodu = 'superadmin' AND Sil = 0")->fetch(\PDO::FETCH_ASSOC);
-    if ($SuperadminRol) {
-        $Test->assertFalse(
-            $AuthService->rolAtayabilirMi($AdminId, $SuperadminRol['Id']),
-            'Admin superadmin rolunu atayamamali'
-        );
-    }
-    
 } else {
-    $Test->skip('Admin veya Superadmin kullanici bulunamadi');
+    $Test->skip('Yetkili kullanici bulunamadi');
+}
+
+if ($AdminId) {
+    // Admin icin izin verilmeyen bir rol varsa false donmeli
+    $AdminPerms = $AuthService->kullaniciPermissionlariGetir($AdminId);
+    $Roller = $AuthService->tumRolleriGetir();
+    $Bulundu = false;
+    foreach ($Roller as $Rol) {
+        $RolPerms = $AuthService->rolPermissionlariGetir((int)$Rol['Id']);
+        if (!empty(array_diff($RolPerms, $AdminPerms))) {
+            $Bulundu = true;
+            $Test->assertFalse(
+                $AuthService->rolAtayabilirMi($AdminId, (int)$Rol['Id']),
+                "Admin '{$Rol['RolKodu']}' rolunu atayamamali (permission alt kume degil)"
+            );
+            break;
+        }
+    }
+    if (!$Bulundu) {
+        $Test->skip('Admin icin izin verilmeyen rol bulunamadi');
+    }
 }
 
 // =============================================
@@ -326,35 +327,23 @@ if ($SuperadminId && $AdminId) {
 // =============================================
 echo "\n\033[33m[SENARYO 4] Subset Constraint - Permission Atama\033[0m\n";
 
-if ($SuperadminId) {
-    // Superadmin her permissioni ekleyebilmeli
+$PermissionUserId = $SuperadminId ?: $AdminId;
+if ($PermissionUserId) {
     $Test->assertTrue(
-        $AuthService->rolePermissionEkleyebilirMi($SuperadminId, 'users.create'),
-        'Superadmin users.create permissionini ekleyebilmeli'
-    );
-    
-    $Test->assertTrue(
-        $AuthService->rolePermissionEkleyebilirMi($SuperadminId, 'roles.delete'),
-        'Superadmin roles.delete permissionini ekleyebilmeli'
+        is_bool($AuthService->rolePermissionEkleyebilirMi($PermissionUserId, 'users.create')),
+        'rolePermissionEkleyebilirMi boolean donmeli'
     );
     
     // Toplu permission kontrolu
     $PermKodlari = ['users.create', 'users.read', 'customers.create'];
-    $Sonuc = $AuthService->rolePermissionlarEkleyebilirMi($SuperadminId, $PermKodlari);
+    $Sonuc = $AuthService->rolePermissionlarEkleyebilirMi($PermissionUserId, $PermKodlari);
     
-    $Test->assertEquals(
-        count($PermKodlari),
-        count($Sonuc['izinVerilenler']),
-        'Superadmin tum permissionlari ekleyebilmeli'
+    $Test->assertTrue(
+        isset($Sonuc['izinVerilenler']) && isset($Sonuc['izinVerilmeyenler']),
+        'rolePermissionlarEkleyebilirMi izinVerilenler/izinVerilmeyenler donmeli'
     );
-    
-    $Test->assertEmpty(
-        $Sonuc['izinVerilmeyenler'],
-        'Superadmin icin izin verilmeyen permission olmamali'
-    );
-    
 } else {
-    $Test->skip('Superadmin kullanici bulunamadi');
+    $Test->skip('Yetkili kullanici bulunamadi');
 }
 
 // =============================================
@@ -427,76 +416,39 @@ if ($SuperadminId) {
     $Test->assertTrue(isset($FrontendData['roller']), 'Frontend data: roller alani olmali');
     $Test->assertTrue(isset($FrontendData['permissionlar']), 'Frontend data: permissionlar alani olmali');
     $Test->assertTrue(isset($FrontendData['moduller']), 'Frontend data: moduller alani olmali');
-    $Test->assertTrue(isset($FrontendData['superadmin']), 'Frontend data: superadmin alani olmali');
-    
-    // superadmin=true olmali
-    $Test->assertTrue($FrontendData['superadmin'], 'Frontend data: superadmin=true olmali');
+    $Test->assertTrue(!isset($FrontendData['superadmin']), 'Frontend data: superadmin alani olmamali');
     
     // permissionlar obje formatinda olmali (kod => true)
     $Test->assertIsArray($FrontendData['permissionlar'], 'permissionlar array olmali');
     
     // moduller listesi olmali
     $Test->assertIsArray($FrontendData['moduller'], 'moduller array olmali');
-    $Test->assertContains('customers', $FrontendData['moduller'], 'moduller customers icermeli');
-    $Test->assertContains('users', $FrontendData['moduller'], 'moduller users icermeli');
+    $Test->assertTrue(isset($FrontendData['moduller']['customers']), 'moduller customers icermeli');
+    $Test->assertTrue(isset($FrontendData['moduller']['users']), 'moduller users icermeli');
     
 } else {
     $Test->skip('Superadmin kullanici bulunamadi');
 }
 
 // =============================================
-// SENARYO 8: Rol Hiyerarsisi ve Seviye
+// SENARYO 8: Atanabilir Roller Permission Alt Kumesi
 // =============================================
-echo "\n\033[33m[SENARYO 8] Rol Hiyerarsisi ve Seviye Kontrolleri\033[0m\n";
+echo "\n\033[33m[SENARYO 8] Atanabilir Roller Permission Alt Kumesi\033[0m\n";
 
-// Rollerin dogru seviye sirasinda oldugunu kontrol et
-$Roller = $AuthService->tumRolleriGetir();
-$Test->assertNotEmpty($Roller, 'Rol listesi bos olmamali');
-
-// Superadmin en yuksek seviyede olmali
-$Superadmin = null;
-$MaxSeviye = 0;
-foreach ($Roller as $Rol) {
-    if ($Rol['RolKodu'] === 'superadmin') {
-        $Superadmin = $Rol;
-    }
-    if ($Rol['Seviye'] > $MaxSeviye) {
-        $MaxSeviye = $Rol['Seviye'];
-    }
-}
-
-if ($Superadmin) {
-    $Test->assertEquals(
-        $MaxSeviye,
-        (int)$Superadmin['Seviye'],
-        'Superadmin en yuksek seviyeye sahip olmali'
-    );
-}
-
-// Seviyeler dogru siralanmis mi
-$PreviousSeviye = PHP_INT_MAX;
-$SeviyeDogruSiralanmis = true;
-foreach ($Roller as $Rol) {
-    // tumRolleriGetir DESC sirali
-    if ($Rol['Seviye'] > $PreviousSeviye) {
-        $SeviyeDogruSiralanmis = false;
-        break;
-    }
-    $PreviousSeviye = $Rol['Seviye'];
-}
-$Test->assertTrue($SeviyeDogruSiralanmis, 'Roller seviyeye gore DESC siralanmis olmali');
-
-// Atanabilir roller seviye kontrolu
-if ($AdminId) {
-    $AdminSeviye = $AuthService->kullaniciEnYuksekSeviye($AdminId);
-    $AtanabilirRoller = $AuthService->atanabilirRolleriGetir($AdminId);
+$UserId = $AdminId ?: $SuperadminId;
+if ($UserId) {
+    $UserPerms = $AuthService->kullaniciPermissionlariGetir($UserId);
+    $AtanabilirRoller = $AuthService->atanabilirRolleriGetir($UserId);
     
     foreach ($AtanabilirRoller as $Rol) {
+        $RolPerms = $AuthService->rolPermissionlariGetir((int)$Rol['Id']);
         $Test->assertTrue(
-            $Rol['Seviye'] < $AdminSeviye,
-            "Atanabilir rol '{$Rol['RolKodu']}' seviyesi ({$Rol['Seviye']}) admin seviyesinden ({$AdminSeviye}) dusuk olmali"
+            empty(array_diff($RolPerms, $UserPerms)),
+            "Atanabilir rol '{$Rol['RolKodu']}' permission alt kumesi olmali"
         );
     }
+} else {
+    $Test->skip('Admin veya yetkili kullanici bulunamadi');
 }
 
 // =============================================

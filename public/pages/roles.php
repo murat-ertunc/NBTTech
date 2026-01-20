@@ -95,7 +95,7 @@ require __DIR__ . '/partials/header.php';
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Seviye (0-99)</label>
                             <input type="number" class="form-control" id="rolSeviye" min="0" max="99" value="0">
-                            <div class="form-text">Yüksek seviye daha yetkili. (100 = Superadmin)</div>
+                            <div class="form-text">Yüksek seviye daha yetkili.</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Durum</label>
@@ -191,14 +191,24 @@ document.addEventListener('DOMContentLoaded', async function() {
     let modulBazindaPermissionlar = {};
     
     // Rolleri yukle
+    function normalizeArray(maybeArray) {
+        return Array.isArray(maybeArray) ? maybeArray : [];
+    }
+    
     async function rolleriYukle() {
         try {
             const resp = await NbtApi.get('/api/roles');
             // API yaniti {data: [...]} veya dogrudan [...] formatinda olabilir
-            tumRoller = resp.data || resp || [];
+            const data = resp?.data ?? resp;
+            tumRoller = normalizeArray(data);
+            if (!Array.isArray(data) && resp?.error) {
+                NbtToast.error(resp.error);
+            }
             tabloGuncelle();
         } catch (err) {
-            NbtToast.error('Roller yuklenemedi');
+            NbtToast.error(err?.message || 'Roller yuklenemedi');
+            tumRoller = [];
+            tabloGuncelle();
         }
     }
     
@@ -209,7 +219,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Rol sayisini guncelle
         document.getElementById('rolSayisi').textContent = tumRoller.length;
         
-        if (tumRoller.length === 0) {
+        if (!Array.isArray(tumRoller) || tumRoller.length === 0) {
             tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">Kayıt bulunamadı</td></tr>`;
             return;
         }
@@ -241,7 +251,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <td>
                     <div class="btn-group btn-group-sm">
                         <button type="button" class="btn btn-outline-primary" onclick="yetkiAta(${rol.Id})" title="Yetkiler" 
-                            ${rol.SistemRolu == 1 && rol.RolKodu == 'superadmin' ? 'disabled' : ''}>
+                            ${rol.SistemRolu == 1 ? 'disabled' : ''}>
                             <i class="bi bi-key"></i>
                         </button>
                         <button type="button" class="btn btn-outline-secondary" onclick="rolDuzenle(${rol.Id})" title="Düzenle"
@@ -413,6 +423,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                             <div class="row">
                                 ${(Array.isArray(permler) ? permler : []).map(p => {
                                     const aksiyonTr = p.AksiyonTr || p.Aksiyon;
+                                    const etiket = p.PermissionAdiTr || aksiyonTr || p.PermissionKodu;
                                     return `
                                     <div class="col-md-3 col-sm-6 permission-item" data-label="${(p.PermissionAdiTr || p.PermissionKodu).toLowerCase()}">
                                         <div class="form-check">
@@ -423,7 +434,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                                                 data-modul="${modul}"
                                                 ${rolPermissionKodlari.includes(p.PermissionKodu) ? 'checked' : ''}>
                                             <label class="form-check-label" for="perm_${p.Id}">
-                                                ${aksiyonTr}
+                                                ${etiket}
                                             </label>
                                         </div>
                                     </div>

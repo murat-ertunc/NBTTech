@@ -416,7 +416,7 @@ class RoleRepository extends BaseRepository
         if ($AtayanUserId) {
             $AuthService = AuthorizationService::getInstance();
             if (!$AuthService->rolAtayabilirMi($AtayanUserId, $RolId)) {
-                throw new \InvalidArgumentException('Bu rolu atama yetkiniz yok. Kendi seviyenizden dusuk rolleri atayabilirsiniz.');
+                throw new \InvalidArgumentException('Bu rolu atama yetkiniz yok. Sadece sahip oldugunuz permission setinin alt kumesi olan rolleri atayabilirsiniz.');
             }
         }
         

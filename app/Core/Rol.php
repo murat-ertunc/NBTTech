@@ -30,11 +30,4 @@ class Rol
         return in_array($Rol, self::TUMU, true);
     }
     
-    /**
-     * Verilen rol superadmin mi kontrol et
-     */
-    public static function superadminMi(string $Rol): bool
-    {
-        return $Rol === self::SUPERADMIN;
-    }
 }

@@ -5,13 +5,13 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Database;
 use App\Core\Response;
-use App\Core\Rol;
+use App\Services\Authorization\AuthorizationService;
 
 /**
  * Islem Loglari Kontrolcusu
  * 
  * log_action tablosundan loglari listeler.
- * Sadece superadmin erisebilir.
+ * Sadece logs.read izni olan kullanicilar erisebilir.
  */
 class LogController
 {
@@ -35,10 +35,10 @@ class LogController
             return;
         }
         
-        // Superadmin role check
-        $Rol = Context::rol();
-        if ($Rol !== Rol::SUPERADMIN) {
-            Response::forbidden('Bu alana sadece superadmin erisebilir');
+        // Permission kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        if (!$AuthService->can($KullaniciId, 'logs.read')) {
+            Response::forbidden('Bu alana erisim yetkiniz yok');
             return;
         }
         

@@ -6,6 +6,7 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\ParameterRepository;
+use App\Services\Authorization\AuthorizationService;
 use App\Services\CalendarService;
 use App\Services\Logger\ActionLogger;
 
@@ -134,9 +135,9 @@ class ParameterController
             return;
         }
 
-        // Rol kontrolu
-        $Rol = Context::rol();
-        if ($Rol !== 'superadmin') {
+        // Permission kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        if (!$AuthService->can($KullaniciId, 'parameters.create')) {
             Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }
@@ -176,10 +177,10 @@ class ParameterController
             return;
         }
 
-        // Rol kontrolu
-        $Rol = Context::rol();
-        if ($Rol !== 'superadmin') {
-            ActionLogger::error('ParameterController::update', 'Yetkisiz erisim denemesi. Rol: ' . $Rol . ', UserId: ' . $KullaniciId);
+        // Permission kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        if (!$AuthService->can($KullaniciId, 'parameters.update')) {
+            ActionLogger::error('ParameterController::update', 'Yetkisiz erisim denemesi. UserId: ' . $KullaniciId);
             Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }
@@ -231,10 +232,10 @@ class ParameterController
             return;
         }
 
-        // Rol kontrolu
-        $Rol = Context::rol();
-        if ($Rol !== 'superadmin') {
-            ActionLogger::error('ParameterController::delete', 'Yetkisiz erisim denemesi. Rol: ' . $Rol . ', UserId: ' . $KullaniciId);
+        // Permission kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        if (!$AuthService->can($KullaniciId, 'parameters.delete')) {
+            ActionLogger::error('ParameterController::delete', 'Yetkisiz erisim denemesi. UserId: ' . $KullaniciId);
             Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }
@@ -268,9 +269,9 @@ class ParameterController
             return;
         }
 
-        // Rol kontrolu
-        $Rol = Context::rol();
-        if ($Rol !== 'superadmin') {
+        // Permission kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        if (!$AuthService->can($KullaniciId, 'parameters.update')) {
             Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }
@@ -333,9 +334,9 @@ class ParameterController
             return;
         }
 
-        // Rol kontrolu
-        $Rol = Context::rol();
-        if ($Rol !== 'superadmin' && $Rol !== 'admin') {
+        // Permission kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        if (!$AuthService->can($KullaniciId, 'parameters.update')) {
             Response::error('Bu islem icin yetkiniz yok.', 403);
             return;
         }

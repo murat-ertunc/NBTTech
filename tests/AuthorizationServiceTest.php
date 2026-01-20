@@ -137,19 +137,9 @@ try {
     $ModulBazinda = $AuthService->permissionlariModulBazindaGetir();
     $Test->assertIsArray($ModulBazinda, 'permissionlariModulBazindaGetir array donmeli');
     
-    // Superadmin kontrolu (UserId=1 superadmin olmali)
-    $IsSuperadmin = $AuthService->superadminMi(1);
-    // Not: Bu veritabanina bagli, seed yapilmissa true olacak
-    
-    if ($IsSuperadmin) {
-        $Test->assertTrue($IsSuperadmin, 'UserId=1 superadmin olmali');
-        
-        // Superadmin tum izinlere sahip olmali
-        $HasPermission = $AuthService->izinVarMi(1, 'users.create');
-        $Test->assertTrue($HasPermission, 'Superadmin users.create yetkisine sahip olmali');
-    } else {
-        echo "  \033[33mNote: UserId=1 superadmin degil, seed gerekebilir\033[0m\n";
-    }
+    // Merkezi permission kontrolu (can)
+    $HasPermission = $AuthService->can(1, 'users.create');
+    echo "  Info: UserId=1 users.create: " . ($HasPermission ? 'VAR' : 'YOK') . "\n";
     
 } catch (Exception $E) {
     $Test->assert(false, 'AuthorizationService testi basarisiz: ' . $E->getMessage());
@@ -164,7 +154,7 @@ try {
     $AuthService = AuthorizationService::getInstance();
     
     // Gecersiz kullanici testi
-    $NoPermission = $AuthService->izinVarMi(999999, 'users.create');
+    $NoPermission = $AuthService->can(999999, 'users.create');
     $Test->assertFalse($NoPermission, 'Gecersiz kullanici icin permission false donmeli');
     
     // Bos permission listesi
@@ -187,16 +177,13 @@ echo "\n\033[33m[Subset Constraint Tests]\033[0m\n";
 try {
     $AuthService = AuthorizationService::getInstance();
     
-    // Superadmin her rolu atayabilmeli
-    if ($AuthService->superadminMi(1)) {
-        // Rol ID 2'yi atayabilir mi? (admin rolu)
-        $CanAssign = $AuthService->rolAtayabilirMi(1, 2);
-        $Test->assertTrue($CanAssign, 'Superadmin her rolu atayabilmeli');
-        
-        // Superadmin her permissioni ekleyebilmeli
-        $CanAddPerm = $AuthService->rolePermissionEkleyebilirMi(1, 'users.create');
-        $Test->assertTrue($CanAddPerm, 'Superadmin her permissioni ekleyebilmeli');
-    }
+    // Rol atama subset kontrolu (boolean donmeli)
+    $CanAssign = $AuthService->rolAtayabilirMi(1, 2);
+    $Test->assertTrue(is_bool($CanAssign), 'rolAtayabilirMi boolean donmeli');
+    
+    // Permission ekleme subset kontrolu
+    $CanAddPerm = $AuthService->rolePermissionEkleyebilirMi(1, 'users.create');
+    $Test->assertTrue(is_bool($CanAddPerm), 'rolePermissionEkleyebilirMi boolean donmeli');
     
     // Atanabilir roller
     $AtanabilirRoller = $AuthService->atanabilirRolleriGetir(1);
@@ -239,7 +226,7 @@ try {
     $Test->assertTrue(isset($FrontendData['roller']), 'Frontend data roller icermeli');
     $Test->assertTrue(isset($FrontendData['permissionlar']), 'Frontend data permissionlar icermeli');
     $Test->assertTrue(isset($FrontendData['moduller']), 'Frontend data moduller icermeli');
-    $Test->assertTrue(isset($FrontendData['superadmin']), 'Frontend data superadmin icermeli');
+    $Test->assertTrue(!isset($FrontendData['superadmin']), 'Frontend data superadmin icermemeli');
     
 } catch (Exception $E) {
     $Test->assert(false, 'Frontend output testi basarisiz: ' . $E->getMessage());

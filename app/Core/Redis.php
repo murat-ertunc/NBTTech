@@ -59,6 +59,12 @@ class Redis
             return true;
         }
         
+        if (!class_exists('Redis')) {
+            error_log('Redis PHP extension bulunamadi. Cache devre disi.');
+            $this->Bagli = false;
+            return false;
+        }
+        
         try {
             $Config = require ROOT_PATH . '/config/redis.php';
             

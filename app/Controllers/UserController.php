@@ -27,7 +27,17 @@ class UserController
      */
     public static function index(): void
     {
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+        
         $Repo = new UserRepository();
+        
+        // Permission bazli scope kontrolu
+        $AuthService = AuthorizationService::getInstance();
+        $TumunuGorebilir = $AuthService->tumunuGorebilirMi($KullaniciId, 'users');
         
         // Pagination parametreleri
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
@@ -45,12 +55,21 @@ class UserController
             $Filtreler['aktif'] = $_GET['aktif'];
         }
         
+        // users.read_all yetkisi yoksa sadece kendi olusturdugu kullanicilari gorsun
+        if (!$TumunuGorebilir) {
+            $Filtreler['ekleyen_user_id'] = $KullaniciId;
+        }
+        
         // Pagination veya filtre varsa paginated sonuc dondur
         if (isset($_GET['page']) || isset($_GET['limit']) || !empty($Filtreler)) {
             $Sonuc = $Repo->tumKullanicilarPaginated($Sayfa, $Limit, $Filtreler);
             Response::json($Sonuc);
         } else {
-            $Satirlar = $Repo->tumKullanicilar();
+            if ($TumunuGorebilir) {
+                $Satirlar = $Repo->tumKullanicilar();
+            } else {
+                $Satirlar = $Repo->kullaniciyaGoreKullanicilar($KullaniciId);
+            }
             Response::json(['data' => $Satirlar]);
         }
     }
@@ -115,13 +134,6 @@ class UserController
             return;
         }
         
-        // Superadmin kullanicisi bloklanamaz
-        $AuthService = AuthorizationService::getInstance();
-        if ($AuthService->superadminMi($Id)) {
-            Response::error('Super admin bloklanamaz.', 403);
-            return;
-        }
-        
         Transaction::wrap(function () use ($Repo, $Id, $Aktif, $KullaniciId) {
             $Repo->yedekle($Id, 'bck_tnm_user', $KullaniciId);
             $Repo->guncelle($Id, ['Aktif' => $Aktif], $KullaniciId);
@@ -151,13 +163,6 @@ class UserController
         
         if (!$Mevcut) {
             Response::error('Kullanici bulunamadi.', 404);
-            return;
-        }
-        
-        // Superadmin silinemez
-        $AuthService = AuthorizationService::getInstance();
-        if ($AuthService->superadminMi($Id)) {
-            Response::error('Super admin silinemez.', 403);
             return;
         }
         
@@ -278,14 +283,7 @@ class UserController
             return;
         }
         
-        // Superadmin sadece kendini duzenleyebilir
-        $AuthService = AuthorizationService::getInstance();
-        if ($AuthService->superadminMi($Id) && $Id !== $GuncelleyenKullaniciId) {
-            Response::error('Super admin duzenlenemez.', 403);
-            return;
-        }
-
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $GuncelleyenKullaniciId, $AuthService) {
+        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $GuncelleyenKullaniciId) {
             $Guncellenecek = [];
             
             if (isset($Girdi['AdSoyad']) && trim($Girdi['AdSoyad'])) {
@@ -311,8 +309,8 @@ class UserController
      * Kullaniciya rol atama
      * POST /api/users/{id}/roles
      * 
-     * KRITIK KISIT: Sadece auth user'in sahip oldugu rollerden daha dusuk 
-     * seviyedeki roller atanabilir.
+    * KRITIK KISIT: Atanan rolun permission seti, auth user'in permission setinin
+    * alt kumesi olmak zorundadir.
      */
     public static function assignRoles(array $Parametreler): void
     {
@@ -343,11 +341,7 @@ class UserController
             return;
         }
         
-        // Superadmin'in rolleri degistirilemez
-        if ($AuthService->superadminMi($HedefKullaniciId)) {
-            Response::error('Super admin kullanicisinin rolleri degistirilemez.', 403);
-            return;
-        }
+        
         
         // SUBSET CONSTRAINT: Her rol icin kontrol
         $AtanamayanRoller = [];
@@ -359,7 +353,7 @@ class UserController
         }
         
         if (!empty($AtanamayanRoller)) {
-            Response::error('Su rolleri atama yetkiniz yok: ' . implode(', ', $AtanamayanRoller) . '. Sadece kendi seviyenizden dusuk rolleri atayabilirsiniz.', 403);
+            Response::error('Su rolleri atama yetkiniz yok: ' . implode(', ', $AtanamayanRoller) . '. Sadece sahip oldugunuz permission setinin alt kumesi olan rolleri atayabilirsiniz.', 403);
             return;
         }
         

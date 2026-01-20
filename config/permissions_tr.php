@@ -38,6 +38,7 @@ return [
     'aksiyonlar' => [
         'create' => 'Oluşturma',
         'read' => 'Görüntüleme',
+        'read_all' => 'Tümünü Görme',
         'update' => 'Düzenleme',
         'delete' => 'Silme',
         'export' => 'Dışa Aktarma',
@@ -52,6 +53,7 @@ return [
         // Kullanicilar
         'users.create' => 'Kullanıcı Oluşturma',
         'users.read' => 'Kullanıcı Görüntüleme',
+        'users.read_all' => 'Tüm Kullanıcıları Görüntüleme',
         'users.update' => 'Kullanıcı Düzenleme',
         'users.delete' => 'Kullanıcı Silme',
         
@@ -64,6 +66,7 @@ return [
         // Musteriler
         'customers.create' => 'Müşteri Oluşturma',
         'customers.read' => 'Müşteri Görüntüleme',
+        'customers.read_all' => 'Tüm Müşterileri Görüntüleme',
         'customers.update' => 'Müşteri Düzenleme',
         'customers.delete' => 'Müşteri Silme',
         

@@ -6,6 +6,7 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Middleware\Permission;
 use App\Repositories\RoleRepository;
+use App\Repositories\PermissionRepository;
 use App\Services\Authorization\AuthorizationService;
 
 /**
@@ -32,10 +33,14 @@ class RoleController
             return;
         }
         
-        $Repo = new RoleRepository();
-        $Roller = $Repo->tumRoller();
-        
-        Response::json(['data' => $Roller]);
+        try {
+            $Repo = new RoleRepository();
+            $Roller = $Repo->tumRoller();
+            
+            Response::json(['data' => $Roller]);
+        } catch (\Throwable $E) {
+            Response::error('Roller listelenirken hata: ' . $E->getMessage(), 500);
+        }
     }
     
     /**
@@ -109,18 +114,6 @@ class RoleController
         
         try {
             $KullaniciId = Context::kullaniciId();
-            
-            // Seviye kontrolu: Kendi seviyesinden yuksek rol olusturamaz
-            $AuthService = AuthorizationService::getInstance();
-            if (!$AuthService->superadminMi($KullaniciId)) {
-                $KullaniciSeviye = $AuthService->kullaniciEnYuksekSeviye($KullaniciId);
-                $YeniSeviye = (int) ($Girdi['Seviye'] ?? 0);
-                
-                if ($YeniSeviye >= $KullaniciSeviye) {
-                    Response::error('Kendi seviyenizden yuksek veya esit seviyede rol olusturamazziniz.', 403);
-                    return;
-                }
-            }
             
             $Repo = new RoleRepository();
             $YeniId = $Repo->rolEkle([
@@ -273,31 +266,26 @@ class RoleController
             $KullaniciId = Context::kullaniciId();
             $AuthService = AuthorizationService::getInstance();
             
-            // Subset constraint kontrolu
-            if (!$AuthService->superadminMi($KullaniciId)) {
-                // Kullanicinin atayabilecegi permissionlar
-                $KullaniciPermissionlari = $AuthService->kullaniciPermissionlariGetir($KullaniciId);
-                
-                // Permission ID'lerden kodlari al
-                $Repo = new RoleRepository();
-                $TumPermissionlar = $AuthService->tumPermissionlariGetir();
-                $PermissionIdToKod = [];
-                foreach ($TumPermissionlar as $P) {
-                    $PermissionIdToKod[$P['Id']] = $P['PermissionKodu'];
+            // Subset constraint kontrolu: sadece kendi sahip oldugu permissionlari atayabilir
+            $KullaniciPermissionlari = $AuthService->kullaniciPermissionlariGetir($KullaniciId);
+            $Repo = new RoleRepository();
+            $TumPermissionlar = $AuthService->tumPermissionlariGetir();
+            $PermissionIdToKod = [];
+            foreach ($TumPermissionlar as $P) {
+                $PermissionIdToKod[$P['Id']] = $P['PermissionKodu'];
+            }
+            
+            $IzinsizPermissionlar = [];
+            foreach ($Girdi['permissions'] as $PermId) {
+                $Kod = $PermissionIdToKod[$PermId] ?? null;
+                if ($Kod && !in_array($Kod, $KullaniciPermissionlari, true)) {
+                    $IzinsizPermissionlar[] = $Kod;
                 }
-                
-                $IzinsizPermissionlar = [];
-                foreach ($Girdi['permissions'] as $PermId) {
-                    $Kod = $PermissionIdToKod[$PermId] ?? null;
-                    if ($Kod && !in_array($Kod, $KullaniciPermissionlari, true)) {
-                        $IzinsizPermissionlar[] = $Kod;
-                    }
-                }
-                
-                if (!empty($IzinsizPermissionlar)) {
-                    Response::error('Sadece kendi sahip oldugunuz yetkileri atayabilirsiniz. Izinsiz yetkiler: ' . implode(', ', $IzinsizPermissionlar), 403);
-                    return;
-                }
+            }
+            
+            if (!empty($IzinsizPermissionlar)) {
+                Response::error('Sadece kendi sahip oldugunuz yetkileri atayabilirsiniz. Izinsiz yetkiler: ' . implode(', ', $IzinsizPermissionlar), 403);
+                return;
             }
             
             $Repo = new RoleRepository();
@@ -353,6 +341,34 @@ class RoleController
         }
         
         $AuthService = AuthorizationService::getInstance();
+        $KullaniciId = Context::kullaniciId();
+        
+        // Kritik permission'larin varligini garanti altina al
+        $PermissionRepo = new PermissionRepository();
+        $KritikPermissionlar = [
+            'users.read_all' => [
+                'ModulAdi' => 'users',
+                'Aksiyon' => 'read_all',
+                'Aciklama' => 'Tum kullanicilari gorebilme yetkisi (sadece kendi olusturdugu degil)'
+            ],
+            'customers.read_all' => [
+                'ModulAdi' => 'customers',
+                'Aksiyon' => 'read_all',
+                'Aciklama' => 'Tum musterileri gorebilme yetkisi (sadece kendi olusturdugu degil)'
+            ]
+        ];
+        
+        foreach ($KritikPermissionlar as $Kod => $Veri) {
+            $Mevcut = $PermissionRepo->koduIleBul($Kod);
+            if (!$Mevcut) {
+                $PermissionRepo->permissionEkle([
+                    'PermissionKodu' => $Kod,
+                    'ModulAdi' => $Veri['ModulAdi'],
+                    'Aksiyon' => $Veri['Aksiyon'],
+                    'Aciklama' => $Veri['Aciklama']
+                ], $KullaniciId);
+            }
+        }
         
         // Turkce ceviri dosyasini yukle
         $Ceviriler = require ROOT_PATH . '/config/permissions_tr.php';
