@@ -104,9 +104,39 @@ $Logo = config('app.logo', '/assets/logo.png');
       }
     }
 
-    if (localStorage.getItem(AnahtarToken)) {
-      window.location.href = '/';
+    async function TokenKontrol() {
+      const Token = localStorage.getItem(AnahtarToken);
+      if (!Token) return;
+      
+      try {
+        const Yanit = await fetch('/api/refresh', {
+          method: 'POST',
+          headers: { 
+            'Authorization': 'Bearer ' + Token,
+            'Content-Type': 'application/json',
+            'X-Tab-Id': SekmeIdAl()
+          }
+        });
+        
+        if (Yanit.ok) {
+          window.location.href = '/';
+        } else {
+          localStorage.removeItem(AnahtarToken);
+          localStorage.removeItem(AnahtarRol);
+          localStorage.removeItem(AnahtarKullanici);
+          localStorage.removeItem(AnahtarPermissions);
+          document.cookie = 'nbt_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
+      } catch (Hata) {
+        localStorage.removeItem(AnahtarToken);
+        localStorage.removeItem(AnahtarRol);
+        localStorage.removeItem(AnahtarKullanici);
+        localStorage.removeItem(AnahtarPermissions);
+        document.cookie = 'nbt_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      }
     }
+    
+    TokenKontrol();
 
     document.getElementById('btnLogin').addEventListener('click', GirisYap);
     document.getElementById('loginForm').addEventListener('submit', (Olay) => { Olay.preventDefault(); GirisYap(); });
