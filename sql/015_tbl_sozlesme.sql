@@ -17,8 +17,11 @@ CREATE TABLE tbl_sozlesme (
     SozlesmeTarihi DATE NULL,
     Tutar DECIMAL(16,2) DEFAULT 0.00,
     ParaBirimi NVARCHAR(3) DEFAULT 'TRY',
-    DosyaYolu NVARCHAR(255) NULL,
     Durum TINYINT DEFAULT 1,
+    
+    -- Dosya Bilgileri
+    DosyaAdi NVARCHAR(255) NULL,
+    DosyaYolu NVARCHAR(500) NULL,
     
     CONSTRAINT FK_sozlesme_musteri FOREIGN KEY (MusteriId) REFERENCES tbl_musteri(Id),
     CONSTRAINT FK_sozlesme_proje FOREIGN KEY (ProjeId) REFERENCES tbl_proje(Id),

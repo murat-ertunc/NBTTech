@@ -22,8 +22,11 @@ CREATE TABLE bck_tbl_sozlesme (
     SozlesmeTarihi DATE NULL,
     Tutar DECIMAL(16,2) NULL,
     ParaBirimi NVARCHAR(3) NULL,
-    DosyaYolu NVARCHAR(255) NULL,
-    Durum TINYINT NULL
+    Durum TINYINT NULL,
+    
+    -- Dosya Bilgileri
+    DosyaAdi NVARCHAR(255) NULL,
+    DosyaYolu NVARCHAR(500) NULL
 );
 GO
 

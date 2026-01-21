@@ -1052,7 +1052,7 @@ const CustomerDetailModule = {
         this.customerId = parseInt(customerId, 10);
         if (isNaN(this.customerId) || this.customerId <= 0) {
             NbtToast.error('Geçersiz müşteri ID');
-            NbtRouter.navigate('/customers');
+            NbtRouter.navigate('/dashboard');
             return;
         }
         
@@ -1086,8 +1086,8 @@ const CustomerDetailModule = {
         this.bindEvents();
         // Tab permission'lar artik server-side uygulandigi icin bu gereksiz, yine de guvenlik icin calistir
         this.applyTabPermissions();
-        // Server'dan gelen default tab'i tercih et
-        const preferredTab = this._serverDefaultTab || (initialTab && this.tabConfig[initialTab] ? initialTab : 'bilgi');
+        // URL'den gelen tab parametresi ONCELIKLI - yoksa server default, o da yoksa 'bilgi'
+        const preferredTab = (initialTab && this.tabConfig[initialTab]) ? initialTab : (this._serverDefaultTab || 'bilgi');
         const tabToOpen = this.resolveInitialTab(preferredTab);
         if (!tabToOpen) {
             this.renderNoAccess();
@@ -1109,7 +1109,7 @@ const CustomerDetailModule = {
             
             if (!this.data.customer) {
                 NbtToast.error('Müşteri bulunamadı');
-                NbtRouter.navigate('/customers');
+                NbtRouter.navigate('/dashboard');
                 return;
             }
 
@@ -2291,7 +2291,7 @@ const CustomerDetailModule = {
                     panel.classList.toggle('h-100');
                     panel.style.zIndex = panel.classList.contains('position-fixed') ? '1050' : '';
                 } else if (action === 'close') {
-                    NbtRouter.navigate('/customers');
+                    NbtRouter.navigate('/dashboard');
                 }
             });
         });
@@ -2815,7 +2815,6 @@ const CustomerDetailModule = {
             teklifler: {
                 columns: [
                     { field: 'ProjeAdi', label: 'Proje' },
-                    { field: 'TeklifNo', label: 'Teklif No' },
                     { field: 'Konu', label: 'Konu' },
                     { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                     { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
@@ -3043,71 +3042,53 @@ const CustomerDetailModule = {
     },
 
     async openAddModal(type) {
-        // Modul bazli openModal fonksiyonlarinin kullanimi - bu sayede proje select'leri de doldurulur
-        const moduleMap = {
-            project: ProjectModule,
-            invoice: InvoiceModule,
-            payment: PaymentModule,
-            offer: OfferModule,
-            contract: ContractModule,
-            guarantee: GuaranteeModule,
-            meeting: MeetingModule,
-            contact: ContactModule,
-            stamptax: StampTaxModule,
-            file: FileModule,
-            calendar: CalendarTabModule
+        // Tum moduller icin sayfa bazli form kullan (Modal yerine)
+        const pageRoutes = {
+            offer: `/customer/${this.customerId}/offers/new`,
+            contract: `/customer/${this.customerId}/contracts/new`,
+            contact: `/customer/${this.customerId}/contacts/new`,
+            meeting: `/customer/${this.customerId}/meetings/new`,
+            project: `/customer/${this.customerId}/projects/new`,
+            calendar: `/customer/${this.customerId}/calendar/new`,
+            stamptax: `/customer/${this.customerId}/stamp-taxes/new`,
+            guarantee: `/customer/${this.customerId}/guarantees/new`,
+            invoice: `/customer/${this.customerId}/invoices/new`,
+            payment: `/customer/${this.customerId}/payments/new`,
+            file: `/customer/${this.customerId}/files/new`
         };
 
-        const module = moduleMap[type];
-        if (module?.openModal) {
-            // Yeni kayit icin null id ile cagir - async fonksiyonlari await ile cagir
-            await module.openModal(null);
-        } else {
-            NbtToast.warning(`${type} için modal henüz tanımlı değil`);
-        }
-    },
-
-    openEditModal(type, id) {
-        const dataMap = {
-            project: 'projects',
-            invoice: 'invoices',
-            payment: 'payments',
-            offer: 'offers',
-            contract: 'contracts',
-            guarantee: 'guarantees',
-            meeting: 'meetings',
-            contact: 'contacts',
-            stamptax: 'stampTaxes',
-            file: 'files',
-            calendar: 'calendars'
-        };
-
-        const dataKey = dataMap[type];
-        if (!dataKey) {
-            NbtToast.warning(`${type} için düzenleme henüz desteklenmiyor`);
+        const route = pageRoutes[type];
+        if (route) {
+            window.location.href = route;
             return;
         }
 
-        const moduleMap = {
-            project: ProjectModule,
-            invoice: InvoiceModule,
-            payment: PaymentModule,
-            offer: OfferModule,
-            contract: ContractModule,
-            guarantee: GuaranteeModule,
-            meeting: MeetingModule,
-            contact: ContactModule,
-            stamptax: StampTaxModule,
-            file: FileModule,
-            calendar: CalendarTabModule
+        NbtToast.warning(`${type} için form sayfası henüz tanımlı değil`);
+    },
+
+    openEditModal(type, id) {
+        // Tum moduller icin sayfa bazli form kullan (Modal yerine)
+        const pageRoutes = {
+            offer: `/customer/${this.customerId}/offers/${id}/edit`,
+            contract: `/customer/${this.customerId}/contracts/${id}/edit`,
+            contact: `/customer/${this.customerId}/contacts/${id}/edit`,
+            meeting: `/customer/${this.customerId}/meetings/${id}/edit`,
+            project: `/customer/${this.customerId}/projects/${id}/edit`,
+            calendar: `/customer/${this.customerId}/calendar/${id}/edit`,
+            stamptax: `/customer/${this.customerId}/stamp-taxes/${id}/edit`,
+            guarantee: `/customer/${this.customerId}/guarantees/${id}/edit`,
+            invoice: `/customer/${this.customerId}/invoices/${id}/edit`,
+            payment: `/customer/${this.customerId}/payments/${id}/edit`,
+            file: `/customer/${this.customerId}/files/${id}/edit`
         };
 
-        const module = moduleMap[type];
-        if (module?.openModal) {
-            module.openModal(id);
-        } else {
-            NbtToast.warning(`${type} için düzenleme modal'ı bulunamadı`);
+        const route = pageRoutes[type];
+        if (route) {
+            window.location.href = route;
+            return;
         }
+
+        NbtToast.warning(`${type} için düzenleme sayfası henüz tanımlı değil`);
     },
 
     async confirmDelete(type, endpoint, id, dataKey, itemData = null) {
@@ -3184,7 +3165,7 @@ const CustomerDetailModule = {
                              <div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
             odemeler: () => `<div><strong>Tarih:</strong> ${formatDate(data.OdemeTarihi)}</div>
                             <div><strong>Tutar:</strong> ${formatMoney(data.Tutar)}</div>`,
-            teklifler: () => `<div><strong>Teklif No:</strong> ${data.TeklifNo || '-'}</div>
+            teklifler: () => `<div><strong>Konu:</strong> ${data.Konu || '-'}</div>
                              <div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
             sozlesmeler: () => `<div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
             teminatlar: () => `<div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
@@ -8235,6 +8216,8 @@ const OfferModule = {
     allDataLoading: false,
     filteredPage: 1,
     filteredPaginationInfo: null,
+    // Dosya islemleri icin
+    removeExistingFile: false,
 
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
@@ -8372,7 +8355,6 @@ const OfferModule = {
         if (!container) return;
         const columns = [
             { field: 'MusteriUnvan', label: 'Müşteri' },
-            { field: 'TeklifNo', label: 'Teklif No' },
             { field: 'Konu', label: 'Konu' },
             { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
             { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TRY', isSelect: true },
@@ -8631,6 +8613,13 @@ const OfferModule = {
         NbtModal.resetForm('offerModal');
         document.getElementById('offerModalTitle').textContent = id ? 'Teklif Düzenle' : 'Yeni Teklif';
         document.getElementById('offerId').value = id || '';
+        
+        // Dosya alanlarini sifirla
+        this.removeExistingFile = false;
+        document.getElementById('offerDosya').value = '';
+        document.getElementById('offerDosya').classList.remove('is-invalid');
+        document.getElementById('offerDosyaError').textContent = '';
+        document.getElementById('offerCurrentFile').classList.add('d-none');
 
         const select = document.getElementById('offerMusteriId');
         CustomerDetailModule.populateCustomerSelect(select);
@@ -8690,6 +8679,12 @@ const OfferModule = {
                 document.getElementById('offerDate').value = offer.TeklifTarihi?.split('T')[0] || '';
                 document.getElementById('offerValidDate').value = offer.GecerlilikTarihi?.split('T')[0] || '';
                 document.getElementById('offerStatus').value = offer.Durum ?? '';
+                
+                // Mevcut dosyayi goster
+                if (offer.DosyaAdi && offer.DosyaYolu) {
+                    document.getElementById('offerCurrentFileName').textContent = offer.DosyaAdi;
+                    document.getElementById('offerCurrentFile').classList.remove('d-none');
+                }
             } else {
                 NbtToast.error('Teklif kaydı bulunamadı');
                 return;
@@ -8697,6 +8692,27 @@ const OfferModule = {
         }
 
         NbtModal.open('offerModal');
+    },
+
+    // PDF dosya dogrulama
+    validatePdfFile(file) {
+        const errors = [];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        
+        if (file.size > maxSize) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            errors.push(`Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
+        }
+        
+        const allowedTypes = ['application/pdf'];
+        const allowedExtensions = ['.pdf'];
+        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+            errors.push('Sadece PDF dosyası yüklenebilir.');
+        }
+        
+        return errors;
     },
 
     async save() {
@@ -8708,52 +8724,78 @@ const OfferModule = {
         }
         
         const projeIdVal = document.getElementById('offerProjeId').value;
-        const data = {
-            MusteriId: musteriId,
-            ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
-            Konu: document.getElementById('offerSubject').value.trim() || null,
-            Tutar: parseFloat(document.getElementById('offerAmount').value) || 0,
-            ParaBirimi: document.getElementById('offerCurrency').value,
-            TeklifTarihi: document.getElementById('offerDate').value || null,
-            GecerlilikTarihi: document.getElementById('offerValidDate').value || null,
-            Durum: document.getElementById('offerStatus').value
-        };
-
+        const fileInput = document.getElementById('offerDosya');
+        
         NbtModal.clearError('offerModal');
-        if (!data.MusteriId || isNaN(data.MusteriId)) {
+        if (!musteriId || isNaN(musteriId)) {
             NbtModal.showFieldError('offerModal', 'offerMusteriId', 'Müşteri seçiniz');
             NbtModal.showError('offerModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
-        if (!data.ProjeId) {
+        if (!projeIdVal) {
             NbtModal.showFieldError('offerModal', 'offerProjeId', 'Proje seçiniz');
             NbtModal.showError('offerModal', 'Proje seçimi zorunludur');
             return;
         }
-        // TeklifNo alanı kaldırıldı
-        if (!data.Tutar || data.Tutar <= 0) {
+        
+        const tutar = parseFloat(document.getElementById('offerAmount').value) || 0;
+        if (!tutar || tutar <= 0) {
             NbtModal.showFieldError('offerModal', 'offerAmount', 'Tutar zorunludur');
             NbtModal.showError('offerModal', 'Lütfen tutar giriniz');
             return;
         }
-        if (!data.TeklifTarihi) {
+        
+        const teklifTarihi = document.getElementById('offerDate').value || null;
+        if (!teklifTarihi) {
             NbtModal.showFieldError('offerModal', 'offerDate', 'Tarih zorunludur');
             NbtModal.showError('offerModal', 'Lütfen tarih seçiniz');
             return;
         }
-        if (!data.GecerlilikTarihi) {
+        
+        const gecerlilikTarihi = document.getElementById('offerValidDate').value || null;
+        if (!gecerlilikTarihi) {
             NbtModal.showFieldError('offerModal', 'offerValidDate', 'Geçerlilik tarihi zorunludur');
             NbtModal.showError('offerModal', 'Lütfen geçerlilik tarihi seçiniz');
             return;
         }
+        
+        // Dosya dogrulama
+        const file = fileInput?.files?.[0];
+        if (file) {
+            const errors = this.validatePdfFile(file);
+            if (errors.length > 0) {
+                fileInput.classList.add('is-invalid');
+                document.getElementById('offerDosyaError').textContent = errors.join(' ');
+                NbtModal.showError('offerModal', errors.join(' '));
+                return;
+            }
+        }
 
         NbtModal.setLoading('offerModal', true);
         try {
+            // FormData kullan - hem dosya hem diger veriler icin
+            const formData = new FormData();
+            formData.append('MusteriId', musteriId);
+            if (projeIdVal) formData.append('ProjeId', projeIdVal);
+            formData.append('Konu', document.getElementById('offerSubject').value.trim() || '');
+            formData.append('Tutar', tutar);
+            formData.append('ParaBirimi', document.getElementById('offerCurrency').value);
+            formData.append('TeklifTarihi', teklifTarihi);
+            formData.append('GecerlilikTarihi', gecerlilikTarihi);
+            formData.append('Durum', document.getElementById('offerStatus').value);
+            
+            // Dosya ekleme veya silme
+            if (file) {
+                formData.append('dosya', file);
+            } else if (this.removeExistingFile) {
+                formData.append('removeFile', '1');
+            }
+            
             if (id) {
-                await NbtApi.put(`/api/offers/${id}`, data);
+                await NbtApi.postFormData(`/api/offers/${id}`, formData, 'PUT');
                 NbtToast.success('Teklif güncellendi');
             } else {
-                await NbtApi.post('/api/offers', data);
+                await NbtApi.postFormData('/api/offers', formData);
                 NbtToast.success('Teklif eklendi');
             }
             NbtModal.close('offerModal');
@@ -8792,6 +8834,26 @@ const OfferModule = {
         if (this._eventsBound) return;
         this._eventsBound = true;
         document.getElementById('btnSaveOffer')?.addEventListener('click', () => this.save());
+        
+        document.getElementById('offerDosya')?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            const errorEl = document.getElementById('offerDosyaError');
+            e.target.classList.remove('is-invalid');
+            if (errorEl) errorEl.textContent = '';
+            
+            if (file) {
+                const errors = this.validatePdfFile(file);
+                if (errors.length > 0) {
+                    e.target.classList.add('is-invalid');
+                    if (errorEl) errorEl.textContent = errors.join(' ');
+                }
+            }
+        });
+        
+        document.getElementById('btnRemoveOfferFile')?.addEventListener('click', () => {
+            this.removeExistingFile = true;
+            document.getElementById('offerCurrentFile')?.classList.add('d-none');
+        });
     }
 };
 
@@ -8811,6 +8873,8 @@ const ContractModule = {
     allDataLoading: false,
     filteredPage: 1,
     filteredPaginationInfo: null,
+    // Dosya islemleri icin
+    removeExistingFile: false,
 
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
@@ -9205,6 +9269,13 @@ const ContractModule = {
         NbtModal.resetForm('contractModal');
         document.getElementById('contractModalTitle').textContent = id ? 'Sözleşme Düzenle' : 'Yeni Sözleşme';
         document.getElementById('contractId').value = id || '';
+        
+        // Dosya alanlarini sifirla
+        this.removeExistingFile = false;
+        document.getElementById('contractDosya').value = '';
+        document.getElementById('contractDosya').classList.remove('is-invalid');
+        document.getElementById('contractDosyaError').textContent = '';
+        document.getElementById('contractCurrentFile').classList.add('d-none');
 
         const select = document.getElementById('contractMusteriId');
         CustomerDetailModule.populateCustomerSelect(select);
@@ -9262,6 +9333,12 @@ const ContractModule = {
                 document.getElementById('contractAmount').value = NbtUtils.formatDecimal(contract.Tutar) || '';
                 document.getElementById('contractCurrency').value = contract.ParaBirimi || NbtParams.getDefaultCurrency();
                 document.getElementById('contractStatus').value = contract.Durum ?? '';
+                
+                // Mevcut dosyayi goster
+                if (contract.DosyaAdi && contract.DosyaYolu) {
+                    document.getElementById('contractCurrentFileName').textContent = contract.DosyaAdi;
+                    document.getElementById('contractCurrentFile').classList.remove('d-none');
+                }
             } else {
                 NbtToast.error('Sözleşme kaydı bulunamadı');
                 return;
@@ -9269,6 +9346,27 @@ const ContractModule = {
         }
 
         NbtModal.open('contractModal');
+    },
+
+    // PDF dosya dogrulama
+    validatePdfFile(file) {
+        const errors = [];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        
+        if (file.size > maxSize) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            errors.push(`Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
+        }
+        
+        const allowedTypes = ['application/pdf'];
+        const allowedExtensions = ['.pdf'];
+        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+            errors.push('Sadece PDF dosyası yüklenebilir.');
+        }
+        
+        return errors;
     },
 
     async save() {
@@ -9280,40 +9378,62 @@ const ContractModule = {
         }
         
         const projeIdVal = document.getElementById('contractProjeId').value;
-        const data = {
-            MusteriId: musteriId,
-            ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
-            SozlesmeTarihi: document.getElementById('contractStart').value || null,
-            Tutar: parseFloat(document.getElementById('contractAmount').value) || 0,
-            ParaBirimi: document.getElementById('contractCurrency').value,
-            Durum: document.getElementById('contractStatus').value
-        };
+        const fileInput = document.getElementById('contractDosya');
 
         NbtModal.clearError('contractModal');
-        if (!data.MusteriId || isNaN(data.MusteriId)) {
+        if (!musteriId || isNaN(musteriId)) {
             NbtModal.showFieldError('contractModal', 'contractMusteriId', 'Müşteri seçiniz');
             NbtModal.showError('contractModal', 'Lütfen zorunlu alanları doldurun');
             return;
         }
-        if (!data.ProjeId) {
+        if (!projeIdVal) {
             NbtModal.showFieldError('contractModal', 'contractProjeId', 'Proje seçiniz');
             NbtModal.showError('contractModal', 'Proje seçimi zorunludur');
             return;
         }
-        // Sözleşme No alanı kaldırıldı
-        if (!data.Tutar || data.Tutar <= 0) {
+        
+        const tutar = parseFloat(document.getElementById('contractAmount').value) || 0;
+        if (!tutar || tutar <= 0) {
             NbtModal.showFieldError('contractModal', 'contractAmount', 'Tutar zorunludur');
             NbtModal.showError('contractModal', 'Tutar 0\'dan büyük olmalıdır');
             return;
         }
+        
+        // Dosya dogrulama
+        const file = fileInput?.files?.[0];
+        if (file) {
+            const errors = this.validatePdfFile(file);
+            if (errors.length > 0) {
+                fileInput.classList.add('is-invalid');
+                document.getElementById('contractDosyaError').textContent = errors.join(' ');
+                NbtModal.showError('contractModal', errors.join(' '));
+                return;
+            }
+        }
 
         NbtModal.setLoading('contractModal', true);
         try {
+            // FormData kullan - hem dosya hem diger veriler icin
+            const formData = new FormData();
+            formData.append('MusteriId', musteriId);
+            if (projeIdVal) formData.append('ProjeId', projeIdVal);
+            formData.append('SozlesmeTarihi', document.getElementById('contractStart').value || '');
+            formData.append('Tutar', tutar);
+            formData.append('ParaBirimi', document.getElementById('contractCurrency').value);
+            formData.append('Durum', document.getElementById('contractStatus').value);
+            
+            // Dosya ekleme veya silme
+            if (file) {
+                formData.append('dosya', file);
+            } else if (this.removeExistingFile) {
+                formData.append('removeFile', '1');
+            }
+            
             if (id) {
-                await NbtApi.put(`/api/contracts/${id}`, data);
+                await NbtApi.postFormData(`/api/contracts/${id}`, formData, 'PUT');
                 NbtToast.success('Sözleşme güncellendi');
             } else {
-                await NbtApi.post('/api/contracts', data);
+                await NbtApi.postFormData('/api/contracts', formData);
                 NbtToast.success('Sözleşme eklendi');
             }
             NbtModal.close('contractModal');
@@ -9352,6 +9472,26 @@ const ContractModule = {
         if (this._eventsBound) return;
         this._eventsBound = true;
         document.getElementById('btnSaveContract')?.addEventListener('click', () => this.save());
+        
+        document.getElementById('contractDosya')?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            const errorEl = document.getElementById('contractDosyaError');
+            e.target.classList.remove('is-invalid');
+            if (errorEl) errorEl.textContent = '';
+            
+            if (file) {
+                const errors = this.validatePdfFile(file);
+                if (errors.length > 0) {
+                    e.target.classList.add('is-invalid');
+                    if (errorEl) errorEl.textContent = errors.join(' ');
+                }
+            }
+        });
+        
+        document.getElementById('btnRemoveContractFile')?.addEventListener('click', () => {
+            this.removeExistingFile = true;
+            document.getElementById('contractCurrentFile')?.classList.add('d-none');
+        });
     }
 };
 
@@ -10048,6 +10188,1047 @@ const GuaranteeModule = {
 };
 
 // =============================================
+// TEKLIF SAYFA FORMU - Modal yerine sayfa bazli form
+// =============================================
+const NbtOfferPageForm = {
+    _eventsBound: false,
+    musteriId: null,
+    teklifId: null,
+    removeExistingFile: false,
+
+    async init(musteriId = null, teklifId = null) {
+        // Sayfa formunun olup olmadigini kontrol et
+        const form = document.getElementById('offerPageForm');
+        if (!form) return;
+
+        this.musteriId = musteriId || parseInt(document.getElementById('offerMusteriId')?.value) || 0;
+        this.teklifId = teklifId || parseInt(document.getElementById('offerId')?.value) || 0;
+        this.removeExistingFile = false;
+
+        // Projeleri yukle
+        await this.loadProjects();
+
+        // Durum ve doviz select'lerini doldur
+        await NbtParams.populateStatusSelect(document.getElementById('offerStatus'), 'teklif');
+        await NbtParams.populateCurrencySelect(document.getElementById('offerCurrency'));
+
+        // Eger edit modundaysak verileri yukle
+        if (this.teklifId > 0) {
+            await this.loadOfferData();
+        }
+
+        // Event binding
+        this.bindEvents();
+    },
+
+    async loadProjects() {
+        const projeSelect = document.getElementById('offerProjeId');
+        if (!projeSelect || !this.musteriId) return;
+
+        projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
+        try {
+            const response = await NbtApi.get(`/api/projects?musteri_id=${this.musteriId}`);
+            let projects = response.data || [];
+            
+            // Pasif projeleri filtrele
+            const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
+            projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
+            
+            projects.forEach(p => {
+                projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
+            });
+        } catch (err) {
+            NbtLogger.error('Projeler yüklenemedi:', err);
+        }
+    },
+
+    async loadOfferData() {
+        try {
+            const response = await NbtApi.get(`/api/offers/${this.teklifId}`);
+            const offer = response.data;
+            if (!offer) {
+                NbtToast.error('Teklif bulunamadı');
+                return;
+            }
+
+            document.getElementById('offerProjeId').value = offer.ProjeId || '';
+            document.getElementById('offerSubject').value = offer.Konu || '';
+            document.getElementById('offerAmount').value = NbtUtils.formatDecimal(offer.Tutar) || '0,00';
+            document.getElementById('offerCurrency').value = offer.ParaBirimi || NbtParams.getDefaultCurrency();
+            document.getElementById('offerDate').value = offer.TeklifTarihi?.split('T')[0] || '';
+            document.getElementById('offerValidDate').value = offer.GecerlilikTarihi?.split('T')[0] || '';
+            document.getElementById('offerStatus').value = offer.Durum ?? '';
+
+            // Mevcut dosyayi goster
+            if (offer.DosyaAdi && offer.DosyaYolu) {
+                document.getElementById('offerCurrentFileName').textContent = offer.DosyaAdi;
+                document.getElementById('offerCurrentFile').classList.remove('d-none');
+            }
+        } catch (err) {
+            NbtToast.error('Teklif yüklenemedi: ' + err.message);
+        }
+    },
+
+    validatePdfFile(file) {
+        const errors = [];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        
+        if (file.size > maxSize) {
+            errors.push(`Dosya boyutu çok büyük. Maksimum 10MB.`);
+        }
+        
+        const allowedTypes = ['application/pdf'];
+        const allowedExtensions = ['.pdf'];
+        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+            errors.push('Sadece PDF dosyası yüklenebilir.');
+        }
+        
+        return errors;
+    },
+
+    showError(message) {
+        const errorEl = document.getElementById('offerFormError');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.classList.remove('d-none');
+        }
+    },
+
+    clearError() {
+        const errorEl = document.getElementById('offerFormError');
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.add('d-none');
+        }
+    },
+
+    async save() {
+        this.clearError();
+        
+        const projeIdVal = document.getElementById('offerProjeId').value;
+        const fileInput = document.getElementById('offerDosya');
+        
+        // Validation
+        if (!projeIdVal) {
+            this.showError('Proje seçimi zorunludur');
+            return;
+        }
+        
+        const tutar = parseFloat(document.getElementById('offerAmount').value) || 0;
+        if (tutar <= 0) {
+            this.showError('Lütfen geçerli bir tutar giriniz');
+            return;
+        }
+        
+        const teklifTarihi = document.getElementById('offerDate').value;
+        if (!teklifTarihi) {
+            this.showError('Teklif tarihi zorunludur');
+            return;
+        }
+        
+        const gecerlilikTarihi = document.getElementById('offerValidDate').value;
+        if (!gecerlilikTarihi) {
+            this.showError('Geçerlilik tarihi zorunludur');
+            return;
+        }
+        
+        // Dosya dogrulama
+        const file = fileInput?.files?.[0];
+        if (file) {
+            const errors = this.validatePdfFile(file);
+            if (errors.length > 0) {
+                this.showError(errors.join(' '));
+                return;
+            }
+        }
+
+        const btn = document.getElementById('btnSaveOfferPage');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kaydediliyor...';
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('MusteriId', this.musteriId);
+            if (projeIdVal) formData.append('ProjeId', projeIdVal);
+            formData.append('Konu', document.getElementById('offerSubject').value.trim() || '');
+            formData.append('Tutar', tutar);
+            formData.append('ParaBirimi', document.getElementById('offerCurrency').value);
+            formData.append('TeklifTarihi', teklifTarihi);
+            formData.append('GecerlilikTarihi', gecerlilikTarihi);
+            formData.append('Durum', document.getElementById('offerStatus').value);
+            
+            if (file) {
+                formData.append('dosya', file);
+            } else if (this.removeExistingFile) {
+                formData.append('removeFile', '1');
+            }
+            
+            if (this.teklifId > 0) {
+                await NbtApi.postFormData(`/api/offers/${this.teklifId}`, formData, 'PUT');
+                NbtToast.success('Teklif güncellendi');
+            } else {
+                await NbtApi.postFormData('/api/offers', formData);
+                NbtToast.success('Teklif eklendi');
+            }
+            
+            // Basarili - listeye don
+            window.location.href = `/customer/${this.musteriId}?tab=teklifler`;
+        } catch (err) {
+            this.showError(err.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+            }
+        }
+    },
+
+    bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
+        
+        document.getElementById('btnSaveOfferPage')?.addEventListener('click', () => this.save());
+        
+        document.getElementById('offerDosya')?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+                const errors = this.validatePdfFile(file);
+                if (errors.length > 0) {
+                    this.showError(errors.join(' '));
+                }
+            }
+        });
+        
+        document.getElementById('btnRemoveOfferFile')?.addEventListener('click', () => {
+            this.removeExistingFile = true;
+            document.getElementById('offerCurrentFile')?.classList.add('d-none');
+        });
+    }
+};
+
+// =============================================
+// SOZLESME SAYFA FORMU - Modal yerine sayfa bazli form
+// =============================================
+const NbtContractPageForm = {
+    _eventsBound: false,
+    musteriId: null,
+    sozlesmeId: null,
+    removeExistingFile: false,
+
+    async init(musteriId = null, sozlesmeId = null) {
+        // Sayfa formunun olup olmadigini kontrol et
+        const form = document.getElementById('contractPageForm');
+        if (!form) return;
+
+        this.musteriId = musteriId || parseInt(document.getElementById('contractMusteriId')?.value) || 0;
+        this.sozlesmeId = sozlesmeId || parseInt(document.getElementById('contractId')?.value) || 0;
+        this.removeExistingFile = false;
+
+        // Projeleri yukle
+        await this.loadProjects();
+
+        // Durum ve doviz select'lerini doldur
+        await NbtParams.populateStatusSelect(document.getElementById('contractStatus'), 'sozlesme');
+        await NbtParams.populateCurrencySelect(document.getElementById('contractCurrency'));
+
+        // Eger edit modundaysak verileri yukle
+        if (this.sozlesmeId > 0) {
+            await this.loadContractData();
+        }
+
+        // Event binding
+        this.bindEvents();
+    },
+
+    async loadProjects() {
+        const projeSelect = document.getElementById('contractProjeId');
+        if (!projeSelect || !this.musteriId) return;
+
+        projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
+        try {
+            const response = await NbtApi.get(`/api/projects?musteri_id=${this.musteriId}`);
+            let projects = response.data || [];
+            
+            // Pasif projeleri filtrele
+            const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
+            projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
+            
+            projects.forEach(p => {
+                projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
+            });
+        } catch (err) {
+            NbtLogger.error('Projeler yüklenemedi:', err);
+        }
+    },
+
+    async loadContractData() {
+        try {
+            const response = await NbtApi.get(`/api/contracts/${this.sozlesmeId}`);
+            const contract = response.data;
+            if (!contract) {
+                NbtToast.error('Sözleşme bulunamadı');
+                return;
+            }
+
+            document.getElementById('contractProjeId').value = contract.ProjeId || '';
+            document.getElementById('contractStart').value = contract.SozlesmeTarihi?.split('T')[0] || '';
+            document.getElementById('contractAmount').value = NbtUtils.formatDecimal(contract.Tutar) || '0,00';
+            document.getElementById('contractCurrency').value = contract.ParaBirimi || NbtParams.getDefaultCurrency();
+            document.getElementById('contractStatus').value = contract.Durum ?? '';
+
+            // Mevcut dosyayi goster
+            if (contract.DosyaAdi && contract.DosyaYolu) {
+                document.getElementById('contractCurrentFileName').textContent = contract.DosyaAdi;
+                document.getElementById('contractCurrentFile').classList.remove('d-none');
+            }
+        } catch (err) {
+            NbtToast.error('Sözleşme yüklenemedi: ' + err.message);
+        }
+    },
+
+    validatePdfFile(file) {
+        const errors = [];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        
+        if (file.size > maxSize) {
+            errors.push(`Dosya boyutu çok büyük. Maksimum 10MB.`);
+        }
+        
+        const allowedTypes = ['application/pdf'];
+        const allowedExtensions = ['.pdf'];
+        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+            errors.push('Sadece PDF dosyası yüklenebilir.');
+        }
+        
+        return errors;
+    },
+
+    showError(message) {
+        const errorEl = document.getElementById('contractFormError');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.classList.remove('d-none');
+        }
+    },
+
+    clearError() {
+        const errorEl = document.getElementById('contractFormError');
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.add('d-none');
+        }
+    },
+
+    async save() {
+        this.clearError();
+        
+        const projeIdVal = document.getElementById('contractProjeId').value;
+        const fileInput = document.getElementById('contractDosya');
+        
+        // Validation
+        if (!projeIdVal) {
+            this.showError('Proje seçimi zorunludur');
+            return;
+        }
+        
+        const tutar = parseFloat(document.getElementById('contractAmount').value) || 0;
+        if (tutar <= 0) {
+            this.showError('Lütfen geçerli bir tutar giriniz');
+            return;
+        }
+        
+        // Dosya dogrulama
+        const file = fileInput?.files?.[0];
+        if (file) {
+            const errors = this.validatePdfFile(file);
+            if (errors.length > 0) {
+                this.showError(errors.join(' '));
+                return;
+            }
+        }
+
+        const btn = document.getElementById('btnSaveContractPage');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kaydediliyor...';
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('MusteriId', this.musteriId);
+            if (projeIdVal) formData.append('ProjeId', projeIdVal);
+            formData.append('SozlesmeTarihi', document.getElementById('contractStart').value || '');
+            formData.append('Tutar', tutar);
+            formData.append('ParaBirimi', document.getElementById('contractCurrency').value);
+            formData.append('Durum', document.getElementById('contractStatus').value);
+            
+            if (file) {
+                formData.append('dosya', file);
+            } else if (this.removeExistingFile) {
+                formData.append('removeFile', '1');
+            }
+            
+            if (this.sozlesmeId > 0) {
+                await NbtApi.postFormData(`/api/contracts/${this.sozlesmeId}`, formData, 'PUT');
+                NbtToast.success('Sözleşme güncellendi');
+            } else {
+                await NbtApi.postFormData('/api/contracts', formData);
+                NbtToast.success('Sözleşme eklendi');
+            }
+            
+            // Basarili - listeye don
+            window.location.href = `/customer/${this.musteriId}?tab=sozlesmeler`;
+        } catch (err) {
+            this.showError(err.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+            }
+        }
+    },
+
+    bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
+        
+        document.getElementById('btnSaveContractPage')?.addEventListener('click', () => this.save());
+        
+        document.getElementById('contractDosya')?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+                const errors = this.validatePdfFile(file);
+                if (errors.length > 0) {
+                    this.showError(errors.join(' '));
+                }
+            }
+        });
+        
+        document.getElementById('btnRemoveContractFile')?.addEventListener('click', () => {
+            this.removeExistingFile = true;
+            document.getElementById('contractCurrentFile')?.classList.add('d-none');
+        });
+    }
+};
+
+// =============================================
+// GENEL SAYFA FORMU - Tum modulleri kapsayan PageForm
+// =============================================
+const NbtPageForm = {
+    // Modul konfigurasyonlari
+    configs: {
+        'contact': {
+            formId: 'contactPageForm',
+            apiEndpoint: '/api/contacts',
+            tabKey: 'kisiler',
+            successMessageCreate: 'Kişi eklendi',
+            successMessageUpdate: 'Kişi güncellendi',
+            saveButtonId: 'btnSaveContactPage',
+            errorElementId: 'contactFormError',
+            idFieldId: 'contactId',
+            musteriIdFieldId: 'contactMusteriId',
+            needsProject: true,
+            projeSelectId: 'contactProjeId',
+            fields: ['contactProjeId', 'contactAdSoyad', 'contactUnvan', 'contactTelefon', 'contactDahiliNo', 'contactEmail', 'contactNotlar'],
+            fieldMappings: {
+                'contactProjeId': 'ProjeId',
+                'contactAdSoyad': 'AdSoyad',
+                'contactUnvan': 'Unvan',
+                'contactTelefon': 'Telefon',
+                'contactDahiliNo': 'DahiliNo',
+                'contactEmail': 'Email',
+                'contactNotlar': 'Notlar'
+            },
+            required: ['contactProjeId', 'contactAdSoyad'],
+            requiredMessages: {
+                'contactProjeId': 'Proje seçimi zorunludur',
+                'contactAdSoyad': 'Ad Soyad zorunludur'
+            }
+        },
+        'meeting': {
+            formId: 'meetingPageForm',
+            apiEndpoint: '/api/meetings',
+            tabKey: 'gorusme',
+            successMessageCreate: 'Görüşme eklendi',
+            successMessageUpdate: 'Görüşme güncellendi',
+            saveButtonId: 'btnSaveMeetingPage',
+            errorElementId: 'meetingFormError',
+            idFieldId: 'meetingId',
+            musteriIdFieldId: 'meetingMusteriId',
+            needsProject: true,
+            projeSelectId: 'meetingProjeId',
+            fields: ['meetingProjeId', 'meetingTarih', 'meetingKonu', 'meetingKisi', 'meetingEposta', 'meetingTelefon', 'meetingNotlar'],
+            fieldMappings: {
+                'meetingProjeId': 'ProjeId',
+                'meetingTarih': 'Tarih',
+                'meetingKonu': 'Konu',
+                'meetingKisi': 'GorusulenKisi',
+                'meetingEposta': 'Eposta',
+                'meetingTelefon': 'Telefon',
+                'meetingNotlar': 'Notlar'
+            },
+            required: ['meetingProjeId', 'meetingTarih', 'meetingKonu'],
+            requiredMessages: {
+                'meetingProjeId': 'Proje seçimi zorunludur',
+                'meetingTarih': 'Tarih zorunludur',
+                'meetingKonu': 'Konu zorunludur'
+            }
+        },
+        'project': {
+            formId: 'projectPageForm',
+            apiEndpoint: '/api/projects',
+            tabKey: 'projeler',
+            successMessageCreate: 'Proje eklendi',
+            successMessageUpdate: 'Proje güncellendi',
+            saveButtonId: 'btnSaveProjectPage',
+            errorElementId: 'projectFormError',
+            idFieldId: 'projectId',
+            musteriIdFieldId: 'projectMusteriId',
+            needsProject: false,
+            fields: ['projectName', 'projectStatus'],
+            fieldMappings: {
+                'projectName': 'ProjeAdi',
+                'projectStatus': 'Durum'
+            },
+            required: ['projectName'],
+            requiredMessages: {
+                'projectName': 'Proje adı zorunludur'
+            },
+            statusField: { id: 'projectStatus', type: 'proje' }
+        },
+        'calendar': {
+            formId: 'calendarPageForm',
+            apiEndpoint: '/api/takvim',
+            tabKey: 'takvim',
+            successMessageCreate: 'Takvim kaydı eklendi',
+            successMessageUpdate: 'Takvim kaydı güncellendi',
+            saveButtonId: 'btnSaveCalendarPage',
+            errorElementId: 'calendarFormError',
+            idFieldId: 'calendarId',
+            musteriIdFieldId: 'calendarMusteriId',
+            needsProject: true,
+            projeSelectId: 'calendarProjeId',
+            fields: ['calendarProjeId', 'calendarTerminTarihi', 'calendarOzet'],
+            fieldMappings: {
+                'calendarProjeId': 'ProjeId',
+                'calendarTerminTarihi': 'TerminTarihi',
+                'calendarOzet': 'Ozet'
+            },
+            required: ['calendarProjeId', 'calendarTerminTarihi', 'calendarOzet'],
+            requiredMessages: {
+                'calendarProjeId': 'Proje seçimi zorunludur',
+                'calendarTerminTarihi': 'Termin tarihi zorunludur',
+                'calendarOzet': 'İşin özeti zorunludur'
+            }
+        },
+        'stamp-tax': {
+            formId: 'stampTaxPageForm',
+            apiEndpoint: '/api/stamp-taxes',
+            tabKey: 'damgavergisi',
+            successMessageCreate: 'Damga vergisi eklendi',
+            successMessageUpdate: 'Damga vergisi güncellendi',
+            saveButtonId: 'btnSaveStampTaxPage',
+            errorElementId: 'stampTaxFormError',
+            idFieldId: 'stampTaxId',
+            musteriIdFieldId: 'stampTaxMusteriId',
+            needsProject: true,
+            projeSelectId: 'stampTaxProjeId',
+            sozlesmeSelectId: 'stampTaxSozlesmeId',
+            fields: ['stampTaxProjeId', 'stampTaxSozlesmeId', 'stampTaxBelgeTarihi', 'stampTaxTutar', 'stampTaxOdemeDurumu', 'stampTaxNotlar'],
+            fieldMappings: {
+                'stampTaxProjeId': 'ProjeId',
+                'stampTaxSozlesmeId': 'SozlesmeId',
+                'stampTaxBelgeTarihi': 'BelgeTarihi',
+                'stampTaxTutar': 'Tutar',
+                'stampTaxOdemeDurumu': 'OdemeDurumu',
+                'stampTaxNotlar': 'Notlar'
+            },
+            required: ['stampTaxProjeId', 'stampTaxBelgeTarihi', 'stampTaxTutar'],
+            requiredMessages: {
+                'stampTaxProjeId': 'Proje seçimi zorunludur',
+                'stampTaxBelgeTarihi': 'Belge tarihi zorunludur',
+                'stampTaxTutar': 'Tutar zorunludur'
+            },
+            amountField: 'stampTaxTutar'
+        },
+        'guarantee': {
+            formId: 'guaranteePageForm',
+            apiEndpoint: '/api/guarantees',
+            tabKey: 'teminatlar',
+            successMessageCreate: 'Teminat eklendi',
+            successMessageUpdate: 'Teminat güncellendi',
+            saveButtonId: 'btnSaveGuaranteePage',
+            errorElementId: 'guaranteeFormError',
+            idFieldId: 'guaranteeId',
+            musteriIdFieldId: 'guaranteeMusteriId',
+            needsProject: true,
+            projeSelectId: 'guaranteeProjeId',
+            fields: ['guaranteeProjeId', 'guaranteeTur', 'guaranteeNo', 'guaranteeTutar', 'guaranteeDoviz', 'guaranteeBaslangicTarihi', 'guaranteeBitisTarihi', 'guaranteeBanka', 'guaranteeDurum', 'guaranteeNotlar'],
+            fieldMappings: {
+                'guaranteeProjeId': 'ProjeId',
+                'guaranteeTur': 'TeminatTuru',
+                'guaranteeNo': 'TeminatNo',
+                'guaranteeTutar': 'Tutar',
+                'guaranteeDoviz': 'ParaBirimi',
+                'guaranteeBaslangicTarihi': 'BaslangicTarihi',
+                'guaranteeBitisTarihi': 'BitisTarihi',
+                'guaranteeBanka': 'BankaKurum',
+                'guaranteeDurum': 'Durum',
+                'guaranteeNotlar': 'Notlar'
+            },
+            required: ['guaranteeProjeId', 'guaranteeTur', 'guaranteeTutar', 'guaranteeBaslangicTarihi', 'guaranteeBitisTarihi'],
+            requiredMessages: {
+                'guaranteeProjeId': 'Proje seçimi zorunludur',
+                'guaranteeTur': 'Teminat türü seçimi zorunludur',
+                'guaranteeTutar': 'Tutar zorunludur',
+                'guaranteeBaslangicTarihi': 'Başlangıç tarihi zorunludur',
+                'guaranteeBitisTarihi': 'Bitiş tarihi zorunludur'
+            },
+            amountField: 'guaranteeTutar',
+            currencyField: 'guaranteeDoviz',
+            statusField: { id: 'guaranteeTur', type: 'teminat' }
+        },
+        'invoice': {
+            formId: 'invoicePageForm',
+            apiEndpoint: '/api/invoices',
+            tabKey: 'faturalar',
+            successMessageCreate: 'Fatura eklendi',
+            successMessageUpdate: 'Fatura güncellendi',
+            saveButtonId: 'btnSaveInvoicePage',
+            errorElementId: 'invoiceFormError',
+            idFieldId: 'invoiceId',
+            musteriIdFieldId: 'invoiceMusteriId',
+            needsProject: true,
+            projeSelectId: 'invoiceProjeId',
+            sozlesmeSelectId: 'invoiceSozlesmeId',
+            fields: ['invoiceProjeId', 'invoiceSozlesmeId', 'invoiceTur', 'invoiceFaturaNo', 'invoiceFaturaTarihi', 'invoiceToplamTutar', 'invoiceDoviz', 'invoiceKdvOrani', 'invoiceVadeTarihi', 'invoiceOdemeDurumu', 'invoiceDurum', 'invoiceNotlar'],
+            fieldMappings: {
+                'invoiceProjeId': 'ProjeId',
+                'invoiceSozlesmeId': 'SozlesmeId',
+                'invoiceTur': 'FaturaTuru',
+                'invoiceFaturaNo': 'FaturaNo',
+                'invoiceFaturaTarihi': 'FaturaTarihi',
+                'invoiceToplamTutar': 'Tutar',
+                'invoiceDoviz': 'ParaBirimi',
+                'invoiceKdvOrani': 'KdvOrani',
+                'invoiceVadeTarihi': 'VadeTarihi',
+                'invoiceOdemeDurumu': 'OdemeDurumu',
+                'invoiceDurum': 'Durum',
+                'invoiceNotlar': 'Notlar'
+            },
+            required: ['invoiceProjeId', 'invoiceFaturaNo', 'invoiceFaturaTarihi', 'invoiceToplamTutar'],
+            requiredMessages: {
+                'invoiceProjeId': 'Proje seçimi zorunludur',
+                'invoiceFaturaNo': 'Fatura no zorunludur',
+                'invoiceFaturaTarihi': 'Fatura tarihi zorunludur',
+                'invoiceToplamTutar': 'Tutar zorunludur'
+            },
+            amountField: 'invoiceToplamTutar',
+            currencyField: 'invoiceDoviz'
+        },
+        'payment': {
+            formId: 'paymentPageForm',
+            apiEndpoint: '/api/payments',
+            tabKey: 'odemeler',
+            successMessageCreate: 'Ödeme eklendi',
+            successMessageUpdate: 'Ödeme güncellendi',
+            saveButtonId: 'btnSavePaymentPage',
+            errorElementId: 'paymentFormError',
+            idFieldId: 'paymentId',
+            musteriIdFieldId: 'paymentMusteriId',
+            needsProject: true,
+            projeSelectId: 'paymentProjeId',
+            faturaSelectId: 'paymentFaturaId',
+            fields: ['paymentProjeId', 'paymentFaturaId', 'paymentTarih', 'paymentTutar', 'paymentDoviz', 'paymentTur', 'paymentYon', 'paymentBanka', 'paymentReferans', 'paymentNotlar'],
+            fieldMappings: {
+                'paymentProjeId': 'ProjeId',
+                'paymentFaturaId': 'FaturaId',
+                'paymentTarih': 'OdemeTarihi',
+                'paymentTutar': 'Tutar',
+                'paymentDoviz': 'ParaBirimi',
+                'paymentTur': 'OdemeTuru',
+                'paymentYon': 'OdemeYonu',
+                'paymentBanka': 'BankaHesap',
+                'paymentReferans': 'ReferansNo',
+                'paymentNotlar': 'Notlar'
+            },
+            required: ['paymentProjeId', 'paymentTarih', 'paymentTutar', 'paymentTur'],
+            requiredMessages: {
+                'paymentProjeId': 'Proje seçimi zorunludur',
+                'paymentTarih': 'Ödeme tarihi zorunludur',
+                'paymentTutar': 'Tutar zorunludur',
+                'paymentTur': 'Ödeme türü seçimi zorunludur'
+            },
+            amountField: 'paymentTutar',
+            currencyField: 'paymentDoviz'
+        },
+        'file': {
+            formId: 'filePageForm',
+            apiEndpoint: '/api/files',
+            tabKey: 'dosyalar',
+            successMessageCreate: 'Dosya yüklendi',
+            successMessageUpdate: 'Dosya güncellendi',
+            saveButtonId: 'btnSaveFilePage',
+            errorElementId: 'fileFormError',
+            idFieldId: 'fileId',
+            musteriIdFieldId: 'fileMusteriId',
+            needsProject: false,
+            projeSelectId: 'fileProjeId',
+            hasFileUpload: true,
+            fileInputId: 'fileUpload',
+            fields: ['fileProjeId', 'fileKategori', 'fileName', 'fileAciklama', 'fileEtiketler'],
+            fieldMappings: {
+                'fileProjeId': 'ProjeId',
+                'fileKategori': 'Kategori',
+                'fileName': 'DosyaAdi',
+                'fileAciklama': 'Aciklama',
+                'fileEtiketler': 'Etiketler'
+            },
+            required: [],
+            requiredMessages: {}
+        }
+    },
+    
+    // Aktif modul durumu
+    activeModule: null,
+    musteriId: null,
+    recordId: null,
+    tabKey: null,
+
+    /**
+     * Modul baslat
+     */
+    async init(moduleType, musteriId, recordId, tabKey) {
+        const config = this.configs[moduleType];
+        if (!config) {
+            NbtLogger.error('NbtPageForm: Bilinmeyen modul tipi:', moduleType);
+            return;
+        }
+
+        const form = document.getElementById(config.formId);
+        if (!form) return;
+
+        this.activeModule = moduleType;
+        this.musteriId = musteriId || parseInt(document.getElementById(config.musteriIdFieldId)?.value) || 0;
+        this.recordId = recordId || parseInt(document.getElementById(config.idFieldId)?.value) || 0;
+        this.tabKey = tabKey || config.tabKey;
+
+        // Projeleri yukle (gerekiyorsa)
+        if (config.needsProject && config.projeSelectId) {
+            await this.loadProjects(config);
+        }
+
+        // Proje gerekli olmasa bile projeSelectId varsa yukle
+        if (!config.needsProject && config.projeSelectId) {
+            await this.loadProjects(config);
+        }
+
+        // Sozlesme select varsa yukle
+        if (config.sozlesmeSelectId) {
+            await this.loadContracts(config);
+        }
+
+        // Fatura select varsa yukle
+        if (config.faturaSelectId) {
+            await this.loadInvoices(config);
+        }
+
+        // Durum parametrelerini doldur
+        if (config.statusField) {
+            await NbtParams.populateStatusSelect(
+                document.getElementById(config.statusField.id), 
+                config.statusField.type
+            );
+        }
+
+        // Teminat turu parametrelerini doldur
+        if (moduleType === 'guarantee') {
+            await this.loadGuaranteeTypes();
+        }
+
+        // Edit modundaysa verileri yukle
+        if (this.recordId > 0) {
+            await this.loadRecordData(config);
+        }
+
+        // Event binding
+        this.bindEvents(config);
+    },
+
+    async loadProjects(config) {
+        const projeSelect = document.getElementById(config.projeSelectId);
+        if (!projeSelect || !this.musteriId) return;
+
+        projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
+        try {
+            const response = await NbtApi.get(`/api/projects?musteri_id=${this.musteriId}`);
+            let projects = response.data || [];
+            
+            // Pasif projeleri filtrele
+            const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
+            projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
+            
+            projects.forEach(p => {
+                projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
+            });
+        } catch (err) {
+            NbtLogger.error('Projeler yüklenemedi:', err);
+        }
+    },
+
+    async loadContracts(config) {
+        const sozlesmeSelect = document.getElementById(config.sozlesmeSelectId);
+        if (!sozlesmeSelect || !this.musteriId) return;
+
+        sozlesmeSelect.innerHTML = '<option value="">Sözleşme Seçiniz (Opsiyonel)...</option>';
+        try {
+            const response = await NbtApi.get(`/api/contracts?musteri_id=${this.musteriId}`);
+            const contracts = response.data || [];
+            contracts.forEach(c => {
+                const label = `#${c.Id} - ${NbtUtils.formatDate(c.SozlesmeTarihi)} - ${NbtUtils.formatMoney(c.Tutar, c.ParaBirimi)}`;
+                sozlesmeSelect.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(label)}</option>`;
+            });
+        } catch (err) {
+            NbtLogger.error('Sözleşmeler yüklenemedi:', err);
+        }
+    },
+
+    async loadInvoices(config) {
+        const faturaSelect = document.getElementById(config.faturaSelectId);
+        if (!faturaSelect || !this.musteriId) return;
+
+        faturaSelect.innerHTML = '<option value="">Fatura Seçiniz (Opsiyonel)...</option>';
+        try {
+            const response = await NbtApi.get(`/api/invoices?musteri_id=${this.musteriId}`);
+            const invoices = response.data || [];
+            invoices.forEach(f => {
+                const label = `${f.FaturaNo} - ${NbtUtils.formatDate(f.FaturaTarihi)} - ${NbtUtils.formatMoney(f.Tutar, f.ParaBirimi)}`;
+                faturaSelect.innerHTML += `<option value="${f.Id}">${NbtUtils.escapeHtml(label)}</option>`;
+            });
+        } catch (err) {
+            NbtLogger.error('Faturalar yüklenemedi:', err);
+        }
+    },
+
+    async loadGuaranteeTypes() {
+        const turSelect = document.getElementById('guaranteeTur');
+        if (!turSelect) return;
+
+        turSelect.innerHTML = '<option value="">Teminat Türü Seçiniz...</option>';
+        try {
+            const params = await NbtParams.getByGroup('teminat');
+            params.forEach(p => {
+                turSelect.innerHTML += `<option value="${NbtUtils.escapeHtml(p.Deger)}">${NbtUtils.escapeHtml(p.Etiket)}</option>`;
+            });
+        } catch (err) {
+            // Fallback
+            const defaultTypes = ['Nakit', 'Teminat Mektubu'];
+            defaultTypes.forEach(t => {
+                turSelect.innerHTML += `<option value="${t}">${t}</option>`;
+            });
+        }
+    },
+
+    async loadRecordData(config) {
+        try {
+            const response = await NbtApi.get(`${config.apiEndpoint}/${this.recordId}`);
+            const data = response.data;
+            if (!data) {
+                NbtToast.error('Kayıt bulunamadı');
+                return;
+            }
+
+            // Alanlari doldur
+            for (const fieldId of config.fields) {
+                const apiField = config.fieldMappings[fieldId];
+                const element = document.getElementById(fieldId);
+                if (!element || !apiField) continue;
+
+                let value = data[apiField];
+                
+                // Tarih alanlari
+                if (fieldId.includes('Tarih') || fieldId.includes('tarihi')) {
+                    value = value?.split('T')[0] || '';
+                }
+                
+                // Tutar alanlari
+                if (config.amountField === fieldId) {
+                    value = NbtUtils.formatDecimal(value) || '0,00';
+                }
+
+                element.value = value ?? '';
+            }
+
+            // Dosya modulu icin mevcut dosyayi goster
+            if (this.activeModule === 'file' && data.DosyaAdi) {
+                const currentNameEl = document.getElementById('fileCurrentName');
+                if (currentNameEl) {
+                    currentNameEl.textContent = data.DosyaAdi;
+                }
+            }
+        } catch (err) {
+            NbtToast.error('Kayıt yüklenemedi: ' + err.message);
+        }
+    },
+
+    showError(message) {
+        const config = this.configs[this.activeModule];
+        const errorEl = document.getElementById(config?.errorElementId);
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.classList.remove('d-none');
+        }
+    },
+
+    clearError() {
+        const config = this.configs[this.activeModule];
+        const errorEl = document.getElementById(config?.errorElementId);
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.add('d-none');
+        }
+    },
+
+    async save() {
+        const config = this.configs[this.activeModule];
+        if (!config) return;
+
+        this.clearError();
+
+        // Validation
+        for (const fieldId of config.required) {
+            const element = document.getElementById(fieldId);
+            const value = element?.value?.trim();
+            if (!value) {
+                this.showError(config.requiredMessages[fieldId] || 'Zorunlu alan eksik');
+                element?.focus();
+                return;
+            }
+        }
+
+        // Tutar validation
+        if (config.amountField) {
+            const tutarEl = document.getElementById(config.amountField);
+            const tutar = NbtUtils.parseDecimal(tutarEl?.value);
+            if (tutar <= 0) {
+                this.showError('Lütfen geçerli bir tutar giriniz');
+                tutarEl?.focus();
+                return;
+            }
+        }
+
+        const btn = document.getElementById(config.saveButtonId);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kaydediliyor...';
+        }
+
+        try {
+            let apiData;
+            let useFormData = config.hasFileUpload;
+
+            if (useFormData) {
+                apiData = new FormData();
+                apiData.append('MusteriId', this.musteriId);
+                
+                // File input
+                const fileInput = document.getElementById(config.fileInputId);
+                const file = fileInput?.files?.[0];
+                if (file) {
+                    apiData.append('dosya', file);
+                }
+
+                // Diger alanlar
+                for (const fieldId of config.fields) {
+                    const apiField = config.fieldMappings[fieldId];
+                    const element = document.getElementById(fieldId);
+                    if (!element || !apiField) continue;
+
+                    let value = element.value?.trim() || '';
+                    
+                    if (config.amountField === fieldId) {
+                        value = NbtUtils.parseDecimal(value);
+                    }
+
+                    apiData.append(apiField, value);
+                }
+            } else {
+                apiData = { MusteriId: this.musteriId };
+
+                for (const fieldId of config.fields) {
+                    const apiField = config.fieldMappings[fieldId];
+                    const element = document.getElementById(fieldId);
+                    if (!element || !apiField) continue;
+
+                    let value = element.value?.trim() || '';
+                    
+                    if (config.amountField === fieldId) {
+                        value = NbtUtils.parseDecimal(value);
+                    }
+
+                    apiData[apiField] = value;
+                }
+            }
+
+            if (this.recordId > 0) {
+                if (useFormData) {
+                    await NbtApi.postFormData(`${config.apiEndpoint}/${this.recordId}`, apiData, 'PUT');
+                } else {
+                    await NbtApi.put(`${config.apiEndpoint}/${this.recordId}`, apiData);
+                }
+                NbtToast.success(config.successMessageUpdate);
+            } else {
+                if (useFormData) {
+                    await NbtApi.postFormData(config.apiEndpoint, apiData);
+                } else {
+                    await NbtApi.post(config.apiEndpoint, apiData);
+                }
+                NbtToast.success(config.successMessageCreate);
+            }
+
+            // Basarili - listeye don
+            window.location.href = `/customer/${this.musteriId}?tab=${this.tabKey}`;
+        } catch (err) {
+            this.showError(err.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+            }
+        }
+    },
+
+    bindEvents(config) {
+        // Kaydet butonu
+        document.getElementById(config.saveButtonId)?.addEventListener('click', () => this.save());
+
+        // Tutar alani icin format
+        if (config.amountField) {
+            const tutarEl = document.getElementById(config.amountField);
+            tutarEl?.addEventListener('blur', (e) => {
+                const val = NbtUtils.parseDecimal(e.target.value);
+                e.target.value = NbtUtils.formatDecimal(val);
+            });
+        }
+
+        // Karakter sayaci (takvim ozeti)
+        if (this.activeModule === 'calendar') {
+            const ozetEl = document.getElementById('calendarOzet');
+            const countEl = document.getElementById('calendarOzetCount');
+            ozetEl?.addEventListener('input', () => {
+                if (countEl) countEl.textContent = ozetEl.value.length;
+            });
+        }
+    }
+};
+
+// =============================================
 // SIFRE DEGISTIRME
 // =============================================
 const PasswordModule = {
@@ -10274,6 +11455,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Global customer sidebar'i baslat
     await GlobalCustomerSidebar.init();
+
+    // Sayfa bazli form modulleri
+    // NOT: Her form sayfasi kendi init'ini inline script ile cagirir
+    // Ornek: NbtPageForm.init('contact', musteriId, kisiId, 'kisiler');
+    // NbtOfferPageForm ve NbtContractPageForm geriye donuk uyumluluk icin korundu
+    NbtOfferPageForm.init();
+    NbtContractPageForm.init();
 
     // Server-rendered mimaride: Sayfa init
     // CURRENT_PAGE degerine gore ilgili modulu baslat

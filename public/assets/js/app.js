@@ -750,7 +750,20 @@ const NbtApi = {
     get: (path) => NbtApi.request(path),
     post: (path, data) => NbtApi.request(path, { method: 'POST', body: JSON.stringify(data) }),
     put: (path, data) => NbtApi.request(path, { method: 'PUT', body: JSON.stringify(data) }),
-    delete: (path) => NbtApi.request(path, { method: 'DELETE' })
+    delete: (path) => NbtApi.request(path, { method: 'DELETE' }),
+    
+    // FormData ile dosya yukleme - method parametresi ile PUT/POST destegi
+    postFormData: async (path, formData, method = 'POST') => {
+        // PHP'de PUT ile FormData desteklenmez, POST metodu kullanip _method ile override ediyoruz
+        if (method === 'PUT') {
+            formData.append('_method', 'PUT');
+        }
+        return NbtApi.request(path, { 
+            method: 'POST', 
+            body: formData 
+            // Content-Type otomatik olarak boundary ile set edilir, manuel set etme
+        });
+    }
 };
 
 // =============================================
@@ -1389,7 +1402,6 @@ const NbtDetailModal = {
             ],
             offer: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
-                { label: 'Teklif No', field: 'TeklifNo' },
                 { label: 'Konu', field: 'Konu' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
                 { label: 'Teklif Tarihi', field: 'TeklifTarihi', format: 'date' },

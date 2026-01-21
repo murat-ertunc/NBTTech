@@ -18,13 +18,16 @@ CREATE TABLE bck_tbl_teklif (
     ProjeId INT NULL,
     
     -- Teklif Bilgileri
-    TeklifNo NVARCHAR(50) NOT NULL,
     Konu NVARCHAR(255) NULL,
     Tutar DECIMAL(16,2) NULL,
     ParaBirimi NVARCHAR(3) NULL,
     TeklifTarihi DATE NULL,
     GecerlilikTarihi DATE NULL,
-    Durum TINYINT NULL
+    Durum TINYINT NULL,
+    
+    -- Dosya Bilgileri
+    DosyaAdi NVARCHAR(255) NULL,
+    DosyaYolu NVARCHAR(500) NULL
 );
 GO
 

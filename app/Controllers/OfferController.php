@@ -77,8 +77,16 @@ class OfferController
 
     public static function store(): void
     {
-        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-            $Zorunlu = ['MusteriId'];
+        // Hem JSON hem FormData gelen istekleri destekliyoruz
+        $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($IcerikTipi, 'application/json') !== false) {
+            $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } else {
+            // multipart/form-data
+            $Girdi = $_POST;
+        }
+        
+        $Zorunlu = ['MusteriId'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
                 Response::error("$Alan alani zorunludur.", 422);
@@ -92,6 +100,26 @@ class OfferController
             return;
         }
 
+        // Dosya yukleme islemi - varsa dosya yolunu ve adini kaydediyoruz
+        $DosyaAdi = null;
+        $DosyaYolu = null;
+        if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $YuklemeKlasoru = __DIR__ . '/../../storage/uploads/';
+            if (!is_dir($YuklemeKlasoru)) {
+                mkdir($YuklemeKlasoru, 0755, true);
+            }
+            
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $HedefYol = $YuklemeKlasoru . $GuvenliAd;
+            
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
+                $DosyaAdi = $OrijinalAd;
+                $DosyaYolu = 'storage/uploads/' . $GuvenliAd;
+            }
+        }
+
         $Repo = new OfferRepository();
         $YuklenecekVeri = [
             'MusteriId' => (int)$Girdi['MusteriId'],
@@ -101,7 +129,9 @@ class OfferController
             'ParaBirimi' => $Girdi['ParaBirimi'] ?? 'TRY',
             'TeklifTarihi' => $Girdi['TeklifTarihi'] ?? null,
             'GecerlilikTarihi' => $Girdi['GecerlilikTarihi'] ?? null,
-            'Durum' => isset($Girdi['Durum']) ? (int)$Girdi['Durum'] : 0
+            'Durum' => isset($Girdi['Durum']) ? (int)$Girdi['Durum'] : 0,
+            'DosyaAdi' => $DosyaAdi,
+            'DosyaYolu' => $DosyaYolu
         ];
 
         $Id = Transaction::wrap(function () use ($Repo, $YuklenecekVeri, $KullaniciId) {
@@ -131,7 +161,18 @@ class OfferController
             return;
         }
 
-        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        // Hem JSON hem FormData gelen istekleri destekliyoruz
+        $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($IcerikTipi, 'application/json') !== false) {
+            $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } elseif (strpos($IcerikTipi, 'multipart/form-data') !== false) {
+            $Girdi = $_POST;
+        } elseif (strpos($IcerikTipi, 'application/x-www-form-urlencoded') !== false) {
+            parse_str(file_get_contents('php://input'), $Girdi);
+        } else {
+            $Girdi = $_POST;
+        }
+        
         $Repo = new OfferRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -139,20 +180,61 @@ class OfferController
             return;
         }
 
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
-            $Guncellenecek = [];
-            if (isset($Girdi['Konu'])) $Guncellenecek['Konu'] = $Girdi['Konu'];
-            if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
-            if (isset($Girdi['ParaBirimi'])) $Guncellenecek['ParaBirimi'] = $Girdi['ParaBirimi'];
-            if (isset($Girdi['TeklifTarihi'])) $Guncellenecek['TeklifTarihi'] = $Girdi['TeklifTarihi'];
-            if (isset($Girdi['GecerlilikTarihi'])) $Guncellenecek['GecerlilikTarihi'] = $Girdi['GecerlilikTarihi'];
-            if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
-            if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = (int)$Girdi['ProjeId'];
+        $Guncellenecek = [];
+        if (isset($Girdi['Konu'])) $Guncellenecek['Konu'] = $Girdi['Konu'];
+        if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
+        if (isset($Girdi['ParaBirimi'])) $Guncellenecek['ParaBirimi'] = $Girdi['ParaBirimi'];
+        if (isset($Girdi['TeklifTarihi'])) $Guncellenecek['TeklifTarihi'] = $Girdi['TeklifTarihi'];
+        if (isset($Girdi['GecerlilikTarihi'])) $Guncellenecek['GecerlilikTarihi'] = $Girdi['GecerlilikTarihi'];
+        if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
+        if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = (int)$Girdi['ProjeId'];
 
-            if (!empty($Guncellenecek)) {
-                $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+        // Dosya silme veya guncelleme islemi
+        if (!empty($Girdi['removeFile'])) {
+            // Mevcut dosyayi sil
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
+                $EskiDosyaYolu = __DIR__ . '/../../' . $Mevcut['DosyaYolu'];
+                if (file_exists($EskiDosyaYolu)) {
+                    unlink($EskiDosyaYolu);
+                }
             }
-        });
+            $Guncellenecek['DosyaAdi'] = null;
+            $Guncellenecek['DosyaYolu'] = null;
+        }
+
+        // Yeni dosya yuklendiyse eskisini silip yenisini kaydediyoruz
+        if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            // Eski dosyayi fiziksel olarak sil
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
+                $EskiDosyaYolu = __DIR__ . '/../../' . $Mevcut['DosyaYolu'];
+                if (file_exists($EskiDosyaYolu)) {
+                    unlink($EskiDosyaYolu);
+                }
+            }
+
+            $YuklemeKlasoru = __DIR__ . '/../../storage/uploads/';
+            if (!is_dir($YuklemeKlasoru)) {
+                mkdir($YuklemeKlasoru, 0755, true);
+            }
+            
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $HedefYol = $YuklemeKlasoru . $GuvenliAd;
+            
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
+                $Guncellenecek['DosyaAdi'] = $OrijinalAd;
+                $Guncellenecek['DosyaYolu'] = 'storage/uploads/' . $GuvenliAd;
+            }
+        }
+
+        if (!empty($Guncellenecek)) {
+            Transaction::wrap(function () use ($Repo, $Id, $Guncellenecek, $KullaniciId) {
+                $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+            });
+        }
 
         // Takvim hatirlatmasi guncelle - gecerlilik tarihi varsa
         if (isset($Girdi['GecerlilikTarihi'])) {
@@ -196,5 +278,43 @@ class OfferController
         CalendarService::deleteReminder('teklif', $Id);
 
         Response::json(['status' => 'success']);
+    }
+
+    public static function download(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Gecersiz kayit.', 422);
+            return;
+        }
+
+        $Repo = new OfferRepository();
+        $Kayit = $Repo->bul($Id);
+        
+        if (!$Kayit) {
+            Response::error('Kayit bulunamadi.', 404);
+            return;
+        }
+
+        if (empty($Kayit['DosyaYolu'])) {
+            Response::error('Bu kayita ait dosya bulunamadi.', 404);
+            return;
+        }
+
+        $FilePath = __DIR__ . '/../../' . $Kayit['DosyaYolu'];
+        
+        if (!file_exists($FilePath)) {
+            Response::error('Dosya bulunamadi.', 404);
+            return;
+        }
+
+        $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
+        $MimeType = mime_content_type($FilePath) ?: 'application/octet-stream';
+
+        header('Content-Type: ' . $MimeType);
+        header('Content-Disposition: attachment; filename="' . $DosyaAdi . '"');
+        header('Content-Length: ' . filesize($FilePath));
+        readfile($FilePath);
+        exit;
     }
 }

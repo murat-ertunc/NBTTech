@@ -73,7 +73,15 @@ class ContractController
 
     public static function store(): void
     {
-        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        // Hem JSON hem FormData gelen istekleri destekliyoruz
+        $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($IcerikTipi, 'application/json') !== false) {
+            $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } else {
+            // multipart/form-data
+            $Girdi = $_POST;
+        }
+        
         $Zorunlu = ['MusteriId'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
@@ -88,6 +96,26 @@ class ContractController
             return;
         }
 
+        // Dosya yukleme islemi - varsa dosya yolunu ve adini kaydediyoruz
+        $DosyaAdi = null;
+        $DosyaYolu = null;
+        if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $YuklemeKlasoru = __DIR__ . '/../../storage/uploads/';
+            if (!is_dir($YuklemeKlasoru)) {
+                mkdir($YuklemeKlasoru, 0755, true);
+            }
+            
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $HedefYol = $YuklemeKlasoru . $GuvenliAd;
+            
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
+                $DosyaAdi = $OrijinalAd;
+                $DosyaYolu = 'storage/uploads/' . $GuvenliAd;
+            }
+        }
+
         $Repo = new ContractRepository();
         $YuklenecekVeri = [
             'MusteriId' => (int)$Girdi['MusteriId'],
@@ -96,7 +124,8 @@ class ContractController
             'SozlesmeTarihi' => $Girdi['SozlesmeTarihi'] ?? null,
             'Tutar' => isset($Girdi['Tutar']) ? (float)$Girdi['Tutar'] : 0.00,
             'ParaBirimi' => $Girdi['ParaBirimi'] ?? 'TRY',
-            'DosyaYolu' => $Girdi['DosyaYolu'] ?? null,
+            'DosyaAdi' => $DosyaAdi,
+            'DosyaYolu' => $DosyaYolu,
             'Durum' => isset($Girdi['Durum']) ? (int)$Girdi['Durum'] : 1
         ];
 
@@ -127,7 +156,18 @@ class ContractController
             return;
         }
 
-        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        // Hem JSON hem FormData gelen istekleri destekliyoruz
+        $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($IcerikTipi, 'application/json') !== false) {
+            $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } elseif (strpos($IcerikTipi, 'multipart/form-data') !== false) {
+            $Girdi = $_POST;
+        } elseif (strpos($IcerikTipi, 'application/x-www-form-urlencoded') !== false) {
+            parse_str(file_get_contents('php://input'), $Girdi);
+        } else {
+            $Girdi = $_POST;
+        }
+        
         $Repo = new ContractRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -135,20 +175,60 @@ class ContractController
             return;
         }
 
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
-            $Guncellenecek = [];
-            if (isset($Girdi['SozlesmeTarihi'])) $Guncellenecek['SozlesmeTarihi'] = $Girdi['SozlesmeTarihi'];
-            if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
-            if (isset($Girdi['ParaBirimi'])) $Guncellenecek['ParaBirimi'] = $Girdi['ParaBirimi'];
-            if (isset($Girdi['DosyaYolu'])) $Guncellenecek['DosyaYolu'] = $Girdi['DosyaYolu'];
-            if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
-            if (isset($Girdi['TeklifId'])) $Guncellenecek['TeklifId'] = (int)$Girdi['TeklifId'];
-            if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
+        $Guncellenecek = [];
+        if (isset($Girdi['SozlesmeTarihi'])) $Guncellenecek['SozlesmeTarihi'] = $Girdi['SozlesmeTarihi'];
+        if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
+        if (isset($Girdi['ParaBirimi'])) $Guncellenecek['ParaBirimi'] = $Girdi['ParaBirimi'];
+        if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
+        if (isset($Girdi['TeklifId'])) $Guncellenecek['TeklifId'] = (int)$Girdi['TeklifId'];
+        if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
 
-            if (!empty($Guncellenecek)) {
-                $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+        // Dosya silme veya guncelleme islemi
+        if (!empty($Girdi['removeFile'])) {
+            // Mevcut dosyayi sil
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
+                $EskiDosyaYolu = __DIR__ . '/../../' . $Mevcut['DosyaYolu'];
+                if (file_exists($EskiDosyaYolu)) {
+                    unlink($EskiDosyaYolu);
+                }
             }
-        });
+            $Guncellenecek['DosyaAdi'] = null;
+            $Guncellenecek['DosyaYolu'] = null;
+        }
+
+        // Yeni dosya yuklendiyse eskisini silip yenisini kaydediyoruz
+        if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            // Eski dosyayi fiziksel olarak sil
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
+                $EskiDosyaYolu = __DIR__ . '/../../' . $Mevcut['DosyaYolu'];
+                if (file_exists($EskiDosyaYolu)) {
+                    unlink($EskiDosyaYolu);
+                }
+            }
+
+            $YuklemeKlasoru = __DIR__ . '/../../storage/uploads/';
+            if (!is_dir($YuklemeKlasoru)) {
+                mkdir($YuklemeKlasoru, 0755, true);
+            }
+            
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $HedefYol = $YuklemeKlasoru . $GuvenliAd;
+            
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
+                $Guncellenecek['DosyaAdi'] = $OrijinalAd;
+                $Guncellenecek['DosyaYolu'] = 'storage/uploads/' . $GuvenliAd;
+            }
+        }
+
+        if (!empty($Guncellenecek)) {
+            Transaction::wrap(function () use ($Repo, $Id, $Guncellenecek, $KullaniciId) {
+                $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
+            });
+        }
 
         // Takvim hatirlatmasi guncelle - sozlesme tarihi varsa
         if (isset($Girdi['SozlesmeTarihi'])) {
@@ -191,5 +271,43 @@ class ContractController
         CalendarService::deleteReminder('sozlesme', $Id);
 
         Response::json(['status' => 'success']);
+    }
+
+    public static function download(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Gecersiz kayit.', 422);
+            return;
+        }
+
+        $Repo = new ContractRepository();
+        $Kayit = $Repo->bul($Id);
+        
+        if (!$Kayit) {
+            Response::error('Kayit bulunamadi.', 404);
+            return;
+        }
+
+        if (empty($Kayit['DosyaYolu'])) {
+            Response::error('Bu kayita ait dosya bulunamadi.', 404);
+            return;
+        }
+
+        $FilePath = __DIR__ . '/../../' . $Kayit['DosyaYolu'];
+        
+        if (!file_exists($FilePath)) {
+            Response::error('Dosya bulunamadi.', 404);
+            return;
+        }
+
+        $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
+        $MimeType = mime_content_type($FilePath) ?: 'application/octet-stream';
+
+        header('Content-Type: ' . $MimeType);
+        header('Content-Disposition: attachment; filename="' . $DosyaAdi . '"');
+        header('Content-Length: ' . filesize($FilePath));
+        readfile($FilePath);
+        exit;
     }
 }

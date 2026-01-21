@@ -41,8 +41,12 @@ END
 -- ROL-PERMISSION ATAMALARI
 -- =============================================
 
--- Mevcut atamalari temizle
-UPDATE tnm_rol_permission SET Sil = 1 WHERE Sil = 0;
+-- Mevcut base rol atamalari temizle (sadece superadmin, admin, editor, viewer)
+DELETE FROM tnm_rol_permission 
+WHERE RolId IN (
+    SELECT Id FROM tnm_rol 
+    WHERE RolKodu IN ('superadmin', 'admin', 'editor', 'viewer') AND Sil = 0
+);
 GO
 
 -- Super Admin: TUM YETKILER
@@ -60,6 +64,7 @@ CROSS JOIN tnm_permission p
 WHERE r.RolKodu = 'admin' AND r.Sil = 0 AND p.Sil = 0 AND p.Aktif = 1;
 
 -- Editor: Tum read + create + update (delete haric)
+-- NOT: dashboard ve alarms modulleri de bu sorguya dahil (read yetkisi otomatik gelir)
 INSERT INTO tnm_rol_permission (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, RolId, PermissionId)
 SELECT NEWID(), SYSUTCDATETIME(), 1, SYSUTCDATETIME(), 1, 0, r.Id, p.Id
 FROM tnm_rol r
@@ -67,14 +72,6 @@ CROSS JOIN tnm_permission p
 WHERE r.RolKodu = 'editor' AND r.Sil = 0 AND p.Sil = 0 AND p.Aktif = 1
   AND p.ModulAdi NOT IN ('users', 'roles', 'logs', 'parameters')
   AND p.Aksiyon IN ('create', 'read', 'update');
-
--- Editor: Dashboard ve Alarm sadece read
-INSERT INTO tnm_rol_permission (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, RolId, PermissionId)
-SELECT NEWID(), SYSUTCDATETIME(), 1, SYSUTCDATETIME(), 1, 0, r.Id, p.Id
-FROM tnm_rol r
-CROSS JOIN tnm_permission p
-WHERE r.RolKodu = 'editor' AND r.Sil = 0 AND p.Sil = 0 AND p.Aktif = 1
-  AND p.ModulAdi IN ('dashboard', 'alarms') AND p.Aksiyon = 'read';
 
 -- Viewer: Sadece read yetkiler (users, roles, logs haric)
 INSERT INTO tnm_rol_permission (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, RolId, PermissionId)

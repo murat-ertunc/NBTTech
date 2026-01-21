@@ -20,6 +20,10 @@ CREATE TABLE tbl_teklif (
     GecerlilikTarihi DATE NULL,
     Durum TINYINT DEFAULT 0,
     
+    -- Dosya Bilgileri
+    DosyaAdi NVARCHAR(255) NULL,
+    DosyaYolu NVARCHAR(500) NULL,
+    
     CONSTRAINT FK_teklif_musteri FOREIGN KEY (MusteriId) REFERENCES tbl_musteri(Id),
     CONSTRAINT FK_teklif_proje FOREIGN KEY (ProjeId) REFERENCES tbl_proje(Id)
 );

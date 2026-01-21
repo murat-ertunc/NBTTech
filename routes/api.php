@@ -175,8 +175,19 @@ resource('customers', App\Controllers\CustomerController::class, [
 resource('invoices', App\Controllers\InvoiceController::class);
 resource('payments', App\Controllers\PaymentController::class);
 resource('projects', App\Controllers\ProjectController::class);
-resource('offers', App\Controllers\OfferController::class);
-resource('contracts', App\Controllers\ContractController::class);
+
+resource('offers', App\Controllers\OfferController::class, [
+    'extra' => [
+        ['GET', '/api/offers/{id}/download', 'offers.read', 'download'],
+    ]
+]);
+
+resource('contracts', App\Controllers\ContractController::class, [
+    'extra' => [
+        ['GET', '/api/contracts/{id}/download', 'contracts.read', 'download'],
+    ]
+]);
+
 resource('meetings', App\Controllers\MeetingController::class);
 resource('contacts', App\Controllers\ContactController::class);
 

@@ -54,6 +54,18 @@
             </select>
           </div>
         </div>
+        <div class="row mb-3">
+          <label class="col-12 col-md-4 col-form-label">PDF Dosya</label>
+          <div class="col-12 col-md-8">
+            <input type="file" class="form-control" id="contractDosya" accept=".pdf,application/pdf">
+            <div class="form-text text-muted">Sadece PDF. Maks. 10MB.</div>
+            <div class="invalid-feedback" id="contractDosyaError"></div>
+            <div class="mt-2 d-none" id="contractCurrentFile">
+              <span class="badge bg-secondary me-2"><i class="bi bi-file-pdf me-1"></i><span id="contractCurrentFileName"></span></span>
+              <button type="button" class="btn btn-sm btn-outline-danger" id="btnRemoveContractFile"><i class="bi bi-x"></i></button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>

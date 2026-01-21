@@ -90,7 +90,7 @@ class CustomerController
 
     // Karakter limitleri
     private const LIMITLER = [
-        'MusteriKodu' => 5,
+        'MusteriKodu' => 10,
         'Unvan' => 150,
         'VergiDairesi' => 50,
         'VergiNo' => 11,
@@ -155,7 +155,7 @@ class CustomerController
             return $Repo->ekle([
                 'Unvan' => $Unvan,
                 'Aciklama' => isset($Girdi['Aciklama']) ? mb_substr(trim((string) $Girdi['Aciklama']), 0, 500) : null,
-                'MusteriKodu' => isset($Girdi['MusteriKodu']) ? mb_substr(trim((string) $Girdi['MusteriKodu']), 0, 5) : null,
+                'MusteriKodu' => isset($Girdi['MusteriKodu']) ? mb_substr(trim((string) $Girdi['MusteriKodu']), 0, 10) : null,
                 'VergiDairesi' => isset($Girdi['VergiDairesi']) ? mb_substr(trim((string) $Girdi['VergiDairesi']), 0, 50) : null,
                 'VergiNo' => isset($Girdi['VergiNo']) ? mb_substr(trim((string) $Girdi['VergiNo']), 0, 11) : null,
                 'Adres' => isset($Girdi['Adres']) ? mb_substr(trim((string) $Girdi['Adres']), 0, 300) : null,
@@ -233,7 +233,7 @@ class CustomerController
                 $GuncellenecekVeri['Aciklama'] = $Girdi['Aciklama'] ? mb_substr(trim((string) $Girdi['Aciklama']), 0, 500) : null;
             }
             if (array_key_exists('MusteriKodu', $Girdi)) {
-                $GuncellenecekVeri['MusteriKodu'] = $Girdi['MusteriKodu'] ? mb_substr(trim((string) $Girdi['MusteriKodu']), 0, 5) : null;
+                $GuncellenecekVeri['MusteriKodu'] = $Girdi['MusteriKodu'] ? mb_substr(trim((string) $Girdi['MusteriKodu']), 0, 10) : null;
             }
             if (array_key_exists('VergiDairesi', $Girdi)) {
                 $GuncellenecekVeri['VergiDairesi'] = $Girdi['VergiDairesi'] ? mb_substr(trim((string) $Girdi['VergiDairesi']), 0, 50) : null;
