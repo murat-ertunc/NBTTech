@@ -2,6 +2,7 @@
 # PUBLIC .htaccess - Front Controller
 # =============================================================================
 # Gerçek dosya/dizin varsa sun, yoksa index.php'ye gönder
+# pages/*.php istekleri de front controller üzerinden route edilir
 # =============================================================================
 
 Options -Indexes -MultiViews
@@ -17,16 +18,24 @@ Options -Indexes -MultiViews
     RewriteBase /
 
     # =========================================================================
-    # GERÇEK DOSYA/DİZİN VARSA DOĞRUDAN SUN
+    # PAGES PHP ROUTER: /pages/*.php isteklerini front controller'a yönlendir
+    # Hosting alt dizinlerde PHP çalıştırmadığı için index.php handle eder
+    # =========================================================================
+    RewriteRule ^pages/([a-zA-Z0-9_-]+)\.php$ index.php [QSA,L]
+
+    # =========================================================================
+    # GERÇEK DOSYA/DİZİN VARSA DOĞRUDAN SUN (statik dosyalar: css, js, txt, vb)
+    # NOT: PHP dosyaları hariç - onlar front controller'dan geçmeli
     # =========================================================================
     RewriteCond %{REQUEST_FILENAME} -f
+    RewriteCond %{REQUEST_URI} !\.(php)$ [NC]
     RewriteRule ^ - [L]
 
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
     # =========================================================================
-    # FRONT CONTROLLER: Diğer istekler → index.php
+    # FRONT CONTROLLER: Diğer tüm istekler → index.php
     # =========================================================================
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
