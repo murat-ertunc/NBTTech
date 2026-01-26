@@ -11,26 +11,27 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: DASHBOARD ===== -->
-    <div id="view-dashboard" data-can="dashboard.read">
-      <!-- Dashboard Grid: 2 Panel -->
-      <div class="row g-2 mb-3">
+    <div id="view-dashboard" data-can="dashboard.read" style="display: flex; flex-direction: column; height: calc(100vh - 132px);">
+      
+      <!-- ROW 1: Alarmlar ve Takvim yan yana (Kalan alanı kaplasın) -->
+      <div class="row g-3 mb-3 flex-grow-1" style="min-height: 0;">
         
-        <!-- PANEL 1: ALARMLAR -->
-        <div class="col-lg-4 col-sm-12">
-          <div class="card h-100" id="panelAlarms" data-can="alarms.read">
+        <!-- PANEL 1: ALARMLAR (Sol - Dar) -->
+        <div class="col-lg-3 col-md-4 col-sm-12 d-flex">
+          <div class="card flex-grow-1 d-flex flex-column" id="panelAlarms" data-can="alarms.read">
             <div class="card-header bg-warning text-dark py-2 d-flex justify-content-between align-items-center">
               <span class="fw-semibold"><i class="bi bi-bell-fill me-2"></i>Alarmlar</span>
               <span class="badge bg-dark" id="alarmCount">0</span>
             </div>
-            <div class="card-body p-2 overflow-auto" id="dashAlarmList" style="max-height:320px;">
+            <div class="card-body p-2 overflow-auto flex-grow-1" id="dashAlarmList">
               <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-warning"></div></div>
             </div>
           </div>
         </div>
 
-        <!-- PANEL 2: TAKVİM -->
-        <div class="col-lg-8 col-sm-12">
-          <div class="card h-100" id="panelCalendar" data-can="calendar.read">
+        <!-- PANEL 2: TAKVİM (Sağ - Geniş) -->
+        <div class="col-lg-9 col-md-8 col-sm-12 d-flex">
+          <div class="card flex-grow-1 d-flex flex-column" id="panelCalendar" data-can="calendar.read">
             <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
               <span class="fw-semibold"><i class="bi bi-calendar3 me-2"></i>Takvim</span>
               <div class="btn-group btn-group-sm">
@@ -38,7 +39,7 @@ require __DIR__ . '/partials/header.php';
                 <button type="button" class="btn btn-light btn-sm" data-view="week">Hafta</button>
               </div>
             </div>
-            <div class="card-body p-2" id="dashCalendar">
+            <div class="card-body p-2 flex-grow-1" id="dashCalendar">
               <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-success"></div></div>
             </div>
           </div>
@@ -46,8 +47,8 @@ require __DIR__ . '/partials/header.php';
 
       </div>
 
-      <!-- İstatistik Kartları (Alt Kısım) -->
-      <div class="row g-2">
+      <!-- ROW 2: İstatistik Kartları (Sabit - En Alt) -->
+      <div class="row g-3 flex-shrink-0">
         <div class="col-6 col-md-3" data-can="customers.read">
           <div class="card h-100 border-0 shadow-sm">
             <div class="card-body py-3 px-3 text-center">

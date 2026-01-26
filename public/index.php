@@ -39,27 +39,197 @@ if (substr($CleanPath, 0, 11) === '/index.php/') {
 // Baştaki slash'ı kaldır
 $CleanPath = ltrim($CleanPath, '/');
 
-// Page route tespiti
-$PageRoute = null;
+// =============================================================================
+// PAGE ROUTER - IIS Pretty URL Desteği
+// Güvenlik: '..' path traversal engeli, sadece güvenli karakterler
+// PHP 7.4 uyumlu (str_starts_with yok)
+// =============================================================================
 
-// Pattern 1: pages/xxx.php
-if (preg_match('#^pages/([a-zA-Z0-9_-]+)\.php$#', $CleanPath, $M)) {
-    $PageRoute = $M[1];
-}
-// Pattern 2: pages/xxx (php olmadan)
-elseif (preg_match('#^pages/([a-zA-Z0-9_-]+)$#', $CleanPath, $M)) {
-    $PageRoute = $M[1];
-}
-// Pattern 3: xxx (tek segment - dashboard, users, vb.)
-elseif (preg_match('#^([a-zA-Z0-9_-]+)$#', $CleanPath, $M)) {
-    $PageRoute = $M[1];
+$PageRoute = null;
+$PageParams = array();
+
+// Güvenlik: Path traversal kontrolü
+if (strpos($CleanPath, '..') !== false) {
+    // Tehlikeli path, bootstrap'a devret
+    $PageRoute = null;
+} else {
+    // ==========================================================================
+    // ROUTE TANIMLARI (öncelik sırasına göre)
+    // Önemli: Daha spesifik route'lar önce gelmeli!
+    // ==========================================================================
+    
+    // =========================================================================
+    // CUSTOMER SUB-ROUTES: /customer/{id}/{module}/new veya /customer/{id}/{module}/{entityId}/edit
+    // Form sayfalarını doğrudan yükle (web.php Router'a bırakmadan)
+    // =========================================================================
+    
+    // Pattern A: customer/{id}/{module}/new → İlgili form sayfasını yükle
+    if (preg_match('#^customer/([0-9]+)/([a-z_-]+)/new$#', $CleanPath, $M)) {
+        $MusteriId = (int)$M[1];
+        $ModulAdi = $M[2];
+        
+        // Modül adı → dizin eşleştirmesi
+        $ModulDizinMap = [
+            'contacts' => 'contacts',
+            'offers' => 'offers',
+            'contracts' => 'contracts',
+            'meetings' => 'meetings',
+            'projects' => 'projects',
+            'calendar' => 'calendar',
+            'stamp-taxes' => 'stamp-taxes',
+            'guarantees' => 'guarantees',
+            'invoices' => 'invoices',
+            'payments' => 'payments',
+            'files' => 'files'
+        ];
+        
+        if (isset($ModulDizinMap[$ModulAdi])) {
+            $FormDosya = __DIR__ . '/pages/' . $ModulDizinMap[$ModulAdi] . '/form.php';
+            if (is_file($FormDosya)) {
+                // Form sayfasına gerekli değişkenleri set et
+                // Edit olmadığı için entity ID = 0
+                $EntityIdVars = [
+                    'contacts' => 'KisiId',
+                    'offers' => 'TeklifId', 
+                    'contracts' => 'SozlesmeId',
+                    'meetings' => 'GorusmeId',
+                    'projects' => 'ProjeId',
+                    'calendar' => 'TakvimId',
+                    'stamp-taxes' => 'DamgaId',
+                    'guarantees' => 'TeminatId',
+                    'invoices' => 'FaturaId',
+                    'payments' => 'OdemeId',
+                    'files' => 'DosyaId'
+                ];
+                ${$EntityIdVars[$ModulAdi] ?? 'EntityId'} = 0;
+                require $FormDosya;
+                exit;
+            }
+        }
+        // Eşleşme yoksa web.php'ye bırak
+        $PageRoute = null;
+    }
+    // Pattern B: customer/{id}/{module}/{entityId}/edit → İlgili form sayfasını yükle
+    elseif (preg_match('#^customer/([0-9]+)/([a-z_-]+)/([0-9]+)/edit$#', $CleanPath, $M)) {
+        $MusteriId = (int)$M[1];
+        $ModulAdi = $M[2];
+        $EntityId = (int)$M[3];
+        
+        $ModulDizinMap = [
+            'contacts' => 'contacts',
+            'offers' => 'offers',
+            'contracts' => 'contracts',
+            'meetings' => 'meetings',
+            'projects' => 'projects',
+            'calendar' => 'calendar',
+            'stamp-taxes' => 'stamp-taxes',
+            'guarantees' => 'guarantees',
+            'invoices' => 'invoices',
+            'payments' => 'payments',
+            'files' => 'files'
+        ];
+        
+        if (isset($ModulDizinMap[$ModulAdi])) {
+            $FormDosya = __DIR__ . '/pages/' . $ModulDizinMap[$ModulAdi] . '/form.php';
+            if (is_file($FormDosya)) {
+                // Entity ID değişkenlerini set et
+                $EntityIdVars = [
+                    'contacts' => 'KisiId',
+                    'offers' => 'TeklifId',
+                    'contracts' => 'SozlesmeId', 
+                    'meetings' => 'GorusmeId',
+                    'projects' => 'ProjeId',
+                    'calendar' => 'TakvimId',
+                    'stamp-taxes' => 'DamgaId',
+                    'guarantees' => 'TeminatId',
+                    'invoices' => 'FaturaId',
+                    'payments' => 'OdemeId',
+                    'files' => 'DosyaId'
+                ];
+                ${$EntityIdVars[$ModulAdi] ?? 'EntityId'} = $EntityId;
+                require $FormDosya;
+                exit;
+            }
+        }
+        // Eşleşme yoksa web.php'ye bırak
+        $PageRoute = null;
+    }
+    // Pattern 1: customer/{id} → customer-detail.php (ID ile)
+    elseif (preg_match('#^customer/([0-9]+)$#', $CleanPath, $M)) {
+        $PageRoute = 'customer-detail';
+        $PageParams['id'] = $M[1];
+        $_GET['id'] = $M[1]; // Query param olarak da ata
+    }
+    // Pattern 2: project/{id} → projects.php veya project-detail.php
+    elseif (preg_match('#^project/([0-9]+)$#', $CleanPath, $M)) {
+        $PageRoute = 'projects'; // veya project-detail varsa onu kullan
+        $PageParams['id'] = $M[1];
+        $_GET['id'] = $M[1];
+    }
+    // Pattern 3: invoice/{id} → invoices.php
+    elseif (preg_match('#^invoice/([0-9]+)$#', $CleanPath, $M)) {
+        $PageRoute = 'invoices';
+        $PageParams['id'] = $M[1];
+        $_GET['id'] = $M[1];
+    }
+    // Pattern 4: payment/{id} → payments.php
+    elseif (preg_match('#^payment/([0-9]+)$#', $CleanPath, $M)) {
+        $PageRoute = 'payments';
+        $PageParams['id'] = $M[1];
+        $_GET['id'] = $M[1];
+    }
+    // Pattern 5: offer/{id} → offers.php
+    elseif (preg_match('#^offer/([0-9]+)$#', $CleanPath, $M)) {
+        $PageRoute = 'offers';
+        $PageParams['id'] = $M[1];
+        $_GET['id'] = $M[1];
+    }
+    // Pattern 6: contract/{id} → contracts.php
+    elseif (preg_match('#^contract/([0-9]+)$#', $CleanPath, $M)) {
+        $PageRoute = 'contracts';
+        $PageParams['id'] = $M[1];
+        $_GET['id'] = $M[1];
+    }
+    // Pattern 7: guarantee/{id} → guarantees.php
+    elseif (preg_match('#^guarantee/([0-9]+)$#', $CleanPath, $M)) {
+        $PageRoute = 'guarantees';
+        $PageParams['id'] = $M[1];
+        $_GET['id'] = $M[1];
+    }
+    // Pattern 8: user/{id} → users.php
+    elseif (preg_match('#^user/([0-9]+)$#', $CleanPath, $M)) {
+        $PageRoute = 'users';
+        $PageParams['id'] = $M[1];
+        $_GET['id'] = $M[1];
+    }
+    // Pattern 9: pages/xxx.php → doğrudan eşleştir
+    elseif (preg_match('#^pages/([a-zA-Z0-9_-]+)\.php$#', $CleanPath, $M)) {
+        $PageRoute = $M[1];
+    }
+    // Pattern 10: pages/xxx (php olmadan)
+    elseif (preg_match('#^pages/([a-zA-Z0-9_-]+)$#', $CleanPath, $M)) {
+        $PageRoute = $M[1];
+    }
+    // Pattern 11: xxx (tek segment - dashboard, users, logs vb.)
+    elseif (preg_match('#^([a-zA-Z0-9_-]+)$#', $CleanPath, $M)) {
+        $PageRoute = $M[1];
+    }
 }
 
 // Page dosyası varsa require et ve çık
 if ($PageRoute !== null && $PageRoute !== '' && strpos($PageRoute, '..') === false) {
+    // Güvenlik: Sadece alfanumerik, tire ve alt çizgi
+    if (!preg_match('#^[a-zA-Z0-9_-]+$#', $PageRoute)) {
+        $PageRoute = null;
+    }
+}
+
+if ($PageRoute !== null) {
     $PageFile = __DIR__ . DIRECTORY_SEPARATOR . 'pages' . DIRECTORY_SEPARATOR . $PageRoute . '.php';
     
     if (is_file($PageFile) && is_readable($PageFile)) {
+        // Route parametrelerini global yap (isteğe bağlı)
+        $GLOBALS['route_params'] = $PageParams;
         require $PageFile;
         exit;
     }
