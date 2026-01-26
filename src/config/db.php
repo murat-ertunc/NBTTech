@@ -6,5 +6,6 @@ return [
     'database' => env('DB_DATABASE', 'master'),
     'username' => env('DB_USERNAME', 'sa'),
     'password' => env('DB_PASSWORD', ''),
+    'encrypt' => filter_var(env('DB_ENCRYPT', false), FILTER_VALIDATE_BOOLEAN),
     'trust_server_certificate' => filter_var(env('DB_TRUST_SERVER_CERT', true), FILTER_VALIDATE_BOOLEAN),
 ];

@@ -47,9 +47,10 @@ class Database
         $Veritabani = config('db.database');
         $Kullanici = config('db.username');
         $Parola = config('db.password');
+        $Sifreli = config('db.encrypt') ? 'yes' : 'no';
         $GuvenliSertifika = config('db.trust_server_certificate') ? 'yes' : 'no';
 
-        $Dsn = "sqlsrv:Server={$Host},{$Port};Database={$Veritabani};TrustServerCertificate={$GuvenliSertifika}";
+        $Dsn = "sqlsrv:Server={$Host},{$Port};Database={$Veritabani};Encrypt={$Sifreli};TrustServerCertificate={$GuvenliSertifika}";
 
         try {
             $Pdo = new PDO($Dsn, $Kullanici, $Parola, [

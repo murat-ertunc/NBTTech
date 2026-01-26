@@ -49,6 +49,12 @@ class AuthController
                 'userId' => (int) $Kullanici['Id'],
                 'role' => $Kullanici['Rol'] ?? 'user',
             ]);
+            $Ttl = (int) env('APP_TOKEN_TTL', 7200);
+            setcookie('nbt_token', $TokenStr, [
+                'expires' => time() + $Ttl,
+                'path' => '/',
+                'samesite' => 'Lax',
+            ]);
             Context::setKullaniciId((int) $Kullanici['Id']);
             Context::setRol($Kullanici['Rol'] ?? 'user');
             ActionLogger::logla('login', 'tnm_user', ['KullaniciId' => (int) $Kullanici['Id'], 'KullaniciAdi' => $KullaniciAdi], 'ok');
@@ -94,7 +100,16 @@ class AuthController
             Response::error('Yetkisiz erisim.', 401);
             return;
         }
-        $YeniToken = Token::sign(['userId' => (int) $Yukleme['userId']]);
+        $YeniToken = Token::sign([
+            'userId' => (int) $Yukleme['userId'],
+            'role' => $Yukleme['role'] ?? 'user',
+        ]);
+        $Ttl = (int) env('APP_TOKEN_TTL', 7200);
+        setcookie('nbt_token', $YeniToken, [
+            'expires' => time() + $Ttl,
+            'path' => '/',
+            'samesite' => 'Lax',
+        ]);
         Response::json(['token' => $YeniToken]);
     }
 }

@@ -83,6 +83,16 @@ const NbtUtils = {
     },
 
     /**
+     * Cookie oku
+     */
+    getCookie(name) {
+        const value = `; ${document.cookie || ''}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift() || null;
+        return null;
+    },
+
+    /**
      * Rol al
      */
     getRole() {
@@ -2086,6 +2096,13 @@ const NbtCalendar = {
 // GLOBAL INIT
 // =============================================
 document.addEventListener('DOMContentLoaded', () => {
+    if (!NbtUtils.getToken()) {
+        const cookieToken = NbtUtils.getCookie('nbt_token');
+        if (cookieToken) {
+            localStorage.setItem(NBT.TOKEN_KEY, decodeURIComponent(cookieToken));
+        }
+    }
+
     if (!NbtUtils.getToken() && !window.location.pathname.includes('login') && !window.location.pathname.includes('register')) {
         window.location.href = '/login';
         return;
