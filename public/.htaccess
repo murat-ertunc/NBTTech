@@ -1,36 +1,32 @@
 # =============================================================================
 # PUBLIC .htaccess - Front Controller
 # =============================================================================
-# Gerçek dosya/dizin varsa sun, yoksa index.php'ye gönder
-# pages/*.php istekleri de front controller üzerinden route edilir
+# Tüm PHP istekleri index.php üzerinden route edilir
+# Static dosyalar (css, js, images) doğrudan sunulur
 # =============================================================================
 
 Options -Indexes -MultiViews
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    
-    # =========================================================================
-    # RewriteBase / - KRİTİK!
-    # Per-directory context'te RewriteBase her zaman / olmalı
-    # Aksi halde /public/public/... gibi yanlış path oluşur
-    # =========================================================================
     RewriteBase /
 
     # =========================================================================
-    # PAGES PHP ROUTER: /pages/*.php isteklerini front controller'a yönlendir
-    # Hosting alt dizinlerde PHP çalıştırmadığı için index.php handle eder
+    # PAGES PHP ROUTER - EN ÖNCE!
+    # pages/ altındaki TÜM PHP isteklerini front controller'a yönlendir
+    # Hosting alt dizinlerde PHP handler engellediği için zorunlu
     # =========================================================================
-    RewriteRule ^pages/([a-zA-Z0-9_-]+)\.php$ index.php [QSA,L]
+    RewriteRule ^pages/.+\.php$ index.php [QSA,L]
+    RewriteRule ^public/pages/.+\.php$ index.php [QSA,L]
 
     # =========================================================================
-    # GERÇEK DOSYA/DİZİN VARSA DOĞRUDAN SUN (statik dosyalar: css, js, txt, vb)
-    # NOT: PHP dosyaları hariç - onlar front controller'dan geçmeli
+    # STATIC DOSYALAR: Sadece PHP OLMAYAN gerçek dosyalar bypass edilir
     # =========================================================================
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteCond %{REQUEST_URI} !\.(php)$ [NC]
     RewriteRule ^ - [L]
 
+    # Dizinler bypass
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 

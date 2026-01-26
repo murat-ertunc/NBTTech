@@ -27,20 +27,20 @@ Options -Indexes -MultiViews
     RewriteRule ^(Dockerfile|docker-compose\.yml|composer\.(json|lock))$ - [F,L]
 
     # =========================================================================
+    # PAGES PHP ROUTER - PROXY'DEN ÖNCE!
+    # pages/ altındaki PHP isteklerini doğrudan public/index.php'ye yönlendir
+    # Bu kural public proxy'den önce çalışmalı
+    # =========================================================================
+    RewriteRule ^pages/.+\.php$ public/index.php [QSA,L]
+
+    # =========================================================================
     # ROOT DOSYALARI: index.php, login.php vb root'ta varsa sun
     # =========================================================================
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^[^/]+\.(php|html|txt|ico)$ - [L]
 
     # =========================================================================
-    # PAGES PHP ROUTER: /pages/*.php isteklerini front controller'a yönlendir
-    # Hosting alt dizinlerde PHP çalıştırmadığı için gerekli
-    # =========================================================================
-    RewriteRule ^pages/([a-zA-Z0-9_-]+)\.php$ public/index.php [QSA,L]
-
-    # =========================================================================
     # PUBLIC PROXY: Tüm istekleri /public altına yönlendir
-    # Zaten public/ ile başlıyorsa veya root'ta gerçek dosya varsa atla
     # =========================================================================
     
     # public/ ile başlayan istekleri olduğu gibi bırak
