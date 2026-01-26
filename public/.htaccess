@@ -1,54 +1,39 @@
 # =============================================================================
-# PUBLIC .htaccess - Front Controller Routing
+# PUBLIC .htaccess - Front Controller
 # =============================================================================
-# Plan A: Hosting document root = /public (ideal kurulum)
-# Plan B: Root proxy üzerinden geliyorsa da çalışır
+# Gerçek dosya/dizin varsa sun, yoksa index.php'ye gönder
 # =============================================================================
 
-# MultiViews kapat - path çakışmasını önler
 Options -Indexes -MultiViews
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
     # =========================================================================
-    # RewriteBase AYARI - KRİTİK!
-    # Root proxy (Plan B) kullanıldığında /public olmalı
-    # Doğrudan public erişimde (Plan A) / olmalı
-    # ENV ile dinamik tespit: REDIRECT varsa root'tan geldik demektir
+    # RewriteBase / - KRİTİK!
+    # Per-directory context'te RewriteBase her zaman / olmalı
+    # Aksi halde /public/public/... gibi yanlış path oluşur
     # =========================================================================
-    RewriteBase /public
+    RewriteBase /
 
     # =========================================================================
-    # STATIK DOSYALAR: pages/*.php, assets/* varsa doğrudan sun
-    # REQUEST_FILENAME Apache tarafından zaten çözülmüş olmalı
+    # GERÇEK DOSYA/DİZİN VARSA DOĞRUDAN SUN
     # =========================================================================
-    
-    # PHP dosyası gerçekten varsa çalıştır
     RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule \.(php|html|htm|css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|pdf|zip)$ - [L]
+    RewriteRule ^ - [L]
 
-    # Dizin varsa (örn: /pages/) index'e yönlendir
-    RewriteCond %{REQUEST_FILENAME} -d
-    RewriteCond %{REQUEST_FILENAME}/index.php -f
-    RewriteRule ^(.*)$ $1/index.php [L]
-    
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
     # =========================================================================
-    # FRONT CONTROLLER: Diğer tüm istekler → index.php
+    # FRONT CONTROLLER: Diğer istekler → index.php
     # =========================================================================
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
 # =========================================================================
 # GÜVENLİK
 # =========================================================================
-
-# .htaccess ve diğer gizli dosyalara erişimi engelle
 <FilesMatch "^\.">
     <IfModule mod_authz_core.c>
         Require all denied

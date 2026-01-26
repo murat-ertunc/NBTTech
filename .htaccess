@@ -1,11 +1,11 @@
 # =============================================================================
-# ROOT .htaccess - Güvenlik ve Routing
+# ROOT .htaccess - Güvenlik ve Public Proxy
 # =============================================================================
-# Plan B kullanımı için: Hosting document root = repo kökü
-# Plan A için bu dosya gereksizdir (document root = /public)
+# Document root = repo kökü olan hostingler için
+# Tüm istekler /public altına yönlendirilir
 # =============================================================================
 
-# Dizin listesini devre dışı bırak + MultiViews kapat (path çakışması önlenir)
+# Dizin listesini ve MultiViews'u kapat
 Options -Indexes -MultiViews
 
 <IfModule mod_rewrite.c>
@@ -15,7 +15,6 @@ Options -Indexes -MultiViews
     # =========================================================================
     # DEBUG/TEST: .htaccess'in çalıştığını doğrulamak için
     # GET /__htaccess_test → 403 Forbidden dönmeli
-    # Test sonrası bu satırı silebilirsiniz
     # =========================================================================
     RewriteRule ^__htaccess_test$ - [F,L]
 
@@ -28,36 +27,26 @@ Options -Indexes -MultiViews
     RewriteRule ^(Dockerfile|docker-compose\.yml|composer\.(json|lock))$ - [F,L]
 
     # =========================================================================
-    # STATICS: /pages/* ve /assets/* → /public altına yönlendir
-    # [PT] = PassThrough - Apache'nin dosyayı bulup çalıştırmasını sağlar
-    # Loop önleme: Zaten public/ ile başlıyorsa atlat
-    # =========================================================================
-    RewriteCond %{REQUEST_URI} !^/public/
-    RewriteRule ^pages/(.*)$ /public/pages/$1 [PT,L]
-
-    RewriteCond %{REQUEST_URI} !^/public/
-    RewriteRule ^assets/(.*)$ /public/assets/$1 [PT,L]
-
-    # =========================================================================
-    # PUBLIC ALT DİZİNLERİNE DOĞRUDAN ERİŞİM (isteğe bağlı güvenlik)
-    # /public/pages/... şeklinde gelen istekleri de kabul et
+    # ROOT DOSYALARI: index.php, login.php vb root'ta varsa sun
     # =========================================================================
     RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule ^public/(pages|assets)/(.*)$ - [L]
+    RewriteRule ^[^/]+\.(php|html|txt|ico)$ - [L]
 
     # =========================================================================
-    # FALLBACK: Diğer tüm istekler → /index.php (front controller)
+    # PUBLIC PROXY: Tüm istekleri /public altına yönlendir
+    # Zaten public/ ile başlıyorsa veya root'ta gerçek dosya varsa atla
     # =========================================================================
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ index.php [QSA,L]
+    
+    # public/ ile başlayan istekleri olduğu gibi bırak
+    RewriteRule ^public(/.*)?$ - [L]
+
+    # Diğer tüm istekleri public/ altına internal rewrite yap
+    RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 
 # =========================================================================
-# EKSTRA GÜVENLİK
+# GÜVENLİK: Gizli ve hassas dosyalar
 # =========================================================================
-
-# .env, .htaccess, .git dosyalarına erişimi engelle
 <FilesMatch "^\.">
     <IfModule mod_authz_core.c>
         Require all denied
@@ -68,7 +57,6 @@ Options -Indexes -MultiViews
     </IfModule>
 </FilesMatch>
 
-# Hassas dosya uzantılarını engelle
 <FilesMatch "\.(sql|log|bak|config|ini|sh)$">
     <IfModule mod_authz_core.c>
         Require all denied
