@@ -1,5 +1,10 @@
 <?php
-require __DIR__ . '/../app/Core/bootstrap.php';
+/**
+ * Login Sayfası
+ */
+
+// Bootstrap yükle (merkezi init)
+require dirname(__DIR__) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
 // Cache önleme header'ları
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
@@ -58,9 +63,20 @@ $Logo = config('app.logo', '/assets/logo.png');
     document.getElementById('brandName').textContent = UygulamaAyar.name || 'NbtProject';
     document.getElementById('brandLogo').src = UygulamaAyar.logo || '/assets/logo.png';
 
+    function UUIDolustur() {
+      // crypto.randomUUID varsa kullan (guvenli baglam)
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        try { return crypto.randomUUID(); } catch (e) { /* fallback */ }
+      }
+      // Fallback: Math.random tabanli UUID v4
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
     function SekmeIdAl() {
       let Deger = localStorage.getItem(AnahtarSekme);
-      if (!Deger) { Deger = crypto.randomUUID(); localStorage.setItem(AnahtarSekme, Deger); }
+      if (!Deger) { Deger = UUIDolustur(); localStorage.setItem(AnahtarSekme, Deger); }
       return Deger;
     }
     function HataGoster(Mesaj) {
@@ -74,6 +90,23 @@ $Logo = config('app.logo', '/assets/logo.png');
       Kutu.textContent = '';
     }
 
+    function ApiBaseAl() {
+      const Yol = window.location.pathname || '/';
+      // /subdir/login.php -> /subdir, /login.php -> ''
+      let baseDir = '';
+      if (Yol.endsWith('/login.php')) {
+        baseDir = Yol.slice(0, -'/login.php'.length);
+      } else if (Yol.endsWith('/login')) {
+        baseDir = Yol.slice(0, -'/login'.length);
+      }
+      if (!baseDir) baseDir = '';
+      // index.php kullaniliyorsa API'yi index.php ile cagir
+      if (Yol.includes('/index.php') || Yol.endsWith('/login.php')) {
+        return baseDir + '/index.php';
+      }
+      return baseDir;
+    }
+
     async function GirisYap() {
       try {
         HataTemizle();
@@ -83,7 +116,8 @@ $Logo = config('app.logo', '/assets/logo.png');
         if (KullaniciAdi.length < 3) { HataGoster('Kullanıcı adı en az 3 karakter olmalıdır.'); return; }
         if (!Parola) { HataGoster('Parola zorunludur.'); return; }
         if (Parola.length < 6) { HataGoster('Parola en az 6 karakter olmalıdır.'); return; }
-        const Yanıt = await fetch('/api/login', {
+        const ApiBase = ApiBaseAl();
+        const Yanıt = await fetch(ApiBase + '/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Tab-Id': SekmeIdAl() },
           body: JSON.stringify({ username: KullaniciAdi, password: Parola })
@@ -109,7 +143,8 @@ $Logo = config('app.logo', '/assets/logo.png');
       if (!Token) return;
       
       try {
-        const Yanit = await fetch('/api/refresh', {
+        const ApiBase = ApiBaseAl();
+        const Yanit = await fetch(ApiBase + '/api/refresh', {
           method: 'POST',
           headers: { 
             'Authorization': 'Bearer ' + Token,

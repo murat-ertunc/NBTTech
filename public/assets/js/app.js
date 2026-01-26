@@ -18,6 +18,11 @@ const NBT = {
     DEBUG: false
 };
 
+// Sunucu tarafindan saglanan ayarlar (Rewrite olmayan hosting icin)
+if (window.APP_CONFIG && typeof window.APP_CONFIG.API_BASE === 'string') {
+    NBT.API_BASE = window.APP_CONFIG.API_BASE;
+}
+
 // =============================================
 // LOGLAMA ARACI - Hata ve debug mesajlarini yonetir
 // =============================================
@@ -39,12 +44,32 @@ const NbtLogger = {
 // =============================================
 const NbtUtils = {
     /**
+     * UUID olustur - SSL gerektirmez (crypto.randomUUID alternatifi)
+     */
+    generateUUID() {
+        // crypto.randomUUID varsa kullan (guvenli baglam)
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            try {
+                return crypto.randomUUID();
+            } catch (e) {
+                // Guvenli olmayan baglamda hata verebilir, fallback kullan
+            }
+        }
+        // Fallback: Math.random tabanli UUID v4
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    },
+
+    /**
      * Sekme ID'si al/olustur
      */
     getTabId() {
         let id = sessionStorage.getItem(NBT.TAB_KEY);
         if (!id) {
-            id = crypto.randomUUID();
+            id = this.generateUUID();
             sessionStorage.setItem(NBT.TAB_KEY, id);
         }
         return id;
@@ -720,7 +745,8 @@ const NbtApi = {
         if (!response.ok) {
             if (response.status === 401) {
                 NbtUtils.clearSession();
-                window.location.href = '/login';
+                const loginPath = (window.APP_CONFIG && window.APP_CONFIG.LOGIN_PATH) ? window.APP_CONFIG.LOGIN_PATH : '/login';
+                window.location.href = loginPath;
                 throw new Error('Oturum suresi doldu');
             }
             if (response.status === 403) {
@@ -1572,7 +1598,7 @@ const NbtDetailModal = {
                         if (fileId) {
                             try {
                                 NbtToast.info('Dosya hazırlanıyor...');
-                                const response = await fetch(`/api/files/${fileId}/download`, {
+                                const response = await fetch(`${NBT.API_BASE}/api/files/${fileId}/download`, {
                                     method: 'GET',
                                     headers: {
                                         'Authorization': 'Bearer ' + NbtUtils.getToken(),
@@ -2011,7 +2037,7 @@ const NbtCalendar = {
 
     async loadEvents(customerId = null, month = null, year = null) {
         try {
-            let url = '/api/calendar';
+            let url = NBT.API_BASE + '/api/calendar';
             const params = [];
             if (customerId) {
                 params.push(`customerId=${customerId}`);

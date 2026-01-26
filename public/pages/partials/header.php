@@ -12,7 +12,9 @@
  *   require __DIR__ . '/partials/header.php';
  */
 
-require_once __DIR__ . '/../../../app/Core/bootstrap.php';
+// Proje kökünü güvenli şekilde bul (public/pages/partials → 3 seviye yukarı = root)
+$projectRoot = dirname(__DIR__, 3);
+require_once $projectRoot . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
 use App\Core\Token;
 use App\Services\Authorization\AuthorizationService;
@@ -110,10 +112,23 @@ $canAll = function(array $permissions) use ($PermissionSet): bool {
   <link rel="stylesheet" href="/assets/vendor/sweetalert2/sweetalert2.min.css" />
   <script src="/assets/vendor/sweetalert2/sweetalert2.all.min.js"></script>
   <script>
+    <?php
+      $RequestUri = $_SERVER['REQUEST_URI'] ?? '/';
+      $ScriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+      $BaseDir = rtrim(str_replace('\\', '/', dirname($ScriptName)), '/');
+      if ($BaseDir === '.' || $BaseDir === '/') {
+        $BaseDir = '';
+      }
+      $UsesIndexPhp = (strpos($RequestUri, '/index.php') !== false) || (strpos($ScriptName, 'index.php') !== false);
+      $ApiBase = $BaseDir . ($UsesIndexPhp ? '/index.php' : '');
+      $LoginPath = $BaseDir . ($UsesIndexPhp ? '/login.php' : '/login');
+    ?>
     window.APP_CONFIG = {
       PAGINATION_DEFAULT: <?= (int) $PaginationDefault ?>,
       CURRENT_PAGE: '<?= htmlspecialchars($currentPage, ENT_QUOTES, 'UTF-8') ?>',
-      APP_ENV: '<?= htmlspecialchars((string) env('APP_ENV', 'local'), ENT_QUOTES, 'UTF-8') ?>'
+      APP_ENV: '<?= htmlspecialchars((string) env('APP_ENV', 'local'), ENT_QUOTES, 'UTF-8') ?>',
+      API_BASE: '<?= htmlspecialchars($ApiBase, ENT_QUOTES, 'UTF-8') ?>',
+      LOGIN_PATH: '<?= htmlspecialchars($LoginPath, ENT_QUOTES, 'UTF-8') ?>'
     };
   </script>
   <script>
