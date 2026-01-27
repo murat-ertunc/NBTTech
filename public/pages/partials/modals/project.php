@@ -20,12 +20,16 @@
             <select class="form-select" id="projectMusteriId" required>
               <option value="">Seçiniz...</option>
             </select>
+            <small class="form-hint">Zorunlu</small>
+            <div class="invalid-feedback"></div>
           </div>
         </div>
         <div class="row mb-3">
           <label class="col-12 col-md-4 col-form-label">Proje Adı <span class="text-danger">*</span></label>
           <div class="col-12 col-md-8">
             <input type="text" class="form-control" id="projectName" required>
+            <small class="form-hint">Zorunlu</small>
+            <div class="invalid-feedback"></div>
           </div>
         </div>
         <div class="row mb-3">
@@ -34,6 +38,7 @@
             <select class="form-select" id="projectStatus">
               <!-- Dinamik olarak doldurulacak -->
             </select>
+            <div class="invalid-feedback"></div>
           </div>
         </div>
       </div>

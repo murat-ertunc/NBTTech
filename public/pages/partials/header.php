@@ -261,18 +261,6 @@ $canAll = function(array $permissions) use ($PermissionSet): bool {
             </a>
             <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg mt-2"
               style="border-radius:10px;min-width:200px;">
-              <li class="px-3 py-2 border-bottom">
-                <div class="d-flex align-items-center gap-2">
-                  <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
-                    style="width:40px;height:40px;">
-                    <i class="bi bi-person-fill fs-5"></i>
-                  </div>
-                  <div>
-                    <div class="fw-semibold" id="userNameDropdown">Kullanıcı</div>
-                    <small class="text-muted" id="userRoleDropdown">Yönetici</small>
-                  </div>
-                </div>
-              </li>
               <li><a class="dropdown-item py-2 mt-1" href="/my-account"><i
                     class="bi bi-person-circle me-2 text-primary"></i>Hesabım</a></li>
               <li>

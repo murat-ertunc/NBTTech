@@ -27,6 +27,8 @@
                 <select class="form-select form-select-sm" id="invoiceMusteriId" required>
                   <option value="">Seçiniz...</option>
                 </select>
+                <small class="form-hint">Zorunlu</small>
+                <div class="invalid-feedback"></div>
               </div>
             </div>
             <div class="row mb-2">
@@ -35,18 +37,24 @@
                 <select class="form-select form-select-sm" id="invoiceProjeId" required>
                   <option value="">Proje Seçiniz...</option>
                 </select>
+                <small class="form-hint">Zorunlu</small>
+                <div class="invalid-feedback"></div>
               </div>
             </div>
             <div class="row mb-2">
               <label class="col-4 col-form-label col-form-label-sm fw-semibold">Fatura No</label>
               <div class="col-8">
                 <input type="text" class="form-control form-control-sm" id="invoiceFaturaNo" maxlength="50" placeholder="Fatura numarası">
+                <small class="form-hint">Maks 50</small>
+                <div class="invalid-feedback"></div>
               </div>
             </div>
             <div class="row mb-2">
               <label class="col-4 col-form-label col-form-label-sm fw-semibold">Tarih <span class="text-danger">*</span></label>
               <div class="col-8">
                 <input type="date" class="form-control form-control-sm" id="invoiceTarih" value="<?= date('Y-m-d') ?>">
+                <small class="form-hint">Zorunlu</small>
+                <div class="invalid-feedback"></div>
               </div>
             </div>
             <div class="row mb-2">
@@ -55,6 +63,8 @@
                 <select class="form-select form-select-sm" id="invoiceDoviz">
                   <option value="">Seçiniz...</option>
                 </select>
+                <small class="form-hint">Zorunlu</small>
+                <div class="invalid-feedback"></div>
               </div>
             </div>
             <div class="row">

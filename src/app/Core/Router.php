@@ -17,16 +17,8 @@ class Router
 
     public function dispatch(string $Metod, string $Yol): void
     {
-        // Method spoofing destegi: POST + _method=PUT/DELETE/PATCH
-        // PHP, PUT/PATCH/DELETE isteklerinde multipart/form-data parse etmez
-        // Bu yuzden frontend formData ile POST gonderiyor ve _method field'i ekliyor
+        // Sadece GET ve POST metodlari desteklenir
         $GercekMetod = strtoupper($Metod);
-        if ($GercekMetod === 'POST' && isset($_POST['_method'])) {
-            $SpoofedMetod = strtoupper($_POST['_method']);
-            if (in_array($SpoofedMetod, ['PUT', 'PATCH', 'DELETE'])) {
-                $GercekMetod = $SpoofedMetod;
-            }
-        }
         
         foreach ($this->Rotalar as $Rota) {
             if ($Rota['Metod'] !== $GercekMetod) {

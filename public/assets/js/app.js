@@ -771,6 +771,10 @@ const NbtApi = {
                 if (data?.error?.fields) {
                     err.fields = data.error.fields;
                 }
+                // API'den gelen errors objesini error'a ekle
+                if (data?.errors) {
+                    err.response = { errors: data.errors, message: data.message || err.message };
+                }
                 err.code = data?.error?.code || 'VALIDATION_ERROR';
                 throw err;
             }
@@ -785,16 +789,38 @@ const NbtApi = {
 
     get: (path) => NbtApi.request(path),
     post: (path, data) => NbtApi.request(path, { method: 'POST', body: JSON.stringify(data) }),
-    put: (path, data) => NbtApi.request(path, { method: 'PUT', body: JSON.stringify(data) }),
-    delete: (path) => NbtApi.request(path, { method: 'DELETE' }),
     
-    // FormData ile dosya yukleme - method parametresi ile PUT/POST destegi
+    /**
+     * UPDATE islemi icin POST kullanir
+     * Eski PUT metodunun yerini alir - /resource/{id}/update endpoint'ine POST gonderir
+     * @param {string} path - Ornek: /api/customers/5 -> /api/customers/5/update olarak gonderilir
+     * @param {object} data - Gonderilecek veri
+     */
+    put: (path, data) => {
+        // path'e /update ekle (eger zaten yoksa)
+        const updatePath = path.endsWith('/update') ? path : `${path}/update`;
+        return NbtApi.request(updatePath, { method: 'POST', body: JSON.stringify(data) });
+    },
+    
+    /**
+     * DELETE islemi icin POST kullanir
+     * Eski DELETE metodunun yerini alir - /resource/{id}/delete endpoint'ine POST gonderir
+     * @param {string} path - Ornek: /api/customers/5 -> /api/customers/5/delete olarak gonderilir
+     */
+    delete: (path) => {
+        // path'e /delete ekle (eger zaten yoksa)
+        const deletePath = path.endsWith('/delete') ? path : `${path}/delete`;
+        return NbtApi.request(deletePath, { method: 'POST' });
+    },
+    
+    // FormData ile dosya yukleme - artik sadece POST kullanilir
     postFormData: async (path, formData, method = 'POST') => {
-        // PHP'de PUT ile FormData desteklenmez, POST metodu kullanip _method ile override ediyoruz
+        // Eger update islemi ise path'i guncelle
+        let finalPath = path;
         if (method === 'PUT') {
-            formData.append('_method', 'PUT');
+            finalPath = path.endsWith('/update') ? path : `${path}/update`;
         }
-        return NbtApi.request(path, { 
+        return NbtApi.request(finalPath, { 
             method: 'POST', 
             body: formData 
             // Content-Type otomatik olarak boundary ile set edilir, manuel set etme
@@ -1243,6 +1269,148 @@ const NbtModal = {
             if (btn._originalHtml) {
                 btn.innerHTML = btn._originalHtml;
             }
+        }
+    },
+
+    /**
+     * API'den gelen validation hatalarini form alanlarına bas
+     * @param {string} modalId - Modal ID
+     * @param {object} errors - {field: message} veya {field: [messages]} formatinda hatalar
+     * @param {object} fieldMapping - {apiField: htmlFieldId} mapping (opsiyonel)
+     */
+    showValidationErrors(modalId, errors, fieldMapping = {}) {
+        if (!errors || typeof errors !== 'object') return;
+        
+        this.clearFieldErrors(modalId);
+        
+        let firstErrorField = null;
+        
+        Object.keys(errors).forEach(field => {
+            const message = Array.isArray(errors[field]) ? errors[field][0] : errors[field];
+            const fieldId = fieldMapping[field] || field;
+            
+            // Modal prefix ile alan ara
+            const possibleIds = [
+                fieldId,
+                modalId.replace('Modal', '') + fieldId,
+                modalId.replace('Modal', '') + field.charAt(0).toUpperCase() + field.slice(1)
+            ];
+            
+            let targetField = null;
+            for (const id of possibleIds) {
+                targetField = document.querySelector(`#${modalId} #${id}`);
+                if (targetField) break;
+            }
+            
+            if (targetField) {
+                this.showFieldError(modalId, targetField.id, message);
+                if (!firstErrorField) {
+                    firstErrorField = targetField;
+                }
+            }
+        });
+        
+        // İlk hatalı alana focus
+        if (firstErrorField) {
+            setTimeout(() => {
+                firstErrorField.focus();
+                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+    },
+
+    /**
+     * Form validation - zorunlu alanları kontrol et
+     * @param {string} modalId - Modal ID
+     * @param {object} rules - {fieldId: {required: true, min: 3, max: 50, pattern: /regex/}}
+     * @returns {object} - {valid: boolean, errors: {fieldId: message}}
+     */
+    validateForm(modalId, rules) {
+        const errors = {};
+        let firstErrorField = null;
+        
+        this.clearFieldErrors(modalId);
+        
+        Object.keys(rules).forEach(fieldId => {
+            const field = document.querySelector(`#${modalId} #${fieldId}`);
+            if (!field) return;
+            
+            const rule = rules[fieldId];
+            const value = field.value ? field.value.trim() : '';
+            const label = rule.label || fieldId;
+            
+            // Required check
+            if (rule.required && !value) {
+                errors[fieldId] = `${label} zorunludur`;
+                return;
+            }
+            
+            // Skip other checks if empty and not required
+            if (!value) return;
+            
+            // Min length
+            if (rule.min && value.length < rule.min) {
+                errors[fieldId] = `${label} en az ${rule.min} karakter olmalı`;
+                return;
+            }
+            
+            // Max length
+            if (rule.max && value.length > rule.max) {
+                errors[fieldId] = `${label} en fazla ${rule.max} karakter olabilir`;
+                return;
+            }
+            
+            // Pattern (regex)
+            if (rule.pattern && !rule.pattern.test(value)) {
+                errors[fieldId] = rule.patternMessage || `${label} formatı geçersiz`;
+                return;
+            }
+            
+            // Email
+            if (rule.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                errors[fieldId] = `Geçerli bir e-posta adresi giriniz`;
+                return;
+            }
+            
+            // Numeric
+            if (rule.numeric && isNaN(parseFloat(value))) {
+                errors[fieldId] = `${label} sayısal olmalıdır`;
+                return;
+            }
+        });
+        
+        // Show errors and focus first
+        Object.keys(errors).forEach(fieldId => {
+            this.showFieldError(modalId, fieldId, errors[fieldId]);
+            if (!firstErrorField) {
+                firstErrorField = document.querySelector(`#${modalId} #${fieldId}`);
+            }
+        });
+        
+        if (firstErrorField) {
+            setTimeout(() => {
+                firstErrorField.focus();
+            }, 50);
+        }
+        
+        return {
+            valid: Object.keys(errors).length === 0,
+            errors
+        };
+    },
+
+    /**
+     * İlk hatalı input'a focus
+     * @param {string} modalId - Modal ID
+     */
+    focusFirstError(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        
+        const firstError = modal.querySelector('.is-invalid');
+        if (firstError) {
+            firstError.focus();
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
 };

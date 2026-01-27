@@ -820,6 +820,8 @@ const CustomerModule = {
         document.getElementById('customerTelefon').value = '';
         document.getElementById('customerFaks').value = '';
         document.getElementById('customerWeb').value = '';
+        document.getElementById('customerIl').value = '';
+        document.getElementById('customerIlce').value = '';
         document.getElementById('customerAdres').value = '';
 
         if (editId) {
@@ -834,6 +836,8 @@ const CustomerModule = {
                 document.getElementById('customerTelefon').value = customer.Telefon || '';
                 document.getElementById('customerFaks').value = customer.Faks || '';
                 document.getElementById('customerWeb').value = customer.Web || '';
+                document.getElementById('customerIl').value = customer.Il || '';
+                document.getElementById('customerIlce').value = customer.Ilce || '';
                 document.getElementById('customerAdres').value = customer.Adres || '';
             } else {
                 NbtApi.get('/api/customers').then(response => {
@@ -849,6 +853,8 @@ const CustomerModule = {
                         document.getElementById('customerTelefon').value = found.Telefon || '';
                         document.getElementById('customerFaks').value = found.Faks || '';
                         document.getElementById('customerWeb').value = found.Web || '';
+                        document.getElementById('customerIl').value = found.Il || '';
+                        document.getElementById('customerIlce').value = found.Ilce || '';
                         document.getElementById('customerAdres').value = found.Adres || '';
                     }
                 }).catch(() => {});
@@ -870,28 +876,34 @@ const CustomerModule = {
             Telefon: document.getElementById('customerTelefon').value.trim() || null,
             Faks: document.getElementById('customerFaks').value.trim() || null,
             Web: document.getElementById('customerWeb').value.trim() || null,
+            Il: document.getElementById('customerIl').value.trim() || null,
+            Ilce: document.getElementById('customerIlce').value.trim() || null,
             Adres: document.getElementById('customerAdres').value.trim() || null
         };
 
         NbtModal.clearError('customerModal');
-        if (!data.Unvan) {
-            NbtModal.showFieldError('customerModal', 'customerUnvan', 'Unvan zorunludur');
+        
+        // Client-side validation with proper field mapping
+        const validation = NbtModal.validateForm('customerModal', {
+            customerUnvan: { required: true, min: 2, max: 150, label: 'Ünvan' },
+            customerVergiDairesi: { required: true, max: 50, label: 'Vergi Dairesi' },
+            customerVergiNo: { required: true, pattern: /^\d{10,11}$/, patternMessage: 'Vergi No 10-11 hane sayısal olmalı', label: 'Vergi No' }
+        });
+        
+        if (!validation.valid) {
             NbtModal.showError('customerModal', 'Lütfen zorunlu alanları doldurun');
-            return;
-        }
-        if (data.Unvan.length < 2) {
-            NbtModal.showFieldError('customerModal', 'customerUnvan', 'Unvan en az 2 karakter olmalıdır');
-            NbtModal.showError('customerModal', 'Unvan en az 2 karakter olmalıdır');
             return;
         }
 
         NbtModal.setLoading('customerModal', true);
         try {
+            let shouldReload = false;
             if (id) {
                 await NbtApi.put(`/api/customers/${id}`, data);
                 NbtToast.success('Müşteri güncellendi');
                 NbtModal.close('customerModal');
                 await this.loadList();
+                shouldReload = true;
             } else {
                 const result = await NbtApi.post('/api/customers', data);
                 NbtToast.success('Müşteri eklendi');
@@ -902,14 +914,39 @@ const CustomerModule = {
                     return;
                 }
                 await this.loadList();
+                shouldReload = true;
             }
             // Dashboard sayfasindaysa musteri listesini guncelleme
             const dashboardView = document.getElementById('view-dashboard');
             if (dashboardView && !dashboardView.classList.contains('d-none')) {
                 DashboardModule.loadCustomers();
             }
+            if (shouldReload) {
+                // window.location.reload();
+                return;
+            }
         } catch (err) {
-            NbtModal.showError('customerModal', err.message);
+            // API'den gelen validation hatalarını parse et
+            if (err.response && err.response.errors) {
+                const fieldMapping = {
+                    'Unvan': 'customerUnvan',
+                    'VergiDairesi': 'customerVergiDairesi',
+                    'VergiNo': 'customerVergiNo',
+                    'MusteriKodu': 'customerMusteriKodu',
+                    'MersisNo': 'customerMersisNo',
+                    'Telefon': 'customerTelefon',
+                    'Faks': 'customerFaks',
+                    'Web': 'customerWeb',
+                    'Il': 'customerIl',
+                    'Ilce': 'customerIlce',
+                    'Adres': 'customerAdres',
+                    'Aciklama': 'customerAciklama'
+                };
+                NbtModal.showValidationErrors('customerModal', err.response.errors, fieldMapping);
+                NbtModal.showError('customerModal', err.response.message || err.message);
+            } else {
+                NbtModal.showError('customerModal', err.message);
+            }
         } finally {
             NbtModal.setLoading('customerModal', false);
         }
@@ -1763,6 +1800,14 @@ const CustomerDetailModule = {
                             
                             <h6 class="text-muted border-bottom pb-2 mb-3 mt-3"><i class="bi bi-geo-alt me-1"></i>Adres</h6>
                             
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">İl</div>
+                                <div class="col-7">${NbtUtils.escapeHtml(c.Il || '-')}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-5 fw-bold text-muted small">İlçe</div>
+                                <div class="col-7">${NbtUtils.escapeHtml(c.Ilce || '-')}</div>
+                            </div>
                             <div class="row mb-2">
                                 <div class="col-5 fw-bold text-muted small">Adres</div>
                                 <div class="col-7 small">${NbtUtils.escapeHtml(c.Adres || '-')}</div>
@@ -6847,7 +6892,7 @@ const ParameterModule = {
             }
             
             if (payload.degerler.length > 0) {
-                await NbtApi.put('/api/parameters/bulk', payload);
+                await NbtApi.post('/api/parameters/bulk', payload);
                 NbtToast.success('Hatırlatma ayarı kaydedildi');
             }
         } catch (err) {
@@ -6878,7 +6923,7 @@ const ParameterModule = {
         }
         
         try {
-            await NbtApi.put('/api/parameters/bulk', payload);
+            await NbtApi.post('/api/parameters/bulk', payload);
             NbtToast.success('Tüm hatırlatma ayarları kaydedildi');
         } catch (err) {
             NbtToast.error('Kaydetme hatası: ' + err.message);

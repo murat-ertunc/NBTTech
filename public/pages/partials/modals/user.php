@@ -20,15 +20,21 @@
         <div class="mb-3">
           <label class="form-label">Ad Soyad <span class="text-danger">*</span></label>
           <input type="text" class="form-control" id="userAdSoyad" required>
+          <small class="form-hint">Zorunlu, Min 3</small>
+          <div class="invalid-feedback"></div>
         </div>
         <div class="mb-3">
           <label class="form-label">Kullanıcı Adı <span class="text-danger">*</span></label>
           <input type="text" class="form-control" id="userKullaniciAdi" required>
+          <small class="form-hint">Zorunlu, Min 3</small>
+          <div class="invalid-feedback"></div>
         </div>
         <div class="mb-3">
-          <label class="form-label">Şifre <span class="text-danger">*</span></label>
+          <label class="form-label">Şifre <span class="text-danger" id="userSifreRequired">*</span></label>
           <input type="password" class="form-control" id="userSifre">
+          <small class="form-hint">Yeni kullanıcı için zorunlu, Min 6</small>
           <small class="text-muted">Düzenlemede boş bırakırsanız şifre değişmez.</small>
+          <div class="invalid-feedback"></div>
         </div>
         <div class="mb-3">
           <label class="form-label">Roller <span class="text-muted">(Atayabileceğiniz roller)</span></label>
@@ -37,7 +43,8 @@
               <div class="spinner-border spinner-border-sm"></div> Roller yükleniyor...
             </div>
           </div>
-          <small class="text-muted">Birden fazla rol seçebilirsiniz. Yalnızca kendi rollerinize eşit veya alt seviyedeki rolleri atayabilirsiniz.</small>
+          <small class="form-hint">Birden fazla rol seçebilirsiniz.</small>
+          <div class="invalid-feedback"></div>
         </div>
       </div>
       <div class="modal-footer">

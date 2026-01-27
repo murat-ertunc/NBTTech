@@ -98,6 +98,8 @@ class CustomerController
         'Telefon' => 20,
         'Faks' => 20,
         'Web' => 150,
+        'Il' => 50,
+        'Ilce' => 50,
         'Adres' => 300,
         'Aciklama' => 500,
     ];
@@ -117,30 +119,52 @@ class CustomerController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        $Zorunlu = ['Unvan'];
-        foreach ($Zorunlu as $Alan) {
-            if (empty($Girdi[$Alan])) {
-                Response::error('Unvan zorunludur.', 422);
-                return;
+        
+        // Zorunlu alanlar ve hata mesajlari
+        $ZorunluAlanlar = [
+            'Unvan' => 'Ünvan zorunludur.',
+            'VergiDairesi' => 'Vergi Dairesi zorunludur.',
+            'VergiNo' => 'Vergi No zorunludur.'
+        ];
+        
+        $Hatalar = [];
+        foreach ($ZorunluAlanlar as $Alan => $Mesaj) {
+            $Deger = isset($Girdi[$Alan]) ? trim((string) $Girdi[$Alan]) : '';
+            if ($Deger === '') {
+                $Hatalar[$Alan] = $Mesaj;
             }
         }
+        
+        // Hatalar varsa 422 ile geri don
+        if (!empty($Hatalar)) {
+            Response::json(['errors' => $Hatalar, 'message' => 'Lütfen zorunlu alanları doldurun.'], 422);
+            return;
+        }
+        
         $Unvan = trim((string) $Girdi['Unvan']);
         if (mb_strlen($Unvan) < 2) {
-            Response::error('Unvan en az 2 karakter olmalidir.', 422);
+            Response::json(['errors' => ['Unvan' => 'Ünvan en az 2 karakter olmalıdır.'], 'message' => 'Ünvan en az 2 karakter olmalıdır.'], 422);
             return;
         }
         if (mb_strlen($Unvan) > self::LIMITLER['Unvan']) {
-            Response::error('Unvan en fazla ' . self::LIMITLER['Unvan'] . ' karakter olabilir.', 422);
+            Response::json(['errors' => ['Unvan' => 'Ünvan en fazla ' . self::LIMITLER['Unvan'] . ' karakter olabilir.'], 'message' => 'Ünvan çok uzun.'], 422);
+            return;
+        }
+        
+        // Vergi No format kontrolu (10 veya 11 hane, sadece rakam)
+        $VergiNo = trim((string) $Girdi['VergiNo']);
+        if (!preg_match('/^\d{10,11}$/', $VergiNo)) {
+            Response::json(['errors' => ['VergiNo' => 'Vergi No 10 veya 11 haneli sayısal olmalıdır.'], 'message' => 'Vergi No formatı geçersiz.'], 422);
             return;
         }
 
         // Alan validasyonlari
-        $Alanlar = ['MusteriKodu', 'VergiDairesi', 'VergiNo', 'MersisNo', 'Telefon', 'Faks', 'Web', 'Adres', 'Aciklama'];
+        $Alanlar = ['MusteriKodu', 'VergiDairesi', 'VergiNo', 'MersisNo', 'Telefon', 'Faks', 'Web', 'Il', 'Ilce', 'Adres', 'Aciklama'];
         foreach ($Alanlar as $Alan) {
             $Deger = isset($Girdi[$Alan]) ? trim((string) $Girdi[$Alan]) : null;
             $Hata = self::alanDogrula($Alan, $Deger);
             if ($Hata) {
-                Response::error($Hata, 422);
+                Response::json(['errors' => [$Alan => $Hata], 'message' => $Hata], 422);
                 return;
             }
         }
@@ -158,6 +182,8 @@ class CustomerController
                 'MusteriKodu' => isset($Girdi['MusteriKodu']) ? mb_substr(trim((string) $Girdi['MusteriKodu']), 0, 10) : null,
                 'VergiDairesi' => isset($Girdi['VergiDairesi']) ? mb_substr(trim((string) $Girdi['VergiDairesi']), 0, 50) : null,
                 'VergiNo' => isset($Girdi['VergiNo']) ? mb_substr(trim((string) $Girdi['VergiNo']), 0, 11) : null,
+                'Il' => isset($Girdi['Il']) ? mb_substr(trim((string) $Girdi['Il']), 0, 50) : null,
+                'Ilce' => isset($Girdi['Ilce']) ? mb_substr(trim((string) $Girdi['Ilce']), 0, 50) : null,
                 'Adres' => isset($Girdi['Adres']) ? mb_substr(trim((string) $Girdi['Adres']), 0, 300) : null,
                 'Telefon' => isset($Girdi['Telefon']) ? mb_substr(trim((string) $Girdi['Telefon']), 0, 20) : null,
                 'Faks' => isset($Girdi['Faks']) ? mb_substr(trim((string) $Girdi['Faks']), 0, 20) : null,
@@ -177,30 +203,55 @@ class CustomerController
             return;
         }
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        
+        // Zorunlu alanlar kontrolu (gonderilmisse bos olamaz)
+        $ZorunluAlanlar = ['Unvan', 'VergiDairesi', 'VergiNo'];
+        $Hatalar = [];
+        
+        foreach ($ZorunluAlanlar as $Alan) {
+            if (array_key_exists($Alan, $Girdi)) {
+                $Deger = trim((string) $Girdi[$Alan]);
+                if ($Deger === '') {
+                    $Hatalar[$Alan] = $Alan . ' zorunludur.';
+                }
+            }
+        }
+        
+        if (!empty($Hatalar)) {
+            Response::json(['errors' => $Hatalar, 'message' => 'Lütfen zorunlu alanları doldurun.'], 422);
+            return;
+        }
+        
+        // Unvan validasyonu
         if (isset($Girdi['Unvan'])) {
             $Girdi['Unvan'] = trim((string) $Girdi['Unvan']);
-            if ($Girdi['Unvan'] === '') {
-                Response::error('Unvan zorunludur.', 422);
-                return;
-            }
             if (mb_strlen($Girdi['Unvan']) < 2) {
-                Response::error('Unvan en az 2 karakter olmalidir.', 422);
+                Response::json(['errors' => ['Unvan' => 'Ünvan en az 2 karakter olmalıdır.'], 'message' => 'Ünvan çok kısa.'], 422);
                 return;
             }
             if (mb_strlen($Girdi['Unvan']) > self::LIMITLER['Unvan']) {
-                Response::error('Unvan en fazla ' . self::LIMITLER['Unvan'] . ' karakter olabilir.', 422);
+                Response::json(['errors' => ['Unvan' => 'Ünvan en fazla ' . self::LIMITLER['Unvan'] . ' karakter olabilir.'], 'message' => 'Ünvan çok uzun.'], 422);
+                return;
+            }
+        }
+        
+        // Vergi No format kontrolu (gonderilmisse)
+        if (isset($Girdi['VergiNo']) && trim($Girdi['VergiNo']) !== '') {
+            $VergiNo = trim((string) $Girdi['VergiNo']);
+            if (!preg_match('/^\d{10,11}$/', $VergiNo)) {
+                Response::json(['errors' => ['VergiNo' => 'Vergi No 10 veya 11 haneli sayısal olmalıdır.'], 'message' => 'Vergi No formatı geçersiz.'], 422);
                 return;
             }
         }
 
         // Alan validasyonlari
-        $Alanlar = ['MusteriKodu', 'VergiDairesi', 'VergiNo', 'MersisNo', 'Telefon', 'Faks', 'Web', 'Adres', 'Aciklama'];
+        $Alanlar = ['MusteriKodu', 'VergiDairesi', 'VergiNo', 'MersisNo', 'Telefon', 'Faks', 'Web', 'Il', 'Ilce', 'Adres', 'Aciklama'];
         foreach ($Alanlar as $Alan) {
             if (array_key_exists($Alan, $Girdi)) {
                 $Deger = trim((string) $Girdi[$Alan]);
                 $Hata = self::alanDogrula($Alan, $Deger);
                 if ($Hata) {
-                    Response::error($Hata, 422);
+                    Response::json(['errors' => [$Alan => $Hata], 'message' => $Hata], 422);
                     return;
                 }
             }
@@ -240,6 +291,12 @@ class CustomerController
             }
             if (array_key_exists('VergiNo', $Girdi)) {
                 $GuncellenecekVeri['VergiNo'] = $Girdi['VergiNo'] ? mb_substr(trim((string) $Girdi['VergiNo']), 0, 11) : null;
+            }
+            if (array_key_exists('Il', $Girdi)) {
+                $GuncellenecekVeri['Il'] = $Girdi['Il'] ? mb_substr(trim((string) $Girdi['Il']), 0, 50) : null;
+            }
+            if (array_key_exists('Ilce', $Girdi)) {
+                $GuncellenecekVeri['Ilce'] = $Girdi['Ilce'] ? mb_substr(trim((string) $Girdi['Ilce']), 0, 50) : null;
             }
             if (array_key_exists('Adres', $Girdi)) {
                 $GuncellenecekVeri['Adres'] = $Girdi['Adres'] ? mb_substr(trim((string) $Girdi['Adres']), 0, 300) : null;

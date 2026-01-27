@@ -26,6 +26,8 @@ BEGIN
         MersisNo NVARCHAR(16) NULL,
         
         -- İletişim Bilgileri
+        Il NVARCHAR(50) NULL,
+        Ilce NVARCHAR(50) NULL,
         Adres NVARCHAR(300) NULL,
         Telefon NVARCHAR(20) NULL,
         Faks NVARCHAR(20) NULL,
