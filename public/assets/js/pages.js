@@ -922,7 +922,7 @@ const CustomerModule = {
                 DashboardModule.loadCustomers();
             }
             if (shouldReload) {
-                // window.location.reload();
+                window.location.reload();
                 return;
             }
         } catch (err) {
