@@ -1,0 +1,44 @@
+services:
+  php:
+    build: .
+    image: nbt-php74
+    platform: linux/amd64
+    container_name: nbt-php74
+    working_dir: /var/www/html
+    env_file:
+      - .env
+    ports:
+      - "8082:80"
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - mssql
+      - redis
+      - rabbitmq
+
+  redis:
+    image: redis:7
+    container_name: nbt-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: nbt-rabbit
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: pass
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    platform: linux/amd64
+    container_name: nbt-mssql
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: "i&V9WUPOj=27"
+    ports:
+      - "1433:1433"
