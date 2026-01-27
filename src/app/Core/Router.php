@@ -17,15 +17,8 @@ class Router
 
     public function dispatch(string $Metod, string $Yol): void
     {
-        // GET, POST, PUT, DELETE desteklenir
-        // Method spoofing: POST + _method=PUT/DELETE (FormData icin)
+        // Sadece GET ve POST desteklenir (IIS PUT/DELETE engelliyor)
         $GercekMetod = strtoupper($Metod);
-        if ($GercekMetod === 'POST' && isset($_POST['_method'])) {
-            $SpoofedMetod = strtoupper($_POST['_method']);
-            if (in_array($SpoofedMetod, ['PUT', 'DELETE'])) {
-                $GercekMetod = $SpoofedMetod;
-            }
-        }
         
         foreach ($this->Rotalar as $Rota) {
             if ($Rota['Metod'] !== $GercekMetod) {

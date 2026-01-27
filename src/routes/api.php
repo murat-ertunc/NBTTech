@@ -72,19 +72,6 @@ function resource(string $Kaynak, string $Controller, array $Ayarlar = []): void
         $Router->add($HttpMetod, $Yol, guard($PermKodu, fn($P) => $Controller::$Metod($P)));
     }
     
-    // Backward compatibility: Eski PUT/DELETE route'lari da ekle (ayni handler'a yonlendir)
-    // Bu sayede hem yeni /update hem eski PUT calisiyor
-    if ($Only === null || in_array('update', $Only)) {
-        if (!in_array('update', $Except)) {
-            $Router->add('PUT', "/api/{$Kaynak}/{id}", guard("{$Kaynak}.update", fn($P) => $Controller::update($P)));
-        }
-    }
-    if ($Only === null || in_array('delete', $Only)) {
-        if (!in_array('delete', $Except)) {
-            $Router->add('DELETE', "/api/{$Kaynak}/{id}", guard("{$Kaynak}.delete", fn($P) => $Controller::delete($P)));
-        }
-    }
-    
     // Extra route'lar
     if (!empty($Ayarlar['extra'])) {
         foreach ($Ayarlar['extra'] as $Extra) {
