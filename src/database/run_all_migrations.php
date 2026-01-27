@@ -18,21 +18,45 @@ require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY
 
 use App\Core\Database;
 
+function getBasicAuthCredentials(): array
+{
+    $User = $_SERVER['PHP_AUTH_USER'] ?? '';
+    $Pass = $_SERVER['PHP_AUTH_PW'] ?? '';
+
+    if ($User !== '' || $Pass !== '') {
+        return [$User, $Pass];
+    }
+
+    $Header = $_SERVER['HTTP_AUTHORIZATION']
+        ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+        ?? $_SERVER['Authorization']
+        ?? '';
+
+    if (stripos($Header, 'basic ') === 0) {
+        $Decoded = base64_decode(substr($Header, 6));
+        if ($Decoded !== false && strpos($Decoded, ':') !== false) {
+            [$User, $Pass] = explode(':', $Decoded, 2);
+            return [$User, $Pass];
+        }
+    }
+
+    return ['', ''];
+}
+
 // Web erişiminde Basic Auth kontrolü
 if (!$IsCli) {
-    $AuthUser = env('MIGRATION_BASIC_USER', 'admin');
-    $AuthPass = env('MIGRATION_BASIC_PASS', 'Super123!');
-    
-    $GivenUser = $_SERVER['PHP_AUTH_USER'] ?? '';
-    $GivenPass = $_SERVER['PHP_AUTH_PW'] ?? '';
-    
-    if ($GivenUser !== $AuthUser || $GivenPass !== $AuthPass) {
+    $AuthUser = env('MIG_USER', env('MIGRATION_BASIC_USER', 'migrate'));
+    $AuthPass = env('MIG_PASS', env('MIGRATION_BASIC_PASS', 'change-me'));
+
+    [$GivenUser, $GivenPass] = getBasicAuthCredentials();
+
+    if (!hash_equals((string)$AuthUser, (string)$GivenUser) || !hash_equals((string)$AuthPass, (string)$GivenPass)) {
         header('WWW-Authenticate: Basic realm="Migrations"');
         header('HTTP/1.0 401 Unauthorized');
         echo 'Yetkisiz erisim';
         exit(1);
     }
-    
+
     header('Content-Type: text/plain; charset=UTF-8');
 }
 
@@ -43,6 +67,61 @@ function output(string $message, bool $isCli): void {
         echo $message . "\n";
         flush();
     }
+}
+
+function sanitizeErrorMessage(string $Message): string
+{
+    $Message = strip_tags($Message);
+    $Message = preg_replace('/[^\P{C}\n\t]+/u', '', $Message);
+    $Message = preg_replace('/\s+/', ' ', $Message);
+    return mb_substr($Message, 0, 1000);
+}
+
+function ensureSchemaMigrations(PDO $Db): void
+{
+    $Db->exec("IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'schema_migrations')
+BEGIN
+    CREATE TABLE schema_migrations (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        filename NVARCHAR(260) NOT NULL UNIQUE,
+        checksum NVARCHAR(64) NULL,
+        applied_at DATETIME2(0) NULL,
+        status NVARCHAR(20) NOT NULL,
+        error_message NVARCHAR(4000) NULL
+    );
+END");
+}
+
+function buildWrappedSql(string $Sql): string
+{
+    $Sql = preg_replace('/^\s*GO\s*$/mi', '', $Sql);
+    return "BEGIN TRY\nBEGIN TRANSACTION;\n" . $Sql . "\nCOMMIT;\nEND TRY\nBEGIN CATCH\nIF @@TRANCOUNT > 0 ROLLBACK;\nDECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();\nRAISERROR(@ErrorMessage, 16, 1);\nEND CATCH";
+}
+
+function upsertMigration(PDO $Db, string $Filename, ?string $Checksum, string $Status, ?string $ErrorMessage): void
+{
+    $ExistsStmt = $Db->prepare('SELECT 1 FROM schema_migrations WHERE filename = :filename');
+    $ExistsStmt->execute([':filename' => $Filename]);
+    $Exists = (bool)$ExistsStmt->fetchColumn();
+
+    if ($Exists) {
+        $Stmt = $Db->prepare('UPDATE schema_migrations SET checksum = :checksum, applied_at = SYSUTCDATETIME(), status = :status, error_message = :error_message WHERE filename = :filename');
+        $Stmt->execute([
+            ':checksum' => $Checksum,
+            ':status' => $Status,
+            ':error_message' => $ErrorMessage,
+            ':filename' => $Filename,
+        ]);
+        return;
+    }
+
+    $Stmt = $Db->prepare('INSERT INTO schema_migrations (filename, checksum, applied_at, status, error_message) VALUES (:filename, :checksum, SYSUTCDATETIME(), :status, :error_message)');
+    $Stmt->execute([
+        ':filename' => $Filename,
+        ':checksum' => $Checksum,
+        ':status' => $Status,
+        ':error_message' => $ErrorMessage,
+    ]);
 }
 
 output("===========================================", $IsCli);
@@ -66,6 +145,7 @@ output("", $IsCli);
 
 try {
     $Db = Database::connection();
+    ensureSchemaMigrations($Db);
 } catch (Throwable $e) {
     output("HATA: Veritabani baglantisi kurulamadi: " . $e->getMessage(), $IsCli);
     exit(1);
@@ -77,28 +157,22 @@ $Hatalar = [];
 
 foreach ($Files as $DosyaYolu) {
     $DosyaAdi = basename($DosyaYolu);
+    $Checksum = hash('sha256', (string)file_get_contents($DosyaYolu));
     output("▶ Calistiriliyor: $DosyaAdi", $IsCli);
-    
+
     try {
         $Sql = file_get_contents($DosyaYolu);
-        
-        // GO ifadelerini ayır (MSSQL batch separator)
-        $Parcalar = preg_split('/^\s*GO\s*$/mi', $Sql);
-        
-        foreach ($Parcalar as $Parca) {
-            $Parca = trim($Parca);
-            if ($Parca !== '') {
-                $Db->exec($Parca);
-            }
-        }
-        
+        $Wrapped = buildWrappedSql($Sql);
+        $Db->exec($Wrapped);
+
+        upsertMigration($Db, $DosyaAdi, $Checksum, 'applied', null);
         $Basarili++;
         output("  ✓ Basarili", $IsCli);
-        
     } catch (Throwable $e) {
         $Hatali++;
-        $HataMesaji = $e->getMessage();
+        $HataMesaji = sanitizeErrorMessage($e->getMessage());
         $Hatalar[$DosyaAdi] = $HataMesaji;
+        upsertMigration($Db, $DosyaAdi, $Checksum, 'failed', $HataMesaji);
         output("  ✗ HATA: $HataMesaji", $IsCli);
     }
 }

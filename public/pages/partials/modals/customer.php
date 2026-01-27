@@ -87,7 +87,7 @@
         <div class="row mb-3">
           <label class="col-12 col-md-4 col-form-label">İl</label>
           <div class="col-12 col-md-8">
-            <input type="text" class="form-control" id="customerIl" maxlength="50" placeholder="Örn: İstanbul">
+            <input type="text" class="form-control" id="customerIl" maxlength="50">
             <small class="form-hint">Maks 50 karakter</small>
             <div class="invalid-feedback"></div>
           </div>
@@ -95,7 +95,7 @@
         <div class="row mb-3">
           <label class="col-12 col-md-4 col-form-label">İlçe</label>
           <div class="col-12 col-md-8">
-            <input type="text" class="form-control" id="customerIlce" maxlength="50" placeholder="Örn: Kadıköy">
+            <input type="text" class="form-control" id="customerIlce" maxlength="50">
             <small class="form-hint">Maks 50 karakter</small>
             <div class="invalid-feedback"></div>
           </div>

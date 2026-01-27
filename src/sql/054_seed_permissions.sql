@@ -89,4 +89,8 @@ BEGIN
         INSERT (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, PermissionKodu, ModulAdi, Aksiyon, Aciklama, Aktif)
         VALUES (NEWID(), @Simdi, @SeedUserId, @Simdi, @SeedUserId, 0, src.PermissionKodu, src.ModulAdi, src.Aksiyon, src.Aciklama, src.Aktif);
 END
+ELSE
+BEGIN
+    PRINT 'Permission tablosu bulunamadi, seed atlandi.';
+END
 GO

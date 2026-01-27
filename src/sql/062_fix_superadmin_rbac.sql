@@ -8,6 +8,16 @@
 -- 4. Admin rolüne TÜM permission'ları atar
 -- 5. 'superadmin' kullanıcısına 'superadmin' rolünü atar
 
+IF OBJECT_ID('tnm_rol', 'U') IS NULL
+    OR OBJECT_ID('tnm_permission', 'U') IS NULL
+    OR OBJECT_ID('tnm_rol_permission', 'U') IS NULL
+    OR OBJECT_ID('tnm_user', 'U') IS NULL
+    OR OBJECT_ID('tnm_user_rol', 'U') IS NULL
+BEGIN
+    PRINT 'RBAC tablolari eksik, superadmin duzeltme atlandi.';
+    RETURN;
+END
+
 DECLARE @SeedUserId INT = 1;
 DECLARE @Simdi DATETIME2(0) = SYSUTCDATETIME();
 

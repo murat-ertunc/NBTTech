@@ -4,6 +4,14 @@
 -- customers.read_all ve users.read_all permission'lari
 -- Bu permission'lar tum kayitlari gorebilme yetkisi verir
 
+IF OBJECT_ID('tnm_permission', 'U') IS NULL
+    OR OBJECT_ID('tnm_rol', 'U') IS NULL
+    OR OBJECT_ID('tnm_rol_permission', 'U') IS NULL
+BEGIN
+    PRINT 'RBAC tablolari eksik, read_all izinleri atlandi.';
+    RETURN;
+END
+
 DECLARE @SeedUserId INT = 1;
 DECLARE @Simdi DATETIME2(0) = SYSUTCDATETIME();
 

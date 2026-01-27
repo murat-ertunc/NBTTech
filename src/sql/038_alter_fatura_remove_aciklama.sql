@@ -3,10 +3,10 @@
 
 -- 1. tbl_fatura'dan Aciklama kolonunu kaldir
 IF EXISTS (
-    SELECT 1 
-    FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE TABLE_NAME = 'tbl_fatura' 
-    AND COLUMN_NAME = 'Aciklama'
+    SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID('tbl_fatura')
+    AND name = 'Aciklama'
 )
 BEGIN
     ALTER TABLE tbl_fatura DROP COLUMN Aciklama;
@@ -20,10 +20,10 @@ GO
 
 -- 2. bck_tbl_fatura'dan Aciklama kolonunu kaldir
 IF EXISTS (
-    SELECT 1 
-    FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE TABLE_NAME = 'bck_tbl_fatura' 
-    AND COLUMN_NAME = 'Aciklama'
+    SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID('bck_tbl_fatura')
+    AND name = 'Aciklama'
 )
 BEGIN
     ALTER TABLE bck_tbl_fatura DROP COLUMN Aciklama;

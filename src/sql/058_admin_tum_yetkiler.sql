@@ -7,6 +7,14 @@ SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
 
+IF OBJECT_ID('tnm_rol', 'U') IS NULL
+    OR OBJECT_ID('tnm_permission', 'U') IS NULL
+    OR OBJECT_ID('tnm_rol_permission', 'U') IS NULL
+BEGIN
+    PRINT 'RBAC tablolari eksik, admin yetki sync atlandi.';
+    RETURN;
+END
+
 DECLARE @AdminRolId INT;
 SELECT @AdminRolId = Id FROM tnm_rol WHERE RolKodu = 'admin' AND Sil = 0;
 

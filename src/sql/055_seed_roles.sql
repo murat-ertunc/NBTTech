@@ -2,6 +2,16 @@
 -- Role Seed Data ve Permission Atamalari
 -- =============================================
 
+IF OBJECT_ID('tnm_rol', 'U') IS NULL
+    OR OBJECT_ID('tnm_permission', 'U') IS NULL
+    OR OBJECT_ID('tnm_rol_permission', 'U') IS NULL
+    OR OBJECT_ID('tnm_user', 'U') IS NULL
+    OR OBJECT_ID('tnm_user_rol', 'U') IS NULL
+BEGIN
+    PRINT 'RBAC tablolari eksik, seed islemi atlandi.';
+    RETURN;
+END
+
 DECLARE @SeedUserId INT = 1;
 DECLARE @Simdi DATETIME2(0) = SYSUTCDATETIME();
 

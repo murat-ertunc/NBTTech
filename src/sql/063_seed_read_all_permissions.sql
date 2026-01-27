@@ -5,6 +5,12 @@
 -- users.read_all: Tum kullanicilari gorebilir
 -- customers.read_all: Tum musterileri gorebilir
 
+IF OBJECT_ID('tnm_permission', 'U') IS NULL
+BEGIN
+    PRINT 'Permission tablosu eksik, read_all seed atlandi.';
+    RETURN;
+END
+
 DECLARE @SeedUserId INT = 1;
 DECLARE @Simdi DATETIME2(0) = SYSUTCDATETIME();
 
