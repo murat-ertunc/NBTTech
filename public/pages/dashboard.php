@@ -11,10 +11,10 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <!-- ===== VIEW: DASHBOARD ===== -->
-    <div id="view-dashboard" data-can="dashboard.read" style="display: flex; flex-direction: column; height: calc(100vh - 132px);">
+    <div id="view-dashboard" data-can="dashboard.read">
       
       <!-- ROW 1: Alarmlar ve Takvim yan yana (Kalan alanı kaplasın) -->
-      <div class="row g-3 mb-3 flex-grow-1" style="min-height: 0;">
+      <div class="row g-3 mb-3 flex-grow-1">
         
         <!-- PANEL 1: ALARMLAR (Sol - Dar) -->
         <div class="col-lg-3 col-md-4 col-sm-12 d-flex">
