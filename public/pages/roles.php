@@ -20,7 +20,7 @@ require __DIR__ . '/partials/header.php';
                 <i class="bi bi-shield-lock me-2 text-primary"></i>
                 Rol Yönetimi
             </h1>
-            <p class="text-muted mb-0">Sistem rolleri ve yetki atamalari</p>
+            <p class="text-muted mb-0">Sistem rolleri ve yetki atamaları</p>
         </div>
         <button type="button" class="btn btn-primary" id="btnYeniRol" data-can="roles.create">
             <i class="bi bi-plus-lg me-1"></i>
@@ -44,7 +44,6 @@ require __DIR__ . '/partials/header.php';
                             <th style="width: 200px;">Rol Adı</th>
                             <th style="width: 150px;">Rol Kodu</th>
                             <th style="width: 80px;">Seviye</th>
-                            <th>Açıklama</th>
                             <th style="width: 100px;">Kullanıcı</th>
                             <th style="width: 100px;">Yetki</th>
                             <th style="width: 80px;">Durum</th>
@@ -53,7 +52,7 @@ require __DIR__ . '/partials/header.php';
                     </thead>
                     <tbody id="rolListesi">
                         <tr>
-                            <td colspan="8" class="text-center py-5">
+                            <td colspan="7" class="text-center py-5">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Yükleniyor...</span>
                                 </div>
@@ -111,11 +110,6 @@ require __DIR__ . '/partials/header.php';
                         </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Açıklama</label>
-                        <textarea class="form-control" id="rolAciklama" rows="2" maxlength="250"></textarea>
-                        <div class="invalid-feedback" id="rolAciklamaError"></div>
-                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -226,7 +220,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('rolSayisi').textContent = tumRoller.length;
         
         if (!Array.isArray(tumRoller) || tumRoller.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">Kayıt bulunamadı</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">Kayıt bulunamadı</td></tr>`;
             return;
         }
         
@@ -242,7 +236,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                         ${rol.Seviye}
                     </span>
                 </td>
-                <td class="text-muted">${NbtUtils.escapeHtml(rol.Aciklama || '-')}</td>
                 <td>
                     <span class="badge bg-info">${rol.KullaniciSayisi || 0}</span>
                 </td>
@@ -290,7 +283,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     function clearRoleErrors() {
         document.getElementById('rolFormErrors')?.classList.add('d-none');
         document.getElementById('rolFormErrors').innerHTML = '';
-        const fields = ['rolAdi', 'rolKodu', 'rolSeviye', 'rolAciklama', 'rolAktif'];
+        const fields = ['rolAdi', 'rolKodu', 'rolSeviye', 'rolAktif'];
         fields.forEach(id => {
             const input = document.getElementById(id);
             const errorEl = document.getElementById(`${id}Error`);
@@ -305,7 +298,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             RolAdi: 'rolAdi',
             RolKodu: 'rolKodu',
             Seviye: 'rolSeviye',
-            Aciklama: 'rolAciklama',
             Aktif: 'rolAktif'
         };
 
@@ -339,7 +331,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         const data = {
             RolKodu: document.getElementById('rolKodu').value.trim(),
             RolAdi: document.getElementById('rolAdi').value.trim(),
-            Aciklama: document.getElementById('rolAciklama').value.trim(),
             Seviye: parseInt(document.getElementById('rolSeviye').value) || 0,
             Aktif: parseInt(document.getElementById('rolAktif').value)
         };
@@ -387,7 +378,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 document.getElementById('rolKodu').value = rol.RolKodu;
                 document.getElementById('rolKodu').disabled = true;
                 document.getElementById('rolAdi').value = rol.RolAdi;
-                document.getElementById('rolAciklama').value = rol.Aciklama || '';
                 document.getElementById('rolSeviye').value = rol.Seviye;
                 document.getElementById('rolAktif').value = rol.Aktif;
                 document.getElementById('rolModalBaslik').textContent = 'Rol Düzenle';
