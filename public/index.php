@@ -40,6 +40,18 @@ if (substr($CleanPath, 0, 11) === '/index.php/') {
 $CleanPath = ltrim($CleanPath, '/');
 
 // =============================================================================
+// API ve INTERNAL ROUTES - Bootstrap'a direkt gönder
+// Bu route'lar page router tarafından işlenmemeli
+// =============================================================================
+if (strpos($CleanPath, 'api/') === 0 || 
+    strpos($CleanPath, '__internal__/') === 0 || 
+    $CleanPath === 'health' ||
+    $CleanPath === 'login') {
+    // Bootstrap'a düşsün, page router atlansın
+    goto bootstrap;
+}
+
+// =============================================================================
 // PAGE ROUTER - IIS Pretty URL Desteği
 // Güvenlik: '..' path traversal engeli, sadece güvenli karakterler
 // PHP 7.4 uyumlu (str_starts_with yok)
@@ -154,6 +166,15 @@ if (strpos($CleanPath, '..') !== false) {
         // Eşleşme yoksa web.php'ye bırak
         $PageRoute = null;
     }
+    // Internal: __internal__/migrations
+    elseif ($CleanPath === '__internal__/migrations') {
+        $InternalFile = __DIR__ . '/__internal__/migrations.php';
+        if (is_file($InternalFile)) {
+            require $InternalFile;
+            exit;
+        }
+        $PageRoute = null;
+    }
     // Pattern 1: customer/{id} → customer-detail.php (ID ile)
     elseif (preg_match('#^customer/([0-9]+)$#', $CleanPath, $M)) {
         $PageRoute = 'customer-detail';
@@ -237,6 +258,9 @@ if ($PageRoute !== null) {
 
 // =============================================================================
 // BOOTSTRAP: Page değilse normal uygulama akışı
+// Label: API ve internal route'lar için goto hedefi
+// =============================================================================
+bootstrap:
 // =============================================================================
 
 // Bootstrap yükle (merkezi init)

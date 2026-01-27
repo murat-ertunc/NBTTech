@@ -35,11 +35,13 @@ function guard(string $PermissionKodu, callable $Handler): callable
 /**
  * CRUD resource route'lari otomatik olusturur
  * 
- * GET    /api/{res}         -> index   (res.read)
- * GET    /api/{res}/{id}    -> show    (res.read)
- * POST   /api/{res}         -> store   (res.create)
- * PUT    /api/{res}/{id}    -> update  (res.update)
- * DELETE /api/{res}/{id}    -> delete  (res.delete)
+ * GET    /api/{res}             -> index   (res.read)
+ * GET    /api/{res}/{id}        -> show    (res.read)
+ * POST   /api/{res}             -> store   (res.create)
+ * POST   /api/{res}/{id}/update -> update  (res.update)
+ * POST   /api/{res}/{id}/delete -> delete  (res.delete)
+ * 
+ * NOT: REST standarti yerine sadece GET ve POST kullanilmaktadir.
  * 
  * @param string $Kaynak 'customers', 'invoices' vb.
  * @param string $Controller Tam sinif adi
@@ -56,8 +58,8 @@ function resource(string $Kaynak, string $Controller, array $Ayarlar = []): void
         'index'  => ['GET', "/api/{$Kaynak}", 'read'],
         'show'   => ['GET', "/api/{$Kaynak}/{id}", 'read'],
         'store'  => ['POST', "/api/{$Kaynak}", 'create'],
-        'update' => ['PUT', "/api/{$Kaynak}/{id}", 'update'],
-        'delete' => ['DELETE', "/api/{$Kaynak}/{id}", 'delete'],
+        'update' => ['POST', "/api/{$Kaynak}/{id}/update", 'update'],
+        'delete' => ['POST', "/api/{$Kaynak}/{id}/delete", 'delete'],
     ];
     
     foreach ($Aksiyonlar as $Metod => [$HttpMetod, $Yol, $Aksiyon]) {
@@ -74,6 +76,8 @@ function resource(string $Kaynak, string $Controller, array $Ayarlar = []): void
     if (!empty($Ayarlar['extra'])) {
         foreach ($Ayarlar['extra'] as $Extra) {
             [$HttpMetod, $Yol, $Perm, $ControllerMetod] = $Extra;
+            // Extra route'larda PUT/DELETE varsa POST'a cevir
+            $HttpMetod = in_array($HttpMetod, ['PUT', 'DELETE', 'PATCH']) ? 'POST' : $HttpMetod;
             $Router->add($HttpMetod, $Yol, guard($Perm, fn($P) => $Controller::$ControllerMetod($P)));
         }
     }
@@ -89,6 +93,8 @@ function resourceReadOnly(string $Kaynak, string $Controller): void
 
 /**
  * Instance gerektiren controller icin resource
+ * 
+ * NOT: REST standarti yerine sadece GET ve POST kullanilmaktadir.
  */
 function resourceInstance(string $Kaynak, string $Controller, array $Ayarlar = []): void
 {
@@ -101,8 +107,8 @@ function resourceInstance(string $Kaynak, string $Controller, array $Ayarlar = [
         'index'  => ['GET', "/api/{$Kaynak}", 'read'],
         'show'   => ['GET', "/api/{$Kaynak}/{id}", 'read'],
         'store'  => ['POST', "/api/{$Kaynak}", 'create'],
-        'update' => ['PUT', "/api/{$Kaynak}/{id}", 'update'],
-        'delete' => ['DELETE', "/api/{$Kaynak}/{id}", 'delete'],
+        'update' => ['POST', "/api/{$Kaynak}/{id}/update", 'update'],
+        'delete' => ['POST', "/api/{$Kaynak}/{id}/delete", 'delete'],
     ];
     
     foreach ($Aksiyonlar as $Metod => [$HttpMetod, $Yol, $Aksiyon]) {
@@ -120,6 +126,7 @@ function resourceInstance(string $Kaynak, string $Controller, array $Ayarlar = [
 
 $Router->add('GET', '/__internal__/install', fn() => InstallController::run());
 $Router->add('POST', '/__internal__/install', fn() => InstallController::run());
+$Router->add('GET', '/__internal__/check-columns', fn() => InstallController::checkColumns());
 
 $Router->add('GET', '/health', fn() => Response::json([
     'status' => 'ok',
@@ -162,7 +169,7 @@ resource('users', App\Controllers\UserController::class, [
     'extra' => [
         ['GET', '/api/users/{id}/roles', 'users.read', 'getRoles'],
         ['POST', '/api/users/{id}/roles', 'users.update', 'assignRoles'],
-        ['PUT', '/api/users/{id}/block', 'users.update', 'block'],
+        ['POST', '/api/users/{id}/block', 'users.update', 'block'],
     ]
 ]);
 
@@ -205,8 +212,8 @@ resource('guarantees', App\Controllers\GuaranteeController::class, [
 $Router->add('GET', '/api/stamp-taxes', guard('stamp_taxes.read', fn($P) => App\Controllers\StampTaxController::index($P)));
 $Router->add('GET', '/api/stamp-taxes/{id}', guard('stamp_taxes.read', fn($P) => App\Controllers\StampTaxController::show($P)));
 $Router->add('POST', '/api/stamp-taxes', guard('stamp_taxes.create', fn($P) => App\Controllers\StampTaxController::store($P)));
-$Router->add('PUT', '/api/stamp-taxes/{id}', guard('stamp_taxes.update', fn($P) => App\Controllers\StampTaxController::update($P)));
-$Router->add('DELETE', '/api/stamp-taxes/{id}', guard('stamp_taxes.delete', fn($P) => App\Controllers\StampTaxController::delete($P)));
+$Router->add('POST', '/api/stamp-taxes/{id}/update', guard('stamp_taxes.update', fn($P) => App\Controllers\StampTaxController::update($P)));
+$Router->add('POST', '/api/stamp-taxes/{id}/delete', guard('stamp_taxes.delete', fn($P) => App\Controllers\StampTaxController::delete($P)));
 $Router->add('GET', '/api/stamp-taxes/{id}/download', guard('stamp_taxes.read', fn($P) => App\Controllers\StampTaxController::download($P)));
 
 resource('files', App\Controllers\FileController::class, [
@@ -226,8 +233,8 @@ $Router->add('GET', '/api/calendar/day/{date}', guard('calendar.read', fn($P) =>
 $Router->add('GET', '/api/takvim', guard('calendar.read', fn($P) => App\Controllers\TakvimController::index($P)));
 $Router->add('GET', '/api/takvim/{id}', guard('calendar.read', fn($P) => App\Controllers\TakvimController::show($P)));
 $Router->add('POST', '/api/takvim', guard('calendar.create', fn($P) => App\Controllers\TakvimController::store($P)));
-$Router->add('PUT', '/api/takvim/{id}', guard('calendar.update', fn($P) => App\Controllers\TakvimController::update($P)));
-$Router->add('DELETE', '/api/takvim/{id}', guard('calendar.delete', fn($P) => App\Controllers\TakvimController::delete($P)));
+$Router->add('POST', '/api/takvim/{id}/update', guard('calendar.update', fn($P) => App\Controllers\TakvimController::update($P)));
+$Router->add('POST', '/api/takvim/{id}/delete', guard('calendar.delete', fn($P) => App\Controllers\TakvimController::delete($P)));
 
 // =============================================
 // READ-ONLY MODULLER
@@ -248,8 +255,8 @@ $Router->add('GET', '/api/alarms', guard('alarms.read', fn() => (new App\Control
 
 resource('parameters', App\Controllers\ParameterController::class, [
     'extra' => [
-        ['PUT', '/api/parameters/bulk', 'parameters.update', 'bulkUpdate'],
+        ['POST', '/api/parameters/bulk', 'parameters.update', 'bulkUpdate'],
         ['GET', '/api/parameters/reminder-settings', 'parameters.read', 'reminderSettings'],
-        ['PUT', '/api/parameters/reminder-settings', 'parameters.update', 'updateReminderSettings'],
+        ['POST', '/api/parameters/reminder-settings', 'parameters.update', 'updateReminderSettings'],
     ]
 ]);
