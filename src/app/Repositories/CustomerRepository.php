@@ -8,6 +8,42 @@ use App\Models\BaseModel;
 class CustomerRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_musteri';
+    
+    /**
+     * tbl_musteri tablosunda var olan kolonlar
+     * Bu whitelist, update/insert sirasinda olmayan kolonlarin SQL'e eklenmesini engeller
+     */
+    protected array $IzinVerilenKolonlar = [
+        'Id', 'Guid', 'EklemeZamani', 'EkleyenUserId', 'DegisiklikZamani', 'DegistirenUserId', 'Sil',
+        'MusteriKodu', 'Unvan', 'Aciklama', 'VergiDairesi', 'VergiNo', 'MersisNo',
+        'Il', 'Ilce', 'Adres', 'Telefon', 'Faks', 'Web'
+    ];
+
+    /**
+     * Override: Sadece izin verilen kolonlari ekle
+     */
+    public function ekle(array $Veri, ?int $KullaniciId = null): int
+    {
+        $Veri = $this->kolonlariFiltrele($Veri);
+        return parent::ekle($Veri, $KullaniciId);
+    }
+
+    /**
+     * Override: Sadece izin verilen kolonlari guncelle
+     */
+    public function guncelle(int $Id, array $Veri, ?int $KullaniciId = null, array $EkKosul = []): void
+    {
+        $Veri = $this->kolonlariFiltrele($Veri);
+        parent::guncelle($Id, $Veri, $KullaniciId, $EkKosul);
+    }
+
+    /**
+     * Izin verilmeyen kolonlari filtrele
+     */
+    protected function kolonlariFiltrele(array $Veri): array
+    {
+        return array_intersect_key($Veri, array_flip($this->IzinVerilenKolonlar));
+    }
 
     public function kullaniciyaGoreAktifler(int $KullaniciId): array
     {
