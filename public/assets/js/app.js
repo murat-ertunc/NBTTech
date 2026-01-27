@@ -789,38 +789,16 @@ const NbtApi = {
 
     get: (path) => NbtApi.request(path),
     post: (path, data) => NbtApi.request(path, { method: 'POST', body: JSON.stringify(data) }),
+    put: (path, data) => NbtApi.request(path, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (path) => NbtApi.request(path, { method: 'DELETE' }),
     
-    /**
-     * UPDATE islemi icin POST kullanir
-     * Eski PUT metodunun yerini alir - /resource/{id}/update endpoint'ine POST gonderir
-     * @param {string} path - Ornek: /api/customers/5 -> /api/customers/5/update olarak gonderilir
-     * @param {object} data - Gonderilecek veri
-     */
-    put: (path, data) => {
-        // path'e /update ekle (eger zaten yoksa)
-        const updatePath = path.endsWith('/update') ? path : `${path}/update`;
-        return NbtApi.request(updatePath, { method: 'POST', body: JSON.stringify(data) });
-    },
-    
-    /**
-     * DELETE islemi icin POST kullanir
-     * Eski DELETE metodunun yerini alir - /resource/{id}/delete endpoint'ine POST gonderir
-     * @param {string} path - Ornek: /api/customers/5 -> /api/customers/5/delete olarak gonderilir
-     */
-    delete: (path) => {
-        // path'e /delete ekle (eger zaten yoksa)
-        const deletePath = path.endsWith('/delete') ? path : `${path}/delete`;
-        return NbtApi.request(deletePath, { method: 'POST' });
-    },
-    
-    // FormData ile dosya yukleme - artik sadece POST kullanilir
+    // FormData ile dosya yukleme - method parametresi ile PUT/POST destegi
     postFormData: async (path, formData, method = 'POST') => {
-        // Eger update islemi ise path'i guncelle
-        let finalPath = path;
+        // PHP'de PUT ile FormData desteklenmez, POST metodu kullanip _method ile override ediyoruz
         if (method === 'PUT') {
-            finalPath = path.endsWith('/update') ? path : `${path}/update`;
+            formData.append('_method', 'PUT');
         }
-        return NbtApi.request(finalPath, { 
+        return NbtApi.request(path, { 
             method: 'POST', 
             body: formData 
             // Content-Type otomatik olarak boundary ile set edilir, manuel set etme
