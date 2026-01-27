@@ -20,7 +20,7 @@ require __DIR__ . '/../partials/header.php';
 
 <div class="container-fluid py-4">
   <div class="row justify-content-center">
-    <div class="col-12 col-lg-8 col-xl-6">
+    <div class="col-12">
       <!-- Breadcrumb ve Geri Butonu -->
       <div class="d-flex justify-content-between align-items-center mb-4">
         <nav aria-label="breadcrumb">
