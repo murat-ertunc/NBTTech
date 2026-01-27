@@ -12,11 +12,13 @@ class CustomerRepository extends BaseRepository
     /**
      * tbl_musteri tablosunda var olan kolonlar
      * Bu whitelist, update/insert sirasinda olmayan kolonlarin SQL'e eklenmesini engeller
+     * NOT: Il ve Ilce kolonlari 066_add_musteri_il_ilce.sql migration'i calistirilinca eklenecek
      */
     protected array $IzinVerilenKolonlar = [
         'Id', 'Guid', 'EklemeZamani', 'EkleyenUserId', 'DegisiklikZamani', 'DegistirenUserId', 'Sil',
         'MusteriKodu', 'Unvan', 'Aciklama', 'VergiDairesi', 'VergiNo', 'MersisNo',
-        'Il', 'Ilce', 'Adres', 'Telefon', 'Faks', 'Web'
+        'Adres', 'Telefon', 'Faks', 'Web'
+        // 'Il', 'Ilce' - Migration 066 calistirilinca bu satiri aktif et
     ];
 
     /**
