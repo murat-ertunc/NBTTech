@@ -133,6 +133,35 @@ require __DIR__ . '/../partials/header.php';
           </div>
         </div>
 
+        <!-- Takvim Hatırlatma Alanı -->
+        <div class="card mb-3">
+          <div class="card-header py-2 bg-light d-flex align-items-center">
+            <div class="form-check mb-0">
+              <input type="checkbox" class="form-check-input" id="invoiceTakvimAktif">
+              <label class="form-check-label fw-semibold" for="invoiceTakvimAktif">
+                <i class="bi bi-bell me-1"></i>Takvim Hatırlatması Oluştur
+              </label>
+            </div>
+          </div>
+          <div class="card-body py-3" id="takvimHatirlatmaAlani" style="display: none;">
+            <div class="row mb-2">
+              <label class="col-4 col-form-label col-form-label-sm fw-semibold">Hatırlatma Süresi</label>
+              <div class="col-8">
+                <div class="d-flex gap-2">
+                  <input type="number" min="1" class="form-control form-control-sm number__input" id="invoiceTakvimSure" placeholder="Örn: 3">
+                  <select class="form-select form-select-sm" id="invoiceTakvimSureTipi">
+                    <option value="">Seçiniz...</option>
+                    <option value="gun">gün</option>
+                    <option value="hafta">hafta</option>
+                    <option value="ay">ay</option>
+                    <option value="yil">yıl</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Fatura Kalemleri Tablosu -->
         <div class="card">
           <div class="card-header py-2 bg-light d-flex justify-content-between align-items-center">
@@ -285,25 +314,31 @@ document.addEventListener('DOMContentLoaded', function() {
         NbtParams.populateCurrencySelect(dovizSelect);
     }
     
-    // Projeleri yükle fonksiyonu
+    // Projeleri yükle fonksiyonu (meetings/new ile AYNI mantık)
     async function loadProjects(musteriId) {
-        projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
-        if (!musteriId) return;
-        
-        try {
-            const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
-            let projects = response.data || [];
-            
-            // Pasif durumdaki projeleri filtrele
-            const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
-            projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
-            
-            projects.forEach(p => {
-                projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
-            });
-        } catch (err) {
-            console.error('Projeler yüklenemedi:', err);
-        }
+      if (!projeSelect) return;
+      if (window.NbtProjectSelect) {
+        await window.NbtProjectSelect.loadForCustomer(projeSelect, musteriId);
+        return;
+      }
+      projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
+      if (!musteriId) return;
+      try {
+        const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
+        let projects = response.data || [];
+        const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
+        projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
+        const uniq = new Map();
+        projects.forEach(p => {
+          const key = String(p.Id);
+          if (!uniq.has(key)) uniq.set(key, p);
+        });
+        Array.from(uniq.values()).forEach(p => {
+          projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
+        });
+      } catch (err) {
+        console.error('Projeler yüklenemedi:', err);
+      }
     }
     
     // Edit modunda veri yükle
@@ -318,7 +353,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Önce müşteriyi seç, sonra projeleri yükle
                 musteriSelect.value = invoice.MusteriId || '';
                 await loadProjects(invoice.MusteriId);
-                projeSelect.value = invoice.ProjeId || '';
+                if (projeSelect) {
+                  projeSelect.value = invoice.ProjeId || '';
+                }
                 
                 document.getElementById('invoiceFaturaNo').value = invoice.FaturaNo || '';
                 document.getElementById('invoiceTarih').value = invoice.Tarih?.split('T')[0] || '';
@@ -333,6 +370,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('invoiceTevkifatOran2').value = parseFloat(invoice.TevkifatOran2) || '';
                 }
                 
+                // Takvim hatırlatma
+                if (parseInt(invoice.TakvimAktif, 10) === 1) {
+                  document.getElementById('invoiceTakvimAktif').checked = true;
+                  document.getElementById('takvimHatirlatmaAlani').style.display = 'block';
+                  if (invoice.TakvimSure) {
+                    document.getElementById('invoiceTakvimSure').value = invoice.TakvimSure;
+                  }
+                  if (invoice.TakvimSureTipi) {
+                    document.getElementById('invoiceTakvimSureTipi').value = invoice.TakvimSureTipi;
+                  }
+                }
+
                 // Kalemler
                 if (invoice.Kalemler && Array.isArray(invoice.Kalemler)) {
                     loadInvoiceItemsUI(invoice.Kalemler);
@@ -437,8 +486,27 @@ document.addEventListener('DOMContentLoaded', function() {
             saveInvoice();
         });
     }
+
+    // Takvim hatırlatma toggle
+    const takvimCheckbox = document.getElementById('invoiceTakvimAktif');
+    const takvimAlani = document.getElementById('takvimHatirlatmaAlani');
+    if (takvimCheckbox && takvimAlani) {
+      takvimCheckbox.addEventListener('change', function() {
+        takvimAlani.style.display = this.checked ? 'block' : 'none';
+        if (!this.checked) {
+          const sureEl = document.getElementById('invoiceTakvimSure');
+          const tipEl = document.getElementById('invoiceTakvimSureTipi');
+          if (sureEl) sureEl.value = '';
+          if (tipEl) tipEl.value = '';
+        }
+      });
+    }
     
     async function saveInvoice() {
+      if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kaydediliyor...';
+      }
         const id = document.getElementById('invoiceId').value;
         const musteriId = parseInt(document.getElementById('invoiceMusteriId').value);
         const projeId = parseInt(document.getElementById('invoiceProjeId').value);
@@ -446,22 +514,38 @@ document.addEventListener('DOMContentLoaded', function() {
         // Validasyon
         if (!musteriId) {
             NbtToast.error('Müşteri seçiniz');
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+          }
             return;
         }
         if (!projeId) {
             NbtToast.error('Proje seçiniz');
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+          }
             return;
         }
         
         const tarih = document.getElementById('invoiceTarih').value;
         if (!tarih) {
             NbtToast.error('Tarih zorunludur');
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+          }
             return;
         }
         
         const kalemler = getInvoiceItems();
         if (!kalemler || kalemler.length === 0) {
             NbtToast.error('En az bir fatura kalemi eklemelisiniz');
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+          }
             return;
         }
         
@@ -470,6 +554,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const tutar = parseFloat(genelToplamEl?.value) || 0;
         
         const tevkifatAktif = document.getElementById('invoiceTevkifatAktif')?.checked ? 1 : 0;
+        const takvimAktif = document.getElementById('invoiceTakvimAktif')?.checked ? 1 : 0;
+        const takvimSureRaw = document.getElementById('invoiceTakvimSure')?.value || '';
+        const takvimSure = parseInt(takvimSureRaw, 10);
+        const takvimSureTipi = document.getElementById('invoiceTakvimSureTipi')?.value || '';
+        const allowedSureTipleri = ['gun', 'hafta', 'ay', 'yil'];
+
+        if (takvimAktif === 1 && (takvimSureRaw !== '' || takvimSureTipi !== '')) {
+          if (!takvimSure || takvimSure <= 0) {
+            NbtToast.error('Takvim hatırlatma süresi geçersiz');
+            if (btnSave) {
+              btnSave.disabled = false;
+              btnSave.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+            }
+            return;
+          }
+          if (!allowedSureTipleri.includes(takvimSureTipi)) {
+            NbtToast.error('Takvim hatırlatma birimi geçersiz');
+            if (btnSave) {
+              btnSave.disabled = false;
+              btnSave.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+            }
+            return;
+          }
+        }
         
         const data = {
             MusteriId: musteriId,
@@ -482,6 +590,9 @@ document.addEventListener('DOMContentLoaded', function() {
             TevkifatAktif: tevkifatAktif,
             TevkifatOran1: tevkifatAktif ? (parseFloat(document.getElementById('invoiceTevkifatOran1')?.value) || null) : null,
             TevkifatOran2: tevkifatAktif ? (parseFloat(document.getElementById('invoiceTevkifatOran2')?.value) || null) : null,
+            TakvimAktif: takvimAktif,
+            TakvimSure: takvimAktif && takvimSure > 0 ? takvimSure : null,
+            TakvimSureTipi: takvimAktif && allowedSureTipleri.includes(takvimSureTipi) ? takvimSureTipi : null,
             Kalemler: kalemler
         };
         
@@ -509,6 +620,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (err) {
             NbtToast.error(err.message || 'Kayıt sırasında hata oluştu');
+        } finally {
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+          }
         }
     }
     
@@ -684,42 +800,3 @@ window.calculateInvoiceItemsTotals = calculateInvoiceItemsTotals;
 </script>
 
 <?php require __DIR__ . '/../partials/footer.php'; ?>
-
-<script>
-// Footer yüklendikten sonra init işlemleri
-(function() {
-    // Sayfa yüklendiğinde proje yükleme garantisi
-    const projeSelect = document.getElementById('invoiceProjeId');
-    const invoiceId = document.getElementById('invoiceId')?.value || '0';
-    const phpMusteriId = '<?= (int)$MusteriId ?>';
-    
-    // Eğer proje select hala boşsa, projeleri yükle
-    if (projeSelect && projeSelect.options.length <= 1 && phpMusteriId && phpMusteriId !== '0') {
-        if (!invoiceId || invoiceId === '0') {
-            // Yeni fatura modunda projeleri yükle
-            loadProjectsForInvoice(phpMusteriId);
-        }
-    }
-    
-    async function loadProjectsForInvoice(musteriId) {
-        if (!projeSelect || !musteriId) return;
-        
-        projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
-        
-        try {
-            const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
-            let projects = response.data || [];
-            
-            // Pasif durumdaki projeleri filtrele
-            const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
-            projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
-            
-            projects.forEach(p => {
-                projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
-            });
-        } catch (err) {
-            console.error('Projeler yüklenemedi (footer sonrası):', err);
-        }
-    }
-})();
-</script>

@@ -49,14 +49,14 @@ $Router->add('GET', '/dashboard', function () use ($PagesPath) {
 
 // ===== MUSTERILER =====
 
-// Yeni müşteri ekle (modal yerine tam sayfa)
+// Yeni müşteri ekle 
 $Router->add('GET', '/customer/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('customers.create')) return;
 	$MusteriId = 0;
 	require $PagesPath . 'customers' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// Müşteri düzenle (modal yerine tam sayfa)
+// Müşteri düzenle 
 $Router->add('GET', '/customer/{id}/edit', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('customers.update')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);

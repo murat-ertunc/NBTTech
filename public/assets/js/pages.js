@@ -3246,6 +3246,7 @@ const CustomerDetailModule = {
 // =============================================
 const InvoiceModule = {
     _eventsBound: false,
+    _saving: false,
     data: [],
     pageSize: window.APP_CONFIG?.PAGINATION_DEFAULT || 10,
     currentPage: 1,
@@ -3691,19 +3692,25 @@ const InvoiceModule = {
         // Fatura kalemlerini sifirla
         this.resetInvoiceItems();
 
-        // Projeleri yukle fonksiyonu
+        // Projeleri yukle fonksiyonu (meeting/new ile ortak mantik)
         const loadProjects = async (musteriId) => {
+            if (window.NbtProjectSelect && projeSelect) {
+                await window.NbtProjectSelect.loadForCustomer(projeSelect, musteriId);
+                return;
+            }
             projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
             if (musteriId) {
                 try {
                     const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
                     let projects = response.data || [];
-                    
-                    // Pasif durumdaki projeleri filtrele
                     const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
                     projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
-                    
+                    const uniq = new Map();
                     projects.forEach(p => {
+                        const key = String(p.Id);
+                        if (!uniq.has(key)) uniq.set(key, p);
+                    });
+                    Array.from(uniq.values()).forEach(p => {
                         projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
                     });
                 } catch (err) {
@@ -3803,6 +3810,8 @@ const InvoiceModule = {
     },
 
     async save() {
+        if (this._saving) return;
+        this._saving = true;
         const id = document.getElementById('invoiceId').value;
         
         let musteriId = parseInt(document.getElementById('invoiceMusteriId').value);
@@ -3828,8 +3837,25 @@ const InvoiceModule = {
         
         // Takvim hatırlatma değerlerini al
         const takvimAktif = document.getElementById('invoiceTakvimAktif')?.checked ? 1 : 0;
-        const takvimSure = parseInt(document.getElementById('invoiceTakvimSure')?.value) || null;
-        const takvimSureTipi = document.getElementById('invoiceTakvimSureTipi')?.value || null;
+        const takvimSureRaw = document.getElementById('invoiceTakvimSure')?.value || '';
+        const takvimSure = parseInt(takvimSureRaw, 10) || null;
+        const takvimSureTipi = document.getElementById('invoiceTakvimSureTipi')?.value || '';
+        const allowedSureTipleri = ['gun', 'hafta', 'ay', 'yil'];
+
+        if (takvimAktif === 1 && (takvimSureRaw !== '' || takvimSureTipi !== '')) {
+            if (!takvimSure || takvimSure <= 0) {
+                NbtModal.showError('invoiceModal', 'Takvim hatırlatma süresi geçersiz');
+                this._saving = false;
+                NbtModal.setLoading('invoiceModal', false);
+                return;
+            }
+            if (!allowedSureTipleri.includes(takvimSureTipi)) {
+                NbtModal.showError('invoiceModal', 'Takvim hatırlatma birimi geçersiz');
+                this._saving = false;
+                NbtModal.setLoading('invoiceModal', false);
+                return;
+            }
+        }
         
         const doviz = document.getElementById('invoiceDoviz')?.value || NbtParams.getDefaultCurrency();
 
@@ -3846,8 +3872,8 @@ const InvoiceModule = {
             TevkifatOran1: tevkifatOran1 || null,
             TevkifatOran2: tevkifatOran2 || null,
             TakvimAktif: takvimAktif,
-            TakvimSure: takvimAktif ? takvimSure : null,
-            TakvimSureTipi: takvimAktif ? takvimSureTipi : null,
+            TakvimSure: takvimAktif && takvimSure > 0 ? takvimSure : null,
+            TakvimSureTipi: takvimAktif && allowedSureTipleri.includes(takvimSureTipi) ? takvimSureTipi : null,
             Kalemler: this.getInvoiceItems()
         };
 
@@ -3906,6 +3932,7 @@ const InvoiceModule = {
             NbtModal.showError('invoiceModal', err.message);
         } finally {
             NbtModal.setLoading('invoiceModal', false);
+            this._saving = false;
         }
     },
 
@@ -4150,6 +4177,8 @@ const InvoiceModule = {
 
     bindEvents() {
         if (this._eventsBound) return;
+        // Sayfa formu varsa modal bind'i yapma (double submit engeli)
+        if (document.getElementById('invoicePageForm')) return;
         this._eventsBound = true;
         document.getElementById('btnSaveInvoice')?.addEventListener('click', () => this.save());
         
@@ -4159,6 +4188,38 @@ const InvoiceModule = {
             fileInput.addEventListener('change', () => this.handleFileSelect(fileInput));
         }
 
+    }
+};
+
+// =============================================
+// PROJE SELECT HELPER - Meeting/Invoice ortak mantik
+// =============================================
+window.NbtProjectSelect = {
+    async loadForCustomer(selectEl, musteriId) {
+        if (!selectEl) return;
+        selectEl.innerHTML = '<option value="">Proje Seçiniz...</option>';
+        if (!musteriId) return;
+        try {
+            const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
+            let projects = response.data || [];
+
+            // Pasif projeleri filtrele
+            const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
+            projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
+
+            // Duplicate'leri temizle (Id bazli)
+            const uniq = new Map();
+            projects.forEach(p => {
+                const key = String(p.Id);
+                if (!uniq.has(key)) uniq.set(key, p);
+            });
+
+            Array.from(uniq.values()).forEach(p => {
+                selectEl.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
+            });
+        } catch (err) {
+            NbtLogger.error('Projeler yüklenemedi:', err);
+        }
     }
 };
 
@@ -11657,16 +11718,23 @@ const NbtPageForm = {
         const projeSelect = document.getElementById(config.projeSelectId);
         if (!projeSelect || !this.musteriId) return;
 
+        if (window.NbtProjectSelect) {
+            await window.NbtProjectSelect.loadForCustomer(projeSelect, this.musteriId);
+            return;
+        }
+
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
         try {
             const response = await NbtApi.get(`/api/projects?musteri_id=${this.musteriId}`);
             let projects = response.data || [];
-            
-            // Pasif projeleri filtrele
             const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
             projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
-            
+            const uniq = new Map();
             projects.forEach(p => {
+                const key = String(p.Id);
+                if (!uniq.has(key)) uniq.set(key, p);
+            });
+            Array.from(uniq.values()).forEach(p => {
                 projeSelect.innerHTML += `<option value="${p.Id}">${NbtUtils.escapeHtml(p.ProjeAdi || '')}</option>`;
             });
         } catch (err) {
