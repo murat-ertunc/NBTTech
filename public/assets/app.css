@@ -7,6 +7,25 @@
 .card-body .table-responsive { overflow: visible !important; }
 .card { overflow: visible !important; }
 
+/* =============================================
+  MODAL OVERFLOW FIXES
+  Uzun metinlerin modal layout'unu bozmasini engeller
+  ============================================= */
+.modal .u-break-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+.modal .u-break-all { word-break: break-all; }
+.modal .u-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; max-width: 100%; }
+
+.modal .row > [class*="col-"] { min-width: 0; }
+.modal .modal-body .form-control,
+.modal .modal-body .form-select,
+.modal .modal-body .input-group { min-width: 0; max-width: 100%; }
+
+.modal .modal-body .table-responsive { overflow-x: auto; }
+.modal .modal-body .table td,
+.modal .modal-body .table th { word-break: break-word; overflow-wrap: anywhere; }
+
+.modal .list-group-item { overflow-wrap: anywhere; word-break: break-word; }
+
 /* Dashboard stacking fix REMOVED - using natural flow */
 /* #view-dashboard .row.flex-grow-1 { z-index: 2; } */
 /* #view-dashboard .row.flex-shrink-0 { z-index: 1; } */

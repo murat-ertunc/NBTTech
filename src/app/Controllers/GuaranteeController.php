@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
+use App\Core\UploadValidator;
+use App\Core\DownloadHelper;
 use App\Repositories\GuaranteeRepository;
 use App\Services\CalendarService;
 
@@ -100,6 +102,11 @@ class GuaranteeController
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $Hata = UploadValidator::validateDocument($_FILES['dosya'], 10 * 1024 * 1024);
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
+                return;
+            }
             $YuklemeKlasoru = STORAGE_PATH . 'uploads' . DIRECTORY_SEPARATOR;
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
@@ -199,6 +206,11 @@ class GuaranteeController
 
         // Yeni dosya yuklendiyse
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $Hata = UploadValidator::validateDocument($_FILES['dosya'], 10 * 1024 * 1024);
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
+                return;
+            }
             // Eski dosyayi sil
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
@@ -315,12 +327,6 @@ class GuaranteeController
         }
 
         $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
-        $MimeType = mime_content_type($FilePath) ?: 'application/octet-stream';
-
-        header('Content-Type: ' . $MimeType);
-        header('Content-Disposition: attachment; filename="' . $DosyaAdi . '"');
-        header('Content-Length: ' . filesize($FilePath));
-        readfile($FilePath);
-        exit;
+        DownloadHelper::outputFile($FilePath, $DosyaAdi);
     }
 }

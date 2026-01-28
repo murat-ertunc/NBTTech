@@ -21,6 +21,32 @@ const AppState = {
 };
 
 // =============================================
+// DOSYA DOGRULAMA - PDF/DOC/DOCX
+// =============================================
+const NbtDocumentFile = {
+    maxSize: 10 * 1024 * 1024,
+    allowedExtensions: ['.pdf', '.doc', '.docx'],
+    errorMessage: 'Sadece PDF veya Word (.pdf, .doc, .docx) yüklenebilir.',
+    validate(file) {
+        const errors = [];
+        if (!file) return errors;
+        if (!file.name) {
+            errors.push(this.errorMessage);
+            return errors;
+        }
+        if (file.size <= 0 || file.size > this.maxSize) {
+            errors.push(this.errorMessage);
+            return errors;
+        }
+        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+        if (!this.allowedExtensions.includes(fileExt)) {
+            errors.push(this.errorMessage);
+        }
+        return errors;
+    }
+};
+
+// =============================================
 // GLOBAL CUSTOMER SIDEBAR - Her sayfada gosterilen musteri listesi
 // =============================================
 const GlobalCustomerSidebar = {
@@ -2991,9 +3017,18 @@ const CustomerDetailModule = {
                 if (tab === 'damgavergisi') {
                     // Damga vergisi icin dogrudan kendi endpoint'ini kullan
                     downloadUrl = `/api/stamp-taxes/${id}/download`;
+                } else if (tab === 'teklifler') {
+                    // Teklif icin dogrudan kendi endpoint'ini kullan
+                    downloadUrl = `/api/offers/${id}/download`;
+                } else if (tab === 'sozlesmeler') {
+                    // Sözleşme icin dogrudan kendi endpoint'ini kullan
+                    downloadUrl = `/api/contracts/${id}/download`;
                 } else if (tab === 'teminatlar') {
                     // Teminat icin dogrudan kendi endpoint'ini kullan
                     downloadUrl = `/api/guarantees/${id}/download`;
+                } else if (tab === 'odemeler') {
+                    // Ödeme icin dogrudan kendi endpoint'ini kullan
+                    downloadUrl = `/api/payments/${id}/download`;
                 } else if (tab === 'dosyalar') {
                     // Dosyalar tab'i - files endpoint kullan
                     downloadUrl = `/api/files/${id}/download`;
@@ -4228,6 +4263,7 @@ window.NbtProjectSelect = {
 // =============================================
 const PaymentModule = {
     _eventsBound: false,
+    removeExistingFile: false,
     data: [],
     pageSize: window.APP_CONFIG?.PAGINATION_DEFAULT || 10,
     currentPage: 1,
@@ -4668,6 +4704,16 @@ const PaymentModule = {
         document.getElementById('paymentModalTitle').textContent = id ? 'Ödeme Düzenle' : 'Yeni Ödeme';
         document.getElementById('paymentId').value = id || '';
 
+        this.removeExistingFile = false;
+        const fileInput = document.getElementById('paymentDosya');
+        if (fileInput) {
+            fileInput.value = '';
+            fileInput.classList.remove('is-invalid');
+        }
+        const fileErrorEl = document.getElementById('paymentDosyaError');
+        if (fileErrorEl) fileErrorEl.textContent = '';
+        document.getElementById('paymentCurrentFile')?.classList.add('d-none');
+
         const select = document.getElementById('paymentMusteriId');
         CustomerDetailModule.populateCustomerSelect(select);
         select.disabled = false;
@@ -4711,6 +4757,11 @@ const PaymentModule = {
                     // Edit modda mevcut odeme bilgisini gonder - kalan tutar hesaplamasi icin
                     await this.loadInvoicesForCustomer(payment.MusteriId, payment);
                     faturaSelect.value = payment.FaturaId;
+                }
+                if (payment.DosyaAdi) {
+                    const nameEl = document.getElementById('paymentCurrentFileName');
+                    if (nameEl) nameEl.textContent = payment.DosyaAdi;
+                    document.getElementById('paymentCurrentFile')?.classList.remove('d-none');
                 }
             } else {
                 NbtToast.error('Ödeme kaydı bulunamadı');
@@ -4783,14 +4834,47 @@ const PaymentModule = {
             }
         }
 
+        const fileInput = document.getElementById('paymentDosya');
+        const file = fileInput?.files?.[0];
+        if (file) {
+            const errors = NbtDocumentFile.validate(file);
+            if (errors.length > 0) {
+                fileInput.classList.add('is-invalid');
+                const errorEl = document.getElementById('paymentDosyaError');
+                if (errorEl) errorEl.textContent = errors.join(' ');
+                NbtModal.showError('paymentModal', errors.join(' '));
+                return;
+            }
+        }
+
         NbtModal.setLoading('paymentModal', true);
         try {
-            if (id) {
-                await NbtApi.put(`/api/payments/${id}`, data);
-                NbtToast.success('Ödeme güncellendi');
+            if (file || this.removeExistingFile) {
+                const formData = new FormData();
+                formData.append('MusteriId', data.MusteriId);
+                if (data.ProjeId) formData.append('ProjeId', data.ProjeId);
+                if (data.FaturaId) formData.append('FaturaId', data.FaturaId);
+                formData.append('Tarih', data.Tarih);
+                formData.append('Tutar', data.Tutar);
+                if (data.Aciklama) formData.append('Aciklama', data.Aciklama);
+                if (file) formData.append('dosya', file);
+                if (this.removeExistingFile) formData.append('removeFile', '1');
+
+                if (id) {
+                    await NbtApi.postFormData(`/api/payments/${id}`, formData, 'PUT');
+                    NbtToast.success('Ödeme güncellendi');
+                } else {
+                    await NbtApi.postFormData('/api/payments', formData);
+                    NbtToast.success('Ödeme eklendi');
+                }
             } else {
-                await NbtApi.post('/api/payments', data);
-                NbtToast.success('Ödeme eklendi');
+                if (id) {
+                    await NbtApi.put(`/api/payments/${id}`, data);
+                    NbtToast.success('Ödeme güncellendi');
+                } else {
+                    await NbtApi.post('/api/payments', data);
+                    NbtToast.success('Ödeme eklendi');
+                }
             }
             NbtModal.close('paymentModal');
             await this.loadList();
@@ -4811,6 +4895,23 @@ const PaymentModule = {
         if (this._eventsBound) return;
         this._eventsBound = true;
         document.getElementById('btnSavePayment')?.addEventListener('click', () => this.save());
+        document.getElementById('paymentDosya')?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            const errorEl = document.getElementById('paymentDosyaError');
+            e.target.classList.remove('is-invalid');
+            if (errorEl) errorEl.textContent = '';
+            if (file) {
+                const errors = NbtDocumentFile.validate(file);
+                if (errors.length > 0) {
+                    e.target.classList.add('is-invalid');
+                    if (errorEl) errorEl.textContent = errors.join(' ');
+                }
+            }
+        });
+        document.getElementById('btnRemovePaymentFile')?.addEventListener('click', () => {
+            this.removeExistingFile = true;
+            document.getElementById('paymentCurrentFile')?.classList.add('d-none');
+        });
     }
 };
 
@@ -5221,23 +5322,7 @@ const StampTaxModule = {
     },
     
     validatePdfFile(file) {
-        const errors = [];
-        
-        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-            errors.push('Sadece PDF dosyası yükleyebilirsiniz.');
-        }
-        
-        const maxSize = 10 * 1024 * 1024;
-        if (file.size > maxSize) {
-            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            errors.push(`Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
-        }
-        
-        if (file.size === 0) {
-            errors.push('Dosya boş olamaz.');
-        }
-        
-        return errors;
+        return NbtDocumentFile.validate(file);
     },
 
     async save() {
@@ -7876,7 +7961,9 @@ const UserModule = {
         const addBtn = document.getElementById('usersAddBtn');
         if (!addBtn) return;
 
-        addBtn.addEventListener('click', () => this.openModal());
+        addBtn.addEventListener('click', () => {
+            window.location.href = '/users/new';
+        });
     },
 
     async applyFilters(page = 1) {
@@ -8066,7 +8153,9 @@ const UserModule = {
         container.querySelectorAll('[data-action="edit"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = parseInt(btn.dataset.id);
-                this.openModal(id);
+                if (!isNaN(id)) {
+                    window.location.href = `/users/${id}/edit`;
+                }
             });
         });
 
@@ -9235,27 +9324,7 @@ const OfferModule = {
 
     // PDF ve Word dosya dogrulama
     validateOfferFile(file) {
-        const errors = [];
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        
-        if (file.size > maxSize) {
-            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            errors.push(`Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
-        }
-        
-        const allowedTypes = [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ];
-        const allowedExtensions = ['.pdf', '.doc', '.docx'];
-        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
-        
-        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
-            errors.push('Sadece PDF veya Word dosyası (.pdf, .doc, .docx) yüklenebilir.');
-        }
-        
-        return errors;
+        return NbtDocumentFile.validate(file);
     },
 
     async save() {
@@ -9879,9 +9948,14 @@ const ContractModule = {
                 
                 // Mevcut dosyayi goster
                 if (contract.DosyaAdi && contract.DosyaYolu) {
-                    document.getElementById('contractCurrentFileName').textContent = contract.DosyaAdi;
+                    const fileNameEl = document.getElementById('contractCurrentFileName');
+                    if (fileNameEl) {
+                        fileNameEl.textContent = contract.DosyaAdi;
+                        fileNameEl.title = contract.DosyaAdi;
+                    }
                     document.getElementById('contractCurrentFile').classList.remove('d-none');
                 }
+
             } else {
                 NbtToast.error('Sözleşme kaydı bulunamadı');
                 return;
@@ -9891,25 +9965,9 @@ const ContractModule = {
         NbtModal.open('contractModal');
     },
 
-    // PDF dosya dogrulama
+    // PDF/Word dosya dogrulama
     validatePdfFile(file) {
-        const errors = [];
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        
-        if (file.size > maxSize) {
-            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            errors.push(`Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
-        }
-        
-        const allowedTypes = ['application/pdf'];
-        const allowedExtensions = ['.pdf'];
-        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
-        
-        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
-            errors.push('Sadece PDF dosyası yüklenebilir.');
-        }
-        
-        return errors;
+        return NbtDocumentFile.validate(file);
     },
 
     async save() {
@@ -9953,6 +10011,7 @@ const ContractModule = {
                 return;
             }
         }
+
 
         NbtModal.setLoading('contractModal', true);
         try {
@@ -10030,6 +10089,7 @@ const ContractModule = {
                 }
             }
         });
+
         
         document.getElementById('btnRemoveContractFile')?.addEventListener('click', () => {
             this.removeExistingFile = true;
@@ -10547,23 +10607,7 @@ const GuaranteeModule = {
     },
     
     validatePdfFile(file) {
-        const errors = [];
-        
-        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-            errors.push('Sadece PDF dosyası yükleyebilirsiniz.');
-        }
-        
-        const maxSize = 10 * 1024 * 1024;
-        if (file.size > maxSize) {
-            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            errors.push(`Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
-        }
-        
-        if (file.size === 0) {
-            errors.push('Dosya boş olamaz.');
-        }
-        
-        return errors;
+        return NbtDocumentFile.validate(file);
     },
 
     async save() {
@@ -10823,26 +10867,7 @@ const NbtOfferPageForm = {
     },
 
     validateOfferFile(file) {
-        const errors = [];
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        
-        if (file.size > maxSize) {
-            errors.push(`Dosya boyutu çok büyük. Maksimum 10MB.`);
-        }
-        
-        const allowedTypes = [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ];
-        const allowedExtensions = ['.pdf', '.doc', '.docx'];
-        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
-        
-        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
-            errors.push('Sadece PDF veya Word dosyası (.pdf, .doc, .docx) yüklenebilir.');
-        }
-        
-        return errors;
+        return NbtDocumentFile.validate(file);
     },
 
     showError(message) {
@@ -11039,8 +11064,14 @@ const NbtContractPageForm = {
 
             // Mevcut dosyayi goster
             if (contract.DosyaAdi && contract.DosyaYolu) {
-                document.getElementById('contractCurrentFileName').textContent = contract.DosyaAdi;
-                document.getElementById('contractCurrentFile').classList.remove('d-none');
+                const fileNameEl = document.getElementById('contractCurrentFileName');
+                const fileDownloadEl = document.getElementById('contractCurrentFileDownload');
+                if (fileNameEl) {
+                    fileNameEl.textContent = contract.DosyaAdi;
+                    fileNameEl.title = contract.DosyaAdi;
+                }
+                if (fileDownloadEl) fileDownloadEl.href = `/api/contracts/${this.sozlesmeId}/download`;
+                document.getElementById('contractCurrentFile')?.classList.remove('d-none');
             }
         } catch (err) {
             NbtToast.error('Sözleşme yüklenemedi: ' + err.message);
@@ -11048,22 +11079,7 @@ const NbtContractPageForm = {
     },
 
     validatePdfFile(file) {
-        const errors = [];
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        
-        if (file.size > maxSize) {
-            errors.push(`Dosya boyutu çok büyük. Maksimum 10MB.`);
-        }
-        
-        const allowedTypes = ['application/pdf'];
-        const allowedExtensions = ['.pdf'];
-        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
-        
-        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
-            errors.push('Sadece PDF dosyası yüklenebilir.');
-        }
-        
-        return errors;
+        return NbtDocumentFile.validate(file);
     },
 
     showError(message) {
@@ -11109,6 +11125,7 @@ const NbtContractPageForm = {
                 return;
             }
         }
+
 
         const btn = document.getElementById('btnSaveContractPage');
         if (btn) {
@@ -11166,11 +11183,381 @@ const NbtContractPageForm = {
                 }
             }
         });
+
         
         document.getElementById('btnRemoveContractFile')?.addEventListener('click', () => {
             this.removeExistingFile = true;
             document.getElementById('contractCurrentFile')?.classList.add('d-none');
         });
+    }
+};
+
+// =============================================
+// ROL SAYFA FORMU - Modal yerine sayfa bazli form
+// =============================================
+const NbtRolePageForm = {
+    _eventsBound: false,
+    rolId: null,
+
+    init(rolId = null) {
+        const form = document.getElementById('rolePageForm');
+        if (!form) return;
+
+        this.rolId = rolId || parseInt(document.getElementById('roleId')?.value) || 0;
+
+        if (this.rolId > 0) {
+            this.loadRoleData();
+        }
+
+        this.bindEvents();
+    },
+
+    async loadRoleData() {
+        try {
+            const response = await NbtApi.get(`/api/roles/${this.rolId}`);
+            const role = response.data || response;
+            if (!role) {
+                this.showError('Rol bulunamadı');
+                return;
+            }
+
+            const roleKoduEl = document.getElementById('roleKodu');
+            if (roleKoduEl) {
+                roleKoduEl.value = role.RolKodu || '';
+                roleKoduEl.disabled = true;
+            }
+            document.getElementById('roleAdi').value = role.RolAdi || '';
+            document.getElementById('roleAktif').value = role.Aktif ?? 1;
+        } catch (err) {
+            this.showError('Rol bilgileri alınamadı: ' + err.message);
+        }
+    },
+
+    clearErrors() {
+        const errorEl = document.getElementById('roleFormError');
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.add('d-none');
+        }
+
+        const fields = ['roleAdi', 'roleKodu', 'roleAktif'];
+        fields.forEach(id => {
+            const input = document.getElementById(id);
+            const error = document.getElementById(`${id}Error`);
+            if (input) input.classList.remove('is-invalid');
+            if (error) error.textContent = '';
+        });
+    },
+
+    showError(message) {
+        const errorEl = document.getElementById('roleFormError');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.classList.remove('d-none');
+        }
+    },
+
+    showFieldErrors(fields) {
+        if (!fields || typeof fields !== 'object') return;
+        const fieldMap = {
+            RolAdi: 'roleAdi',
+            RolKodu: 'roleKodu',
+            Aktif: 'roleAktif'
+        };
+
+        const list = [];
+        Object.keys(fields).forEach(key => {
+            const messages = Array.isArray(fields[key]) ? fields[key] : [fields[key]];
+            messages.forEach(msg => list.push(msg));
+
+            const targetId = fieldMap[key];
+            if (targetId) {
+                const input = document.getElementById(targetId);
+                const errorEl = document.getElementById(`${targetId}Error`);
+                if (input) input.classList.add('is-invalid');
+                if (errorEl) errorEl.textContent = messages[0] || '';
+            }
+        });
+
+        if (list.length > 0) {
+            this.showError(list.join(' '));
+        }
+    },
+
+    async save() {
+        this.clearErrors();
+        const roleKoduEl = document.getElementById('roleKodu');
+        const roleAdiEl = document.getElementById('roleAdi');
+
+        const data = {
+            RolAdi: roleAdiEl?.value.trim() || '',
+            Aktif: parseInt(document.getElementById('roleAktif').value)
+        };
+
+        if (roleKoduEl && !roleKoduEl.disabled) {
+            data.RolKodu = roleKoduEl.value.trim();
+        }
+
+        const fieldErrors = {};
+        if (!data.RolAdi) fieldErrors.RolAdi = ['Rol adı zorunludur.'];
+        if (this.rolId <= 0 && !data.RolKodu) fieldErrors.RolKodu = ['Rol kodu zorunludur.'];
+
+        if (Object.keys(fieldErrors).length > 0) {
+            this.showFieldErrors(fieldErrors);
+            return;
+        }
+
+        const btn = document.getElementById('btnSaveRolePage');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kaydediliyor...';
+        }
+
+        try {
+            if (this.rolId > 0) {
+                await NbtApi.put(`/api/roles/${this.rolId}`, data);
+                NbtToast.success('Rol güncellendi');
+            } else {
+                await NbtApi.post('/api/roles', data);
+                NbtToast.success('Rol oluşturuldu');
+            }
+            window.location.href = '/roles';
+        } catch (err) {
+            if (err?.fields) {
+                this.showFieldErrors(err.fields);
+            } else {
+                this.showError(err.message || 'İşlem başarısız');
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+            }
+        }
+    },
+
+    bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
+        document.getElementById('btnSaveRolePage')?.addEventListener('click', () => this.save());
+    }
+};
+
+// =============================================
+// KULLANICI SAYFA FORMU - Modal yerine sayfa bazli form
+// =============================================
+const NbtUserPageForm = {
+    _eventsBound: false,
+    userId: null,
+    assignableRoles: null,
+
+    async init(userId = null) {
+        const form = document.getElementById('userPageForm');
+        if (!form) return;
+
+        this.userId = userId || parseInt(document.getElementById('userId')?.value) || 0;
+
+        const usernameRequired = document.getElementById('userKullaniciAdiRequired');
+        const passwordRequired = document.getElementById('userSifreRequired');
+        const usernameInput = document.getElementById('userKullaniciAdi');
+
+        if (this.userId > 0) {
+            if (usernameRequired) usernameRequired.classList.add('d-none');
+            if (passwordRequired) passwordRequired.classList.add('d-none');
+            if (usernameInput) usernameInput.disabled = true;
+        }
+
+        await this.loadFormData();
+        this.bindEvents();
+    },
+
+    async loadAssignableRoles() {
+        if (this.assignableRoles !== null) return this.assignableRoles;
+
+        try {
+            const response = await NbtApi.get('/api/roles/assignable');
+            this.assignableRoles = response.data || [];
+            return this.assignableRoles;
+        } catch (err) {
+            NbtLogger.error('UserPageForm: Atanabilir roller yuklenemedi', err);
+            this.assignableRoles = [];
+            return [];
+        }
+    },
+
+    async loadUserRoles(userId) {
+        try {
+            const response = await NbtApi.get(`/api/users/${userId}/roles`);
+            return response.data || [];
+        } catch (err) {
+            NbtLogger.error('UserPageForm: Kullanici rolleri yuklenemedi', err);
+            return [];
+        }
+    },
+
+    renderRoleCheckboxes(assignableRoles, selectedRoleIds = []) {
+        if (!assignableRoles || assignableRoles.length === 0) {
+            return '<div class="text-muted small py-2">Atayabileceğiniz rol bulunmuyor.</div>';
+        }
+
+        return assignableRoles.map(rol => {
+            const checked = selectedRoleIds.includes(rol.Id) ? 'checked' : '';
+            return `
+                <div class="form-check">
+                    <input class="form-check-input user-role-checkbox" type="checkbox" 
+                           value="${rol.Id}" id="userRole_${rol.Id}" ${checked}>
+                    <label class="form-check-label" for="userRole_${rol.Id}">
+                        ${rol.RolAdi}
+                        <small class="text-muted">(${rol.RolKodu})</small>
+                    </label>
+                </div>
+            `;
+        }).join('');
+    },
+
+    async loadFormData() {
+        const rolesContainer = document.getElementById('userRolesContainer');
+        if (rolesContainer) {
+            rolesContainer.innerHTML = '<div class="text-center text-muted py-2"><div class="spinner-border spinner-border-sm"></div> Roller yükleniyor...</div>';
+        }
+
+        if (this.userId > 0) {
+            try {
+                const [userResp, assignableRoles, userRoles] = await Promise.all([
+                    NbtApi.get(`/api/users/${this.userId}`),
+                    this.loadAssignableRoles(),
+                    this.loadUserRoles(this.userId)
+                ]);
+
+                const user = userResp.data || userResp;
+                document.getElementById('userAdSoyad').value = user.AdSoyad || '';
+                document.getElementById('userKullaniciAdi').value = user.KullaniciAdi || '';
+
+                const selectedIds = (userRoles || []).map(r => r.Id);
+                if (rolesContainer) {
+                    rolesContainer.innerHTML = this.renderRoleCheckboxes(assignableRoles, selectedIds);
+                }
+            } catch (err) {
+                this.showError('Kullanıcı bilgileri yüklenemedi: ' + err.message);
+                if (rolesContainer) {
+                    rolesContainer.innerHTML = '<div class="text-muted small py-2">Roller yüklenemedi.</div>';
+                }
+            }
+        } else {
+            const assignableRoles = await this.loadAssignableRoles();
+            if (rolesContainer) {
+                rolesContainer.innerHTML = this.renderRoleCheckboxes(assignableRoles, []);
+            }
+        }
+    },
+
+    clearErrors() {
+        const errorEl = document.getElementById('userFormError');
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.add('d-none');
+        }
+
+        const fields = ['userAdSoyad', 'userKullaniciAdi', 'userSifre'];
+        fields.forEach(id => {
+            const input = document.getElementById(id);
+            const errorEl = document.getElementById(`${id}Error`);
+            if (input) input.classList.remove('is-invalid');
+            if (errorEl) errorEl.textContent = '';
+        });
+    },
+
+    showError(message) {
+        const errorEl = document.getElementById('userFormError');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.classList.remove('d-none');
+        }
+    },
+
+    showFieldError(fieldId, message) {
+        const input = document.getElementById(fieldId);
+        const errorEl = document.getElementById(`${fieldId}Error`);
+        if (input) input.classList.add('is-invalid');
+        if (errorEl) errorEl.textContent = message;
+    },
+
+    async save() {
+        this.clearErrors();
+
+        const selectedRoleIds = [];
+        document.querySelectorAll('.user-role-checkbox:checked').forEach(cb => {
+            selectedRoleIds.push(parseInt(cb.value, 10));
+        });
+
+        const assignableIdSet = this.assignableRoles
+            ? new Set(this.assignableRoles.map(r => parseInt(r.Id, 10)).filter(Number.isInteger))
+            : null;
+        const normalizedRoleIds = Array.from(new Set(selectedRoleIds))
+            .filter(id => Number.isInteger(id) && id > 0)
+            .filter(id => !assignableIdSet || assignableIdSet.has(id));
+
+        const data = {
+            AdSoyad: document.getElementById('userAdSoyad').value.trim(),
+            RolIdler: normalizedRoleIds
+        };
+
+        const username = document.getElementById('userKullaniciAdi').value.trim();
+        const sifre = document.getElementById('userSifre').value;
+
+        if (!data.AdSoyad) {
+            this.showFieldError('userAdSoyad', 'Ad Soyad zorunludur');
+            this.showError('Lütfen zorunlu alanları doldurun');
+            return;
+        }
+
+        if (this.userId <= 0) {
+            if (!username) {
+                this.showFieldError('userKullaniciAdi', 'Kullanıcı adı zorunludur');
+                this.showError('Lütfen zorunlu alanları doldurun');
+                return;
+            }
+            if (!sifre) {
+                this.showFieldError('userSifre', 'Şifre zorunludur');
+                this.showError('Lütfen zorunlu alanları doldurun');
+                return;
+            }
+            data.KullaniciAdi = username;
+            data.Sifre = sifre;
+        } else if (sifre) {
+            data.Sifre = sifre;
+        }
+
+        const btn = document.getElementById('btnSaveUserPage');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kaydediliyor...';
+        }
+
+        try {
+            if (this.userId > 0) {
+                await NbtApi.put(`/api/users/${this.userId}`, data);
+                await NbtApi.post(`/api/users/${this.userId}/roles`, { RolIdler: normalizedRoleIds });
+                NbtToast.success('Kullanıcı güncellendi');
+            } else {
+                await NbtApi.post('/api/users', data);
+                NbtToast.success('Kullanıcı eklendi');
+            }
+            window.location.href = '/users';
+        } catch (err) {
+            this.showError(err.message || 'İşlem başarısız');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+            }
+        }
+    },
+
+    bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
+        document.getElementById('btnSaveUserPage')?.addEventListener('click', () => this.save());
     }
 };
 
@@ -11492,6 +11879,13 @@ const NbtPageForm = {
             needsProject: true,
             projeSelectId: 'stampTaxProjeId',
             sozlesmeSelectId: 'stampTaxSozlesmeId',
+            hasFileUpload: true,
+            fileInputId: 'stampTaxDosyaPage',
+            fileErrorId: 'stampTaxDosyaErrorPage',
+            currentFileContainerId: 'stampTaxCurrentFilePage',
+            currentFileNameId: 'stampTaxCurrentFileNamePage',
+            removeFileFieldId: 'stampTaxRemoveFile',
+            removeFileButtonId: 'btnRemoveStampTaxFilePage',
             fields: ['stampTaxProjeId', 'stampTaxSozlesmeId', 'stampTaxBelgeTarihi', 'stampTaxTutar', 'stampTaxOdemeDurumu', 'stampTaxNotlar'],
             fieldMappings: {
                 'stampTaxProjeId': 'ProjeId',
@@ -11521,6 +11915,13 @@ const NbtPageForm = {
             musteriIdFieldId: 'guaranteeMusteriId',
             needsProject: true,
             projeSelectId: 'guaranteeProjeId',
+            hasFileUpload: true,
+            fileInputId: 'guaranteeDosyaPage',
+            fileErrorId: 'guaranteeDosyaErrorPage',
+            currentFileContainerId: 'guaranteeCurrentFilePage',
+            currentFileNameId: 'guaranteeCurrentFileNamePage',
+            removeFileFieldId: 'guaranteeRemoveFile',
+            removeFileButtonId: 'btnRemoveGuaranteeFilePage',
             fields: ['guaranteeProjeId', 'guaranteeTur', 'guaranteeTutar', 'guaranteeDoviz', 'guaranteeTerminTarihi', 'guaranteeBanka', 'guaranteeDurum', 'guaranteeNotlar'],
             fieldMappings: {
                 'guaranteeProjeId': 'ProjeId',
@@ -11594,6 +11995,13 @@ const NbtPageForm = {
             needsProject: true,
             projeSelectId: 'paymentProjeId',
             faturaSelectId: 'paymentFaturaId',
+            hasFileUpload: true,
+            fileInputId: 'paymentDosyaPage',
+            fileErrorId: 'paymentDosyaErrorPage',
+            currentFileContainerId: 'paymentCurrentFilePage',
+            currentFileNameId: 'paymentCurrentFileNamePage',
+            removeFileFieldId: 'paymentRemoveFile',
+            removeFileButtonId: 'btnRemovePaymentFilePage',
             fields: ['paymentProjeId', 'paymentFaturaId', 'paymentTarih', 'paymentTutar', 'paymentDoviz', 'paymentTur', 'paymentBanka', 'paymentReferans', 'paymentNotlar'],
             fieldMappings: {
                 'paymentProjeId': 'ProjeId',
@@ -11850,6 +12258,15 @@ const NbtPageForm = {
                     currentNameEl.textContent = data.DosyaAdi;
                 }
             }
+
+            // Dosya upload destekli sayfalar icin mevcut dosyayi goster
+            if (config.currentFileContainerId && data.DosyaAdi) {
+                const currentNameEl = document.getElementById(config.currentFileNameId);
+                if (currentNameEl) {
+                    currentNameEl.textContent = data.DosyaAdi;
+                }
+                document.getElementById(config.currentFileContainerId)?.classList.remove('d-none');
+            }
         } catch (err) {
             NbtToast.error('Kayıt yüklenemedi: ' + err.message);
         }
@@ -11914,12 +12331,34 @@ const NbtPageForm = {
             if (useFormData) {
                 apiData = new FormData();
                 apiData.append('MusteriId', this.musteriId);
-                
+
                 // File input
                 const fileInput = document.getElementById(config.fileInputId);
+                const fileErrorEl = config.fileErrorId ? document.getElementById(config.fileErrorId) : null;
                 const file = fileInput?.files?.[0];
+                if (fileInput) {
+                    fileInput.classList.remove('is-invalid');
+                }
+                if (fileErrorEl) {
+                    fileErrorEl.textContent = '';
+                }
+
                 if (file) {
+                    const errors = NbtDocumentFile.validate(file);
+                    if (errors.length > 0) {
+                        if (fileInput) fileInput.classList.add('is-invalid');
+                        if (fileErrorEl) fileErrorEl.textContent = errors.join(' ');
+                        this.showError(errors.join(' '));
+                        return;
+                    }
                     apiData.append('dosya', file);
+                }
+
+                if (config.removeFileFieldId) {
+                    const removeField = document.getElementById(config.removeFileFieldId);
+                    if (removeField && removeField.value === '1') {
+                        apiData.append('removeFile', '1');
+                    }
                 }
 
                 // Diger alanlar
@@ -12001,6 +12440,37 @@ const NbtPageForm = {
             const countEl = document.getElementById('calendarOzetCount');
             ozetEl?.addEventListener('input', () => {
                 if (countEl) countEl.textContent = ozetEl.value.length;
+            });
+        }
+
+        if (config.fileInputId) {
+            const fileInput = document.getElementById(config.fileInputId);
+            const fileErrorEl = config.fileErrorId ? document.getElementById(config.fileErrorId) : null;
+            fileInput?.addEventListener('change', (e) => {
+                const file = e.target.files?.[0];
+                e.target.classList.remove('is-invalid');
+                if (fileErrorEl) fileErrorEl.textContent = '';
+                if (config.removeFileFieldId) {
+                    const removeField = document.getElementById(config.removeFileFieldId);
+                    if (removeField) removeField.value = '0';
+                }
+                if (file) {
+                    const errors = NbtDocumentFile.validate(file);
+                    if (errors.length > 0) {
+                        e.target.classList.add('is-invalid');
+                        if (fileErrorEl) fileErrorEl.textContent = errors.join(' ');
+                    }
+                }
+            });
+        }
+
+        if (config.removeFileButtonId && config.removeFileFieldId) {
+            document.getElementById(config.removeFileButtonId)?.addEventListener('click', () => {
+                const removeField = document.getElementById(config.removeFileFieldId);
+                if (removeField) removeField.value = '1';
+                if (config.currentFileContainerId) {
+                    document.getElementById(config.currentFileContainerId)?.classList.add('d-none');
+                }
             });
         }
     }

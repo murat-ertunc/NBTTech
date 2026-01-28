@@ -112,6 +112,20 @@ require __DIR__ . '/../partials/header.php';
               <textarea class="form-control" id="paymentNotlar" rows="2"></textarea>
             </div>
           </div>
+
+          <div class="row mb-3">
+            <label class="col-4 col-form-label">Dosya</label>
+            <div class="col-8">
+              <input type="file" class="form-control" id="paymentDosyaPage" accept=".pdf,.doc,.docx">
+              <div class="form-text text-muted">PDF veya Word (PDF, DOC, DOCX). Maksimum 10MB.</div>
+              <div class="invalid-feedback" id="paymentDosyaErrorPage"></div>
+              <input type="hidden" id="paymentRemoveFile" value="0">
+              <div class="mt-2 d-none" id="paymentCurrentFilePage">
+                <span class="badge bg-secondary"><i class="bi bi-file-earmark-text me-1"></i><span id="paymentCurrentFileNamePage" class="u-break-anywhere"></span></span>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="btnRemovePaymentFilePage"><i class="bi bi-x"></i></button>
+              </div>
+            </div>
+          </div>
         </form>
       </div>
       

@@ -53,13 +53,13 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-4 col-form-label">PDF Dosya</label>
+          <label class="col-4 col-form-label">Dosya</label>
           <div class="col-8">
-            <input type="file" class="form-control" id="stampTaxDosya" accept=".pdf,application/pdf">
-            <small class="form-hint">PDF, Maks 10MB</small>
+            <input type="file" class="form-control" id="stampTaxDosya" accept=".pdf,.doc,.docx">
+            <small class="form-hint">PDF veya Word (PDF, DOC, DOCX). Maks 10MB</small>
             <div class="invalid-feedback" id="stampTaxDosyaError"></div>
             <div class="mt-2 d-none" id="stampTaxCurrentFile">
-              <span class="badge bg-secondary me-2"><i class="bi bi-file-pdf me-1"></i><span id="stampTaxCurrentFileName"></span></span>
+              <span class="badge bg-secondary me-2"><i class="bi bi-file-pdf me-1"></i><span id="stampTaxCurrentFileName" class="u-break-anywhere"></span></span>
               <button type="button" class="btn btn-sm btn-outline-danger" id="btnRemoveStampTaxFile"><i class="bi bi-x"></i></button>
             </div>
           </div>

@@ -19,10 +19,10 @@ require __DIR__ . '/partials/header.php';
         <div class="card-header bg-primary text-white py-2">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Rol Listesi</h5>
-                <button type="button" class="btn btn-light" id="btnYeniRol" data-can="roles.create">
+                <a href="/roles/new" class="btn btn-light" data-can="roles.create">
                     <i class="bi bi-plus-lg me-1"></i>
                     Yeni Rol
-                </button>
+                </a>
             </div>
         </div>
         <div class="card-body p-0">
@@ -48,57 +48,6 @@ require __DIR__ . '/partials/header.php';
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Rol Ekleme/Duzenleme Modal -->
-<div class="modal fade" id="rolModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="rolModalBaslik">Yeni Rol</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="rolForm">
-                    <input type="hidden" id="rolId">
-
-                    <div class="alert alert-danger d-none" id="rolFormErrors"></div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Rol Adı <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="rolAdi" maxlength="50" required>
-                            <div class="invalid-feedback" id="rolAdiError"></div>
-                            <div class="form-text">Türkçe karakterler kullanabilirsiniz.</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Rol Kodu <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="rolKodu" maxlength="30" required pattern="[a-z][a-z0-9_]{2,29}">
-                            <div class="invalid-feedback" id="rolKoduError"></div>
-                            <div class="form-text">Küçük harf, rakam ve alt çizgi (örn: editor, veri_girisi)</div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Durum</label>
-                            <select class="form-select" id="rolAktif">
-                                <option value="1">Aktif</option>
-                                <option value="0">Pasif</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-                <button type="button" class="btn btn-primary" id="btnRolKaydet" data-can-any="roles.create,roles.update">
-                    <i class="bi bi-save me-1"></i> Kaydet
-                </button>
             </div>
         </div>
     </div>
@@ -163,8 +112,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     // UI'a permission kurallarini uygula
     NbtPermission.applyToElements();
     
-    // Modaller
-    const rolModal = new bootstrap.Modal(document.getElementById('rolModal'));
     const permissionModal = new bootstrap.Modal(document.getElementById('permissionModal'));
     
     // State
@@ -227,10 +174,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                             ${rol.SistemRolu == 1 ? 'disabled' : ''}>
                             <i class="bi bi-key"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="rolDuzenle(${rol.Id})" title="Düzenle"
-                            data-can="roles.update" ${rol.SistemRolu == 1 ? 'disabled' : ''}>
+                        <a class="btn btn-outline-secondary ${rol.SistemRolu == 1 ? 'disabled' : ''}"
+                            href="${rol.SistemRolu == 1 ? 'javascript:void(0)' : `/roles/${rol.Id}/edit`}" title="Düzenle"
+                            data-can="roles.update" ${rol.SistemRolu == 1 ? 'tabindex="-1" aria-disabled="true"' : ''}>
                             <i class="bi bi-pencil-square"></i>
-                        </button>
+                        </a>
                         <button type="button" class="btn btn-outline-danger" onclick="rolSil(${rol.Id})" title="Sil"
                             data-can="roles.delete" ${rol.SistemRolu == 1 ? 'disabled' : ''}>
                             <i class="bi bi-trash"></i>
@@ -244,120 +192,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         NbtPermission.applyToElements();
     }
     
-    // Yeni rol butonu
-    document.getElementById('btnYeniRol').addEventListener('click', function() {
-        clearRoleErrors();
-        document.getElementById('rolId').value = '';
-        document.getElementById('rolForm').reset();
-        document.getElementById('rolModalBaslik').textContent = 'Yeni Rol';
-        document.getElementById('rolKodu').disabled = false;
-        rolModal.show();
-    });
-    
-    function clearRoleErrors() {
-        document.getElementById('rolFormErrors')?.classList.add('d-none');
-        document.getElementById('rolFormErrors').innerHTML = '';
-        const fields = ['rolAdi', 'rolKodu', 'rolAktif'];
-        fields.forEach(id => {
-            const input = document.getElementById(id);
-            const errorEl = document.getElementById(`${id}Error`);
-            if (input) input.classList.remove('is-invalid');
-            if (errorEl) errorEl.textContent = '';
-        });
-    }
-
-    function showRoleErrors(fields) {
-        if (!fields || typeof fields !== 'object') return;
-        const fieldMap = {
-            RolAdi: 'rolAdi',
-            RolKodu: 'rolKodu',
-            Aktif: 'rolAktif'
-        };
-
-        const list = [];
-        Object.keys(fields).forEach(key => {
-            const messages = Array.isArray(fields[key]) ? fields[key] : [fields[key]];
-            messages.forEach(msg => list.push(msg));
-
-            const targetId = fieldMap[key];
-            if (targetId) {
-                const input = document.getElementById(targetId);
-                const errorEl = document.getElementById(`${targetId}Error`);
-                if (input) input.classList.add('is-invalid');
-                if (errorEl) errorEl.textContent = messages[0] || '';
-            }
-        });
-
-        if (list.length > 0) {
-            const alert = document.getElementById('rolFormErrors');
-            if (alert) {
-                alert.innerHTML = '<ul class="mb-0">' + list.map(m => `<li>${NbtUtils.escapeHtml(m)}</li>`).join('') + '</ul>';
-                alert.classList.remove('d-none');
-            }
-        }
-    }
-
-    // Rol kaydet
-    document.getElementById('btnRolKaydet').addEventListener('click', async function() {
-        clearRoleErrors();
-        const id = document.getElementById('rolId').value;
-        const data = {
-            RolKodu: document.getElementById('rolKodu').value.trim(),
-            RolAdi: document.getElementById('rolAdi').value.trim(),
-            Aktif: parseInt(document.getElementById('rolAktif').value)
-        };
-        
-        if (!data.RolKodu || !data.RolAdi) {
-            const fieldErrors = {};
-            if (!data.RolKodu) fieldErrors.RolKodu = ['Rol kodu zorunludur.'];
-            if (!data.RolAdi) fieldErrors.RolAdi = ['Rol adı zorunludur.'];
-            showRoleErrors(fieldErrors);
-            return;
-        }
-        
-        try {
-            let resp;
-            if (id) {
-                resp = await NbtApi.put('/api/roles/' + id, data);
-            } else {
-                resp = await NbtApi.post('/api/roles', data);
-            }
-            
-            if (resp && (resp.success !== false)) {
-                NbtToast.success(id ? 'Rol güncellendi' : 'Rol oluşturuldu');
-                rolModal.hide();
-                rolleriYukle();
-            } else {
-                NbtToast.error(resp.message || resp.error || 'İşlem başarısız');
-            }
-        } catch (err) {
-            if (err?.fields) {
-                showRoleErrors(err.fields);
-            } else {
-                NbtToast.error(err?.message || 'İşlem başarısız');
-            }
-        }
-    });
-    
-    // Rol duzenleme
-    window.rolDuzenle = async function(id) {
-        try {
-            const resp = await NbtApi.get('/api/roles/' + id);
-            const rol = resp.data || resp;
-            if (rol && rol.Id) {
-                clearRoleErrors();
-                document.getElementById('rolId').value = rol.Id;
-                document.getElementById('rolKodu').value = rol.RolKodu;
-                document.getElementById('rolKodu').disabled = true;
-                document.getElementById('rolAdi').value = rol.RolAdi;
-                document.getElementById('rolAktif').value = rol.Aktif;
-                document.getElementById('rolModalBaslik').textContent = 'Rol Düzenle';
-                rolModal.show();
-            }
-        } catch (err) {
-            NbtToast.error('Rol bilgileri alınamadı');
-        }
-    };
     
     // Rol silme - SweetAlert2 ile onay
     window.rolSil = async function(id) {

@@ -85,7 +85,7 @@
             <small class="form-hint">PDF, Maks 10MB</small>
             <div class="invalid-feedback" id="offerDosyaError"></div>
             <div class="mt-2 d-none" id="offerCurrentFile">
-              <span class="badge bg-secondary me-2"><i class="bi bi-file-pdf me-1"></i><span id="offerCurrentFileName"></span></span>
+              <span class="badge bg-secondary me-2"><i class="bi bi-file-pdf me-1"></i><span id="offerCurrentFileName" class="u-break-anywhere"></span></span>
               <button type="button" class="btn btn-sm btn-outline-danger" id="btnRemoveOfferFile"><i class="bi bi-x"></i></button>
             </div>
           </div>

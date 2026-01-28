@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
+use App\Core\UploadValidator;
+use App\Core\DownloadHelper;
 use App\Repositories\StampTaxRepository;
 use App\Services\CalendarService;
 
@@ -94,6 +96,11 @@ class StampTaxController
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $Hata = UploadValidator::validateDocument($_FILES['dosya'], 10 * 1024 * 1024);
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
+                return;
+            }
             $YuklemeKlasoru = STORAGE_PATH . 'uploads' . DIRECTORY_SEPARATOR;
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
@@ -197,6 +204,11 @@ class StampTaxController
 
         // Yeni dosya yuklendiyse eskisini silip yenisini kaydediyoruz
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $Hata = UploadValidator::validateDocument($_FILES['dosya'], 10 * 1024 * 1024);
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
+                return;
+            }
             // Eski dosyayi fiziksel olarak sil
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
@@ -297,12 +309,6 @@ class StampTaxController
         }
 
         $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
-        $MimeType = mime_content_type($FilePath) ?: 'application/octet-stream';
-
-        header('Content-Type: ' . $MimeType);
-        header('Content-Disposition: attachment; filename="' . $DosyaAdi . '"');
-        header('Content-Length: ' . filesize($FilePath));
-        readfile($FilePath);
-        exit;
+        DownloadHelper::outputFile($FilePath, $DosyaAdi);
     }
 }

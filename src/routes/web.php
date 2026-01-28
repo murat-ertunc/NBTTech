@@ -311,10 +311,40 @@ $Router->add('GET', '/users', function () use ($PagesPath) {
 	require $PagesPath . 'users.php';
 });
 
+// Yeni kullanıcı ekle
+$Router->add('GET', '/users/new', function () use ($PagesPath) {
+	if (!Page::can('users.create')) return;
+	$KullaniciId = 0;
+	require $PagesPath . 'users' . DIRECTORY_SEPARATOR . 'form.php';
+});
+
+// Kullanıcı düzenle
+$Router->add('GET', '/users/{id}/edit', function ($Parametreler) use ($PagesPath) {
+	if (!Page::can('users.update')) return;
+	$KullaniciId = (int)($Parametreler['id'] ?? 0);
+	if (!Page::requireRecord('UserRepository', $KullaniciId, 'Kullanıcı')) return;
+	require $PagesPath . 'users' . DIRECTORY_SEPARATOR . 'form.php';
+});
+
 // ===== ROLLER =====
 $Router->add('GET', '/roles', function () use ($PagesPath) {
 	if (!Page::can('roles.read')) return;
 	require $PagesPath . 'roles.php';
+});
+
+// Yeni rol ekle
+$Router->add('GET', '/roles/new', function () use ($PagesPath) {
+	if (!Page::can('roles.create')) return;
+	$RolId = 0;
+	require $PagesPath . 'roles' . DIRECTORY_SEPARATOR . 'form.php';
+});
+
+// Rol düzenle
+$Router->add('GET', '/roles/{id}/edit', function ($Parametreler) use ($PagesPath) {
+	if (!Page::can('roles.update')) return;
+	$RolId = (int)($Parametreler['id'] ?? 0);
+	if (!Page::requireRecord('RoleRepository', $RolId, 'Rol')) return;
+	require $PagesPath . 'roles' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
 // ===== LOGLAR =====
