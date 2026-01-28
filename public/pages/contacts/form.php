@@ -17,11 +17,10 @@ $FormMusteriId = $MusteriId;
 $FormTabKey = 'kisiler';
 $FormTitle = $pageTitle;
 $FormIcon = 'bi-person';
-$FormColor = 'info';
 $FormBreadcrumb = $pageTitle;
 $FormSaveButtonId = 'btnSaveContactPage';
 $FormPermission = 'contacts.create,contacts.update';
-$FormButtonColor = 'info';
+$FormButtonColor = 'primary';
 
 require __DIR__ . '/../partials/header.php';
 ?>
@@ -39,8 +38,8 @@ require __DIR__ . '/../partials/header.php';
           <input type="hidden" id="contactMusteriId" value="<?= (int)$MusteriId ?>">
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Proje <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
+            <div class="col-8">
               <select class="form-select" id="contactProjeId" required>
                 <option value="">Proje Seçiniz...</option>
               </select>
@@ -48,43 +47,43 @@ require __DIR__ . '/../partials/header.php';
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Ad Soyad <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Ad Soyad <span class="text-danger">*</span></label>
+            <div class="col-8">
               <input type="text" class="form-control" id="contactAdSoyad" required>
             </div>
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Ünvan / Pozisyon</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Ünvan / Pozisyon</label>
+            <div class="col-8">
               <input type="text" class="form-control" id="contactUnvan">
             </div>
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Telefon</label>
-            <div class="col-12 col-md-9">
-              <input type="tel" class="form-control" id="contactTelefon">
+            <label class="col-4 col-form-label">Telefon</label>
+            <div class="col-8">
+              <input type="text" class="form-control number__input" id="contactTelefon">
             </div>
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Dahili No</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Dahili No</label>
+            <div class="col-8">
               <input type="text" class="form-control" id="contactDahiliNo">
             </div>
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">E-posta</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">E-posta</label>
+            <div class="col-8">
               <input type="email" class="form-control" id="contactEmail">
             </div>
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Notlar</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Notlar</label>
+            <div class="col-8">
               <textarea class="form-control" id="contactNotlar" rows="2"></textarea>
             </div>
           </div>

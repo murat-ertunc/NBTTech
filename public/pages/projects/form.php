@@ -17,11 +17,10 @@ $FormMusteriId = $MusteriId;
 $FormTabKey = 'projeler';
 $FormTitle = $pageTitle;
 $FormIcon = 'bi-kanban';
-$FormColor = 'success';
 $FormBreadcrumb = $pageTitle;
 $FormSaveButtonId = 'btnSaveProjectPage';
 $FormPermission = 'projects.create,projects.update';
-$FormButtonColor = 'success';
+$FormButtonColor = 'primary';
 
 require __DIR__ . '/../partials/header.php';
 ?>
@@ -39,15 +38,15 @@ require __DIR__ . '/../partials/header.php';
           <input type="hidden" id="projectMusteriId" value="<?= (int)$MusteriId ?>">
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Proje Adı <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Proje Adı <span class="text-danger">*</span></label>
+            <div class="col-8">
               <input type="text" class="form-control" id="projectName" required>
             </div>
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Durum</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Durum</label>
+            <div class="col-8">
               <select class="form-select" id="projectStatus">
                 <!-- Dinamik olarak doldurulacak -->
               </select>

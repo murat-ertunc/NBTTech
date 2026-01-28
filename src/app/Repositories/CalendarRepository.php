@@ -16,7 +16,7 @@ class CalendarRepository extends BaseRepository
                 LEFT JOIN tbl_musteri m ON t.MusteriId = m.Id 
                 LEFT JOIN tbl_proje p ON t.ProjeId = p.Id 
                 WHERE t.Sil = 0 
-                ORDER BY t.BaslangicTarihi DESC, t.Id DESC";
+                ORDER BY t.TerminTarihi DESC, t.Id DESC";
         $Stmt = $this->Db->query($Sql);
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['Sil' => 0], $Sonuclar);

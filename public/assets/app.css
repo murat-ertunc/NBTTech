@@ -14,6 +14,21 @@
   /* overflow: hidden; -> Bu bazen icerik kesilmesine neden olabilir, kaldirildi */
 }
 
+/* Dashboard badge z-index ve positioning fix */
+#view-dashboard .card-header {
+  position: relative;
+  z-index: 1;
+}
+#view-dashboard .card-header .badge {
+  position: relative;
+  z-index: 2;
+}
+/* Alarm panel badge ayarları */
+#panelAlarms .card-header .badge {
+  min-width: 1.5rem;
+  padding: 0.35em 0.65em;
+}
+
 @media (min-width: 992px) {
   #view-dashboard {
     display: flex;
@@ -23,6 +38,24 @@
   #view-dashboard .row.flex-grow-1 {
     flex: 1 1 auto;
     min-height: 0;
+  }
+  /* Takvim icerigi parent yuksekligine uyum saglasin */
+  #view-dashboard #panelCalendar {
+    height: 100%;
+  }
+  #view-dashboard #panelCalendar .card-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #view-dashboard #panelCalendar #nbt-calendar-inner {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 400px;
+  }
+  #view-dashboard #panelCalendar #nbt-calendar-inner > .d-grid {
+    flex: 1;
   }
 }
 
@@ -55,6 +88,26 @@
 .table-bordered th, .table-bordered td { border: 1px solid #dee2e6 !important; }
 .table thead th { background-color: #f8f9fa; }
 .table tbody tr:hover { background-color: rgba(0,0,0,.04); }
+
+/* Takvim gun etiketi ve bugun badge hizalama */
+#nbt-calendar-inner .calendar-day-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  line-height: 1;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+#nbt-calendar-inner .calendar-day-label.badge.bg-primary.rounded-circle {
+  padding: 0;
+}
+#nbt-calendar-inner .calendar-day-events {
+  top: 1.75rem;
+}
 
 .list-group-item.active { 
   background-color: #0d6efd !important; 

@@ -16,8 +16,8 @@
         <input type="hidden" id="stampTaxId">
         <input type="hidden" id="stampTaxMusteriId">
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Proje <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
+          <div class="col-8">
             <select class="form-select" id="stampTaxProjeId" required>
               <option value="">Proje Seçiniz...</option>
             </select>
@@ -26,16 +26,16 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Tarih <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Tarih <span class="text-danger">*</span></label>
+          <div class="col-8">
             <input type="date" class="form-control" id="stampTaxTarih" required>
             <small class="form-hint">Zorunlu</small>
             <div class="invalid-feedback"></div>
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Tutar <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
+          <div class="col-8">
             <div class="input-group">
               <input type="text" class="form-control nbt-money-input" id="stampTaxTutar" placeholder="0,00" required value="0,00">
               <select class="form-select" id="stampTaxDovizCinsi" style="max-width: 90px;">
@@ -46,15 +46,15 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Açıklama</label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Açıklama</label>
+          <div class="col-8">
             <textarea class="form-control" id="stampTaxAciklama" rows="2"></textarea>
             <div class="invalid-feedback"></div>
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">PDF Dosya</label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">PDF Dosya</label>
+          <div class="col-8">
             <input type="file" class="form-control" id="stampTaxDosya" accept=".pdf,application/pdf">
             <small class="form-hint">PDF, Maks 10MB</small>
             <div class="invalid-feedback" id="stampTaxDosyaError"></div>

@@ -17,11 +17,10 @@ $FormMusteriId = $MusteriId;
 $FormTabKey = 'damgavergisi';
 $FormTitle = $pageTitle;
 $FormIcon = 'bi-file-earmark-text';
-$FormColor = 'secondary';
 $FormBreadcrumb = $pageTitle;
 $FormSaveButtonId = 'btnSaveStampTaxPage';
 $FormPermission = 'stamp_taxes.create,stamp_taxes.update';
-$FormButtonColor = 'secondary';
+$FormButtonColor = 'primary';
 
 require __DIR__ . '/../partials/header.php';
 ?>
@@ -39,8 +38,8 @@ require __DIR__ . '/../partials/header.php';
           <input type="hidden" id="stampTaxMusteriId" value="<?= (int)$MusteriId ?>">
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Proje <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
+            <div class="col-8">
               <select class="form-select" id="stampTaxProjeId" required>
                 <option value="">Proje Seçiniz...</option>
               </select>
@@ -48,8 +47,8 @@ require __DIR__ . '/../partials/header.php';
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Sözleşme</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Sözleşme</label>
+            <div class="col-8">
               <select class="form-select" id="stampTaxSozlesmeId">
                 <option value="">Sözleşme Seçiniz (Opsiyonel)...</option>
               </select>
@@ -57,25 +56,25 @@ require __DIR__ . '/../partials/header.php';
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Belge Tarihi <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Belge Tarihi <span class="text-danger">*</span></label>
+            <div class="col-8">
               <input type="date" class="form-control" id="stampTaxBelgeTarihi" value="<?= date('Y-m-d') ?>" required>
             </div>
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Tutar <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
+            <div class="col-8">
               <div class="input-group">
-                <input type="text" class="form-control" id="stampTaxTutar" required>
+                <input type="text" class="form-control price__input nbt-money-input" id="stampTaxTutar" placeholder="0.00" value="0.00" required>
                 <span class="input-group-text">₺</span>
               </div>
             </div>
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Ödeme Durumu</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Ödeme Durumu</label>
+            <div class="col-8">
               <select class="form-select" id="stampTaxOdemeDurumu">
                 <option value="Ödenmedi">Ödenmedi</option>
                 <option value="Ödendi">Ödendi</option>
@@ -85,8 +84,8 @@ require __DIR__ . '/../partials/header.php';
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Notlar</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Notlar</label>
+            <div class="col-8">
               <textarea class="form-control" id="stampTaxNotlar" rows="2"></textarea>
             </div>
           </div>

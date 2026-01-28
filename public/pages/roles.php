@@ -13,27 +13,16 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <div class="container-fluid py-4" data-can="roles.read">
-    <!-- Sayfa Basligi -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0">
-                <i class="bi bi-shield-lock me-2 text-primary"></i>
-                Rol Yönetimi
-            </h1>
-            <p class="text-muted mb-0">Sistem rolleri ve yetki atamaları</p>
-        </div>
-        <button type="button" class="btn btn-primary" id="btnYeniRol" data-can="roles.create">
-            <i class="bi bi-plus-lg me-1"></i>
-            Yeni Rol
-        </button>
-    </div>
     
     <!-- Rol Listesi -->
     <div class="card shadow-sm">
-        <div class="card-header bg-white py-3">
+        <div class="card-header bg-primary text-white py-2">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Rol Listesi</h5>
-                <span class="badge bg-primary" id="rolSayisi">0</span>
+                <button type="button" class="btn btn-light" id="btnYeniRol" data-can="roles.create">
+                    <i class="bi bi-plus-lg me-1"></i>
+                    Yeni Rol
+                </button>
             </div>
         </div>
         <div class="card-body p-0">
@@ -43,7 +32,6 @@ require __DIR__ . '/partials/header.php';
                         <tr>
                             <th style="width: 200px;">Rol Adı</th>
                             <th style="width: 150px;">Rol Kodu</th>
-                            <th style="width: 80px;">Seviye</th>
                             <th style="width: 100px;">Kullanıcı</th>
                             <th style="width: 100px;">Yetki</th>
                             <th style="width: 80px;">Durum</th>
@@ -52,7 +40,7 @@ require __DIR__ . '/partials/header.php';
                     </thead>
                     <tbody id="rolListesi">
                         <tr>
-                            <td colspan="7" class="text-center py-5">
+                            <td colspan="6" class="text-center py-5">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Yükleniyor...</span>
                                 </div>
@@ -95,12 +83,6 @@ require __DIR__ . '/partials/header.php';
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Seviye (0-99)</label>
-                            <input type="number" class="form-control" id="rolSeviye" min="0" max="99" value="0">
-                            <div class="invalid-feedback" id="rolSeviyeError"></div>
-                            <div class="form-text">Yüksek seviye daha yetkili.</div>
-                        </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Durum</label>
                             <select class="form-select" id="rolAktif">
@@ -216,11 +198,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     function tabloGuncelle() {
         const tbody = document.getElementById('rolListesi');
         
-        // Rol sayisini guncelle
-        document.getElementById('rolSayisi').textContent = tumRoller.length;
-        
         if (!Array.isArray(tumRoller) || tumRoller.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">Kayıt bulunamadı</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Kayıt bulunamadı</td></tr>`;
             return;
         }
         
@@ -231,11 +210,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                     ${rol.SistemRolu == 1 ? '<span class="badge bg-primary">Sistem</span>' : ''}
                 </td>
                 <td><code>${NbtUtils.escapeHtml(rol.RolKodu)}</code></td>
-                <td>
-                    <span class="badge ${rol.Seviye >= 80 ? 'bg-danger' : rol.Seviye >= 50 ? 'bg-warning' : 'bg-secondary'}">
-                        ${rol.Seviye}
-                    </span>
-                </td>
                 <td>
                     <span class="badge bg-info">${rol.KullaniciSayisi || 0}</span>
                 </td>
@@ -283,7 +257,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     function clearRoleErrors() {
         document.getElementById('rolFormErrors')?.classList.add('d-none');
         document.getElementById('rolFormErrors').innerHTML = '';
-        const fields = ['rolAdi', 'rolKodu', 'rolSeviye', 'rolAktif'];
+        const fields = ['rolAdi', 'rolKodu', 'rolAktif'];
         fields.forEach(id => {
             const input = document.getElementById(id);
             const errorEl = document.getElementById(`${id}Error`);
@@ -297,7 +271,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         const fieldMap = {
             RolAdi: 'rolAdi',
             RolKodu: 'rolKodu',
-            Seviye: 'rolSeviye',
             Aktif: 'rolAktif'
         };
 
@@ -331,7 +304,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         const data = {
             RolKodu: document.getElementById('rolKodu').value.trim(),
             RolAdi: document.getElementById('rolAdi').value.trim(),
-            Seviye: parseInt(document.getElementById('rolSeviye').value) || 0,
             Aktif: parseInt(document.getElementById('rolAktif').value)
         };
         
@@ -378,7 +350,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 document.getElementById('rolKodu').value = rol.RolKodu;
                 document.getElementById('rolKodu').disabled = true;
                 document.getElementById('rolAdi').value = rol.RolAdi;
-                document.getElementById('rolSeviye').value = rol.Seviye;
                 document.getElementById('rolAktif').value = rol.Aktif;
                 document.getElementById('rolModalBaslik').textContent = 'Rol Düzenle';
                 rolModal.show();
@@ -437,11 +408,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('permissionRolId').value = rolId;
         document.getElementById('permissionRolAdi').textContent = rol.RolAdi;
         
-        // Permissionlari yukle
+        // Permissionlari ve mevcut kullanicinin yetkilerini yukle
         try {
-            const [permResp, rolPermResp] = await Promise.all([
+            const [permResp, rolPermResp, myPermResp] = await Promise.all([
                 NbtApi.get('/api/permissions'),
-                NbtApi.get('/api/roles/' + rolId + '/permissions')
+                NbtApi.get('/api/roles/' + rolId + '/permissions'),
+                NbtApi.get('/api/auth/permissions')
             ]);
             
             const permData = permResp.data || permResp || {};
@@ -451,6 +423,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             
             const rolPermissionKodlari = (rolPermResp.data || []).map(p => p.PermissionKodu);
+            
+            // Mevcut kullanicinin yetkileri (subset constraint icin)
+            // API {roller, permissionlar, moduller} formatinda dondurur
+            const myPermData = myPermResp.data || myPermResp || {};
+            const benimYetkilerim = Array.isArray(myPermData) 
+                ? myPermData 
+                : (Array.isArray(myPermData.permissionlar) ? myPermData.permissionlar : []);
             
             // UI olustur - Turkce ceviri destegi
             const container = document.getElementById('permissionContainer');
@@ -475,17 +454,23 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 ${(Array.isArray(permler) ? permler : []).map(p => {
                                     const aksiyonTr = p.AksiyonTr || p.Aksiyon;
                                     const etiket = p.PermissionAdiTr || aksiyonTr || p.PermissionKodu;
+                                    const benim = benimYetkilerim.includes(p.PermissionKodu);
+                                    const disabledAttr = benim ? '' : 'disabled';
+                                    const disabledClass = benim ? '' : 'text-muted';
+                                    const disabledTitle = benim ? '' : 'title="Bu yetkiyi atayamazsınız (kendi yetkiniz değil)"';
                                     return `
-                                    <div class="col-md-3 col-sm-6 permission-item" data-label="${(p.PermissionAdiTr || p.PermissionKodu).toLowerCase()}">
+                                    <div class="col-md-3 col-sm-6 permission-item ${disabledClass}" data-label="${(p.PermissionAdiTr || p.PermissionKodu).toLowerCase()}">
                                         <div class="form-check">
                                             <input class="form-check-input permission-checkbox" type="checkbox" 
                                                 id="perm_${p.Id}" 
                                                 data-id="${p.Id}" 
                                                 data-kod="${p.PermissionKodu}"
                                                 data-modul="${modul}"
-                                                ${rolPermissionKodlari.includes(p.PermissionKodu) ? 'checked' : ''}>
-                                            <label class="form-check-label" for="perm_${p.Id}">
+                                                ${rolPermissionKodlari.includes(p.PermissionKodu) ? 'checked' : ''}
+                                                ${disabledAttr}>
+                                            <label class="form-check-label ${disabledClass}" for="perm_${p.Id}" ${disabledTitle}>
                                                 ${etiket}
+                                                ${!benim ? '<i class="bi bi-lock-fill ms-1 text-secondary" style="font-size: 0.7rem;"></i>' : ''}
                                             </label>
                                         </div>
                                     </div>
@@ -498,12 +483,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             container.innerHTML = html;
             
-            // Modul checkbox'lari
+            // Modul checkbox'lari - sadece enabled olanlari toggle et
             document.querySelectorAll('.modul-checkbox').forEach(cb => {
                 cb.addEventListener('change', function() {
                     const modul = this.dataset.modul;
                     const checked = this.checked;
-                    document.querySelectorAll(`.permission-checkbox[data-modul="${modul}"]`).forEach(pcb => {
+                    // Sadece disabled olmayan checkbox'lari degistir
+                    document.querySelectorAll(`.permission-checkbox[data-modul="${modul}"]:not(:disabled)`).forEach(pcb => {
                         pcb.checked = checked;
                     });
                 });
@@ -526,8 +512,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     function updateModulCheckboxes() {
         document.querySelectorAll('.modul-checkbox').forEach(mcb => {
             const modul = mcb.dataset.modul;
-            const permCheckboxes = document.querySelectorAll(`.permission-checkbox[data-modul="${modul}"]`);
-            const checkedCount = document.querySelectorAll(`.permission-checkbox[data-modul="${modul}"]:checked`).length;
+            // Sadece enabled checkbox'lari say
+            const permCheckboxes = document.querySelectorAll(`.permission-checkbox[data-modul="${modul}"]:not(:disabled)`);
+            const checkedCount = document.querySelectorAll(`.permission-checkbox[data-modul="${modul}"]:not(:disabled):checked`).length;
             
             if (checkedCount === 0) {
                 mcb.checked = false;

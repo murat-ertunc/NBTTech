@@ -3,7 +3,14 @@ require dirname(__DIR__) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARAT
 
 use App\Core\Database;
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+@set_time_limit(0);
+@ini_set('max_execution_time', '0');
+
+header('Content-Type: text/html; charset=utf-8');
 
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
@@ -63,6 +70,88 @@ function sanitizeErrorMessage(string $Message): string
     return mb_substr($Message, 0, 1000);
 }
 
+function logException(string $Context, Throwable $Error): void
+{
+    $Message = sprintf('[%s] %s: %s in %s:%s', date('c'), $Context, $Error->getMessage(), $Error->getFile(), $Error->getLine());
+    error_log($Message . "\n" . $Error->getTraceAsString());
+}
+
+/**
+ * Seeder'ı çalıştır (idempotent - duplicate üretmez)
+ * @return array ['ok' => bool, 'message' => string, 'output' => string]
+ */
+function runSeeder(): array
+{
+    $SeederPath = SRC_PATH . 'database' . DIRECTORY_SEPARATOR . 'seeder.php';
+    
+    if (!file_exists($SeederPath)) {
+        return ['ok' => false, 'message' => 'Seeder dosyası bulunamadı: ' . $SeederPath, 'output' => ''];
+    }
+    
+    $DisabledFunctions = array_map('trim', explode(',', (string)ini_get('disable_functions')));
+    if (!function_exists('exec') || in_array('exec', $DisabledFunctions, true)) {
+        return ['ok' => false, 'message' => 'Seeder calistirilamadi: exec fonksiyonu devre disi.', 'output' => ''];
+    }
+
+    $PhpBinary = resolvePhpBinary();
+    if ($PhpBinary === '') {
+        return ['ok' => false, 'message' => 'Seeder calistirilamadi: PHP CLI binary bulunamadi.', 'output' => ''];
+    }
+
+    // Seeder'ı shell'de çalıştır (izole çalışması için)
+    $Command = escapeshellcmd($PhpBinary) . ' ' . escapeshellarg($SeederPath) . ' 2>&1';
+    
+    $Output = [];
+    $ReturnCode = 0;
+    exec($Command, $Output, $ReturnCode);
+    
+    $OutputStr = implode("\n", $Output);
+    
+    if ($ReturnCode !== 0) {
+        return [
+            'ok' => false, 
+            'message' => 'Seeder hata ile sonuçlandı (exit code: ' . $ReturnCode . ')', 
+            'output' => $OutputStr
+        ];
+    }
+    
+    return [
+        'ok' => true, 
+        'message' => 'Seeder başarıyla çalıştırıldı.', 
+        'output' => $OutputStr
+    ];
+}
+
+function resolvePhpBinary(): string
+{
+    $Candidates = [];
+
+    if (PHP_BINARY) {
+        $Candidates[] = PHP_BINARY;
+    }
+
+    if (PHP_BINDIR) {
+        $Candidates[] = rtrim(PHP_BINDIR, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'php';
+    }
+
+    $Env = getenv('PHP_CLI');
+    if ($Env) {
+        $Candidates[] = $Env;
+    }
+
+    foreach ($Candidates as $Candidate) {
+        $Base = basename($Candidate);
+        if (stripos($Base, 'php-fpm') !== false || stripos($Base, 'php-cgi') !== false) {
+            continue;
+        }
+        if (is_file($Candidate) && is_executable($Candidate)) {
+            return $Candidate;
+        }
+    }
+
+    return '';
+}
+
 function ensureSchemaMigrations(PDO $Db): void
 {
     $Db->exec("IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'schema_migrations')
@@ -95,6 +184,9 @@ END");
 
 function logMigrationEvent(PDO $Db, string $Action, string $Detail, string $Status, ?string $ErrorMessage = null): void
 {
+    if (!tableExists($Db, 'schema_migration_logs')) {
+        return;
+    }
     $Stmt = $Db->prepare('INSERT INTO schema_migration_logs (action, detail, status, error_message) VALUES (:action, :detail, :status, :error_message)');
     $Stmt->execute([
         ':action' => $Action,
@@ -223,10 +315,31 @@ function resetDatabaseObjects(PDO $Db): array
     return ['summary' => $Summary, 'logs' => $Logs];
 }
 
-function buildWrappedSql(string $Sql): string
+function splitSqlBatches(string $Sql): array
 {
-    $Sql = preg_replace('/^\s*GO\s*$/mi', '', $Sql);
-    return "BEGIN TRY\nBEGIN TRANSACTION;\n" . $Sql . "\nCOMMIT;\nEND TRY\nBEGIN CATCH\nIF @@TRANCOUNT > 0 ROLLBACK;\nDECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();\nRAISERROR(@ErrorMessage, 16, 1);\nEND CATCH";
+    $Sql = str_replace("\r\n", "\n", $Sql);
+    $Lines = explode("\n", $Sql);
+    $Batches = [];
+    $Current = [];
+
+    foreach ($Lines as $Line) {
+        if (preg_match('/^\s*GO\s*$/i', $Line)) {
+            $Batch = trim(implode("\n", $Current));
+            if ($Batch !== '') {
+                $Batches[] = $Batch;
+            }
+            $Current = [];
+            continue;
+        }
+        $Current[] = $Line;
+    }
+
+    $Batch = trim(implode("\n", $Current));
+    if ($Batch !== '') {
+        $Batches[] = $Batch;
+    }
+
+    return $Batches;
 }
 
 function upsertMigration(PDO $Db, string $Filename, ?string $Checksum, string $Status, ?string $ErrorMessage): void
@@ -259,11 +372,28 @@ function runMigration(PDO $Db, string $Path, string $Filename, string $Checksum)
 {
     try {
         $Sql = file_get_contents($Path);
-        $Wrapped = buildWrappedSql($Sql);
-        $Db->exec($Wrapped);
+        if ($Sql === false) {
+            throw new RuntimeException('SQL dosyasi okunamadi: ' . $Path);
+        }
+
+        $Batches = splitSqlBatches($Sql);
+        if (empty($Batches)) {
+            upsertMigration($Db, $Filename, $Checksum, 'applied', null);
+            return ['ok' => true, 'message' => $Filename . ' bos bulundu, atlandi.'];
+        }
+
+        $Db->beginTransaction();
+        foreach ($Batches as $Batch) {
+            $Db->exec($Batch);
+        }
+        $Db->commit();
         upsertMigration($Db, $Filename, $Checksum, 'applied', null);
         return ['ok' => true, 'message' => $Filename . ' basariyla calistirildi.'];
     } catch (Throwable $e) {
+        if ($Db->inTransaction()) {
+            $Db->rollBack();
+        }
+        logException('migration:' . $Filename, $e);
         $Safe = sanitizeErrorMessage($e->getMessage());
         upsertMigration($Db, $Filename, $Checksum, 'failed', $Safe);
         return ['ok' => false, 'message' => $Filename . ' hata verdi: ' . $Safe];
@@ -353,6 +483,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $MessageType = 'error';
     } else {
         if ($Action === 'run') {
+            ensureSchemaMigrationLogs($Db);
             ensureSchemaMigrations($Db);
             $Requested = basename((string)($_POST['file'] ?? ''));
             if ($Requested === '' || !in_array($Requested, $FileNames, true)) {
@@ -366,11 +497,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $MessageType = $Result['ok'] ? 'success' : 'error';
             }
         } elseif ($Action === 'run_all') {
+            ensureSchemaMigrationLogs($Db);
             ensureSchemaMigrations($Db);
             $Pending = array_filter($Statuses, fn ($S) => $S['status'] !== 'applied');
             if (empty($Pending)) {
-                $Message = 'Calistirilacak bekleyen migration yok.';
-                $MessageType = 'info';
+                // Migration bekleyen yok - sadece seeder çalıştır
+                $SeederResult = runSeeder();
+                if ($SeederResult['ok']) {
+                    $Message = 'Bekleyen migration yok. Seeder başarıyla çalıştırıldı.';
+                    $MessageType = 'success';
+                } else {
+                    $Message = 'Bekleyen migration yok. Seeder hatası: ' . $SeederResult['message'];
+                    $MessageType = 'warning';
+                }
             } else {
                 $Errors = [];
                 foreach (array_keys($Pending) as $FileName) {
@@ -385,11 +524,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $Message = implode(' | ', $Errors);
                     $MessageType = 'error';
                 } else {
-                    $Message = 'Tum bekleyen migrationlar calistirildi.';
-                    $MessageType = 'success';
+                    // Migration başarılı - seeder çalıştır
+                    $SeederResult = runSeeder();
+                    if ($SeederResult['ok']) {
+                        $Message = 'Tüm migrationlar ve seeder başarıyla çalıştırıldı.';
+                        $MessageType = 'success';
+                    } else {
+                        $Message = 'Migrationlar başarılı, seeder hatası: ' . $SeederResult['message'];
+                        $MessageType = 'warning';
+                    }
                 }
             }
         } elseif ($Action === 'reset_db') {
+            ensureSchemaMigrationLogs($Db);
             $ConfirmText = (string)($_POST['reset_confirm_text'] ?? '');
             $ConfirmCheck = (string)($_POST['reset_confirm_check'] ?? '');
 
@@ -418,6 +565,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($Db->inTransaction()) {
                         $Db->rollBack();
                     }
+                    logException('reset_db', $e);
                     $Safe = sanitizeErrorMessage($e->getMessage());
                     logMigrationEvent($Db, 'reset_failed', 'DB sifirlama hata verdi.', 'failed', $Safe);
                     $Message = 'Reset islemi basarisiz: ' . $Safe;

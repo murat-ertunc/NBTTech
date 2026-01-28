@@ -75,7 +75,7 @@ class PaymentController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        $Zorunlu = ['MusteriId', 'ProjeId', 'Tarih', 'Tutar'];
+        $Zorunlu = ['MusteriId', 'ProjeId', 'FaturaId', 'Tarih', 'Tutar'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
                 Response::error("$Alan alani zorunludur.", 422);
@@ -85,7 +85,7 @@ class PaymentController
         
         $MusteriId = (int)$Girdi['MusteriId'];
         $ProjeId = (int)$Girdi['ProjeId'];
-        $FaturaId = !empty($Girdi['FaturaId']) ? (int)$Girdi['FaturaId'] : null;
+        $FaturaId = (int)$Girdi['FaturaId'];
         $Tutar = (float)$Girdi['Tutar'];
         $Tarih = trim((string)$Girdi['Tarih']); 
         $Aciklama = isset($Girdi['Aciklama']) ? trim((string)$Girdi['Aciklama']) : null;

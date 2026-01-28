@@ -17,11 +17,10 @@ $FormMusteriId = $MusteriId;
 $FormTabKey = 'dosyalar';
 $FormTitle = $pageTitle;
 $FormIcon = 'bi-folder';
-$FormColor = 'dark';
 $FormBreadcrumb = $pageTitle;
 $FormSaveButtonId = 'btnSaveFilePage';
 $FormPermission = 'files.create,files.update';
-$FormButtonColor = 'dark';
+$FormButtonColor = 'primary';
 
 require __DIR__ . '/../partials/header.php';
 ?>
@@ -39,43 +38,26 @@ require __DIR__ . '/../partials/header.php';
           <input type="hidden" id="fileMusteriId" value="<?= (int)$MusteriId ?>">
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Proje</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Proje</label>
+            <div class="col-8">
               <select class="form-select" id="fileProjeId">
                 <option value="">Proje Seçiniz (Opsiyonel)...</option>
               </select>
             </div>
           </div>
           
-          <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Dosya Kategorisi</label>
-            <div class="col-12 col-md-9">
-              <select class="form-select" id="fileKategori">
-                <option value="">Kategori Seçiniz...</option>
-                <option value="Sözleşme">Sözleşme</option>
-                <option value="Teklif">Teklif</option>
-                <option value="Fatura">Fatura</option>
-                <option value="Teminat">Teminat</option>
-                <option value="Teknik Döküman">Teknik Döküman</option>
-                <option value="Rapor">Rapor</option>
-                <option value="Yazışma">Yazışma</option>
-                <option value="Diğer">Diğer</option>
-              </select>
-            </div>
-          </div>
-          
           <?php if (!$IsEdit): ?>
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Dosya <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Dosya <span class="text-danger">*</span></label>
+            <div class="col-8">
               <input type="file" class="form-control" id="fileUpload" required>
               <small class="text-muted">Max 10MB, İzin verilen: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP</small>
             </div>
           </div>
           <?php else: ?>
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Mevcut Dosya</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Mevcut Dosya</label>
+            <div class="col-8">
               <div class="alert alert-info mb-0" id="fileCurrentInfo">
                 <i class="bi bi-file-earmark"></i> <span id="fileCurrentName">Yükleniyor...</span>
               </div>
@@ -84,24 +66,9 @@ require __DIR__ . '/../partials/header.php';
           <?php endif; ?>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Dosya Adı</label>
-            <div class="col-12 col-md-9">
-              <input type="text" class="form-control" id="fileName" placeholder="Boş bırakılırsa orijinal dosya adı kullanılır">
-            </div>
-          </div>
-          
-          <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Açıklama</label>
-            <div class="col-12 col-md-9">
-              <textarea class="form-control" id="fileAciklama" rows="2"></textarea>
-            </div>
-          </div>
-          
-          <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Etiketler</label>
-            <div class="col-12 col-md-9">
-              <input type="text" class="form-control" id="fileEtiketler" placeholder="Virgülle ayırarak yazın">
-              <small class="text-muted">Örn: sözleşme, imzalı, 2024</small>
+            <label class="col-4 col-form-label">Açıklama</label>
+            <div class="col-8">
+              <input type="text" class="form-control" id="fileAciklama" placeholder="Dosya hakkında kısa açıklama">
             </div>
           </div>
         </form>

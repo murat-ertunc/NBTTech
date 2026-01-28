@@ -49,8 +49,8 @@ require __DIR__ . '/../partials/header.php';
             <input type="hidden" id="offerMusteriId" value="<?= (int)$MusteriId ?>">
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">Proje <span class="text-danger">*</span></label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
+              <div class="col-8">
                 <select class="form-select" id="offerProjeId" required>
                   <option value="">Proje Seçiniz...</option>
                 </select>
@@ -59,15 +59,15 @@ require __DIR__ . '/../partials/header.php';
             </div>
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">Konu</label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">Konu</label>
+              <div class="col-8">
                 <input type="text" class="form-control" id="offerSubject" placeholder="Teklif konusu">
               </div>
             </div>
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">Tutar <span class="text-danger">*</span></label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
+              <div class="col-8">
                 <div class="input-group">
                   <input type="text" class="form-control nbt-money-input" id="offerAmount" placeholder="0,00" required value="0,00">
                   <select class="form-select" id="offerCurrency" style="max-width: 100px;">
@@ -79,24 +79,24 @@ require __DIR__ . '/../partials/header.php';
             </div>
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">Teklif Tarihi <span class="text-danger">*</span></label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">Teklif Tarihi <span class="text-danger">*</span></label>
+              <div class="col-8">
                 <input type="date" class="form-control" id="offerDate" value="<?= date('Y-m-d') ?>" required>
                 <div class="invalid-feedback"></div>
               </div>
             </div>
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">Geçerlilik Tarihi <span class="text-danger">*</span></label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">Geçerlilik Tarihi <span class="text-danger">*</span></label>
+              <div class="col-8">
                 <input type="date" class="form-control" id="offerValidDate" required>
                 <div class="invalid-feedback"></div>
               </div>
             </div>
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">Durum</label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">Durum</label>
+              <div class="col-8">
                 <select class="form-select" id="offerStatus">
                   <!-- Dinamik olarak doldurulacak -->
                 </select>
@@ -104,14 +104,14 @@ require __DIR__ . '/../partials/header.php';
             </div>
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">PDF Dosya</label>
-              <div class="col-12 col-md-9">
-                <input type="file" class="form-control" id="offerDosya" accept=".pdf,application/pdf">
-                <div class="form-text text-muted">Sadece PDF dosyası. Maksimum 10MB.</div>
+              <label class="col-4 col-form-label">Dosya</label>
+              <div class="col-8">
+                <input type="file" class="form-control" id="offerDosya" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                <div class="form-text text-muted">PDF veya Word dosyası (.pdf, .doc, .docx). Maksimum 10MB.</div>
                 <div class="invalid-feedback" id="offerDosyaError"></div>
                 <div class="mt-2 d-none" id="offerCurrentFile">
                   <span class="badge bg-secondary me-2">
-                    <i class="bi bi-file-pdf me-1"></i>
+                    <i class="bi bi-file-earmark me-1" id="offerCurrentFileIcon"></i>
                     <span id="offerCurrentFileName"></span>
                   </span>
                   <button type="button" class="btn btn-sm btn-outline-danger" id="btnRemoveOfferFile">

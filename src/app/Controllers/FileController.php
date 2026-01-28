@@ -94,7 +94,7 @@ class FileController
         $MaksimumBoyut = 10 * 1024 * 1024;
         if ($DosyaBoyutu > $MaksimumBoyut) {
             $BoyutMB = round($DosyaBoyutu / (1024 * 1024), 2);
-            Response::error("Dosya boyutu cok buyuk ({$BoyutMB}MB). Maksimum 10MB yuklenebilir.", 422);
+            Response::error("Dosya boyutu cok buyuk ({$BoyutMB}MB). Maksimum {$MaksimumMB}MB yuklenebilir.", 422);
             return;
         }
 

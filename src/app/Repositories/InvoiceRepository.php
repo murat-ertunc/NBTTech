@@ -31,8 +31,12 @@ class InvoiceRepository extends BaseRepository
         return $Sonuc ?: null;
     }
 
-    public function musteriyeGore(int $MusteriId): array
+    public function musteriyeGore(int $MusteriId, bool $SadeceOdenmemis = false): array
     {
+        $KalanFiltre = $SadeceOdenmemis 
+            ? "AND (f.Tutar - (SELECT COALESCE(SUM(o.Tutar),0) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil=0)) > 0"
+            : "";
+        
         $Sql = "
             SELECT f.*, 
                    m.Unvan as MusteriUnvan,
@@ -42,13 +46,13 @@ class InvoiceRepository extends BaseRepository
             FROM tbl_fatura f
             LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
             LEFT JOIN tbl_proje p ON f.ProjeId = p.Id
-            WHERE f.Sil = 0 AND f.MusteriId = :MId 
+            WHERE f.Sil = 0 AND f.MusteriId = :MId {$KalanFiltre}
             ORDER BY f.Tarih DESC, f.Id DESC
         ";
         $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute(['MId' => $MusteriId]);
         $Sonuclar = $Stmt->fetchAll();
-        $this->logSelect(['Sil' => 0, 'MusteriId' => $MusteriId], $Sonuclar);
+        $this->logSelect(['Sil' => 0, 'MusteriId' => $MusteriId, 'SadeceOdenmemis' => $SadeceOdenmemis], $Sonuclar);
         return $Sonuclar;
     }
 

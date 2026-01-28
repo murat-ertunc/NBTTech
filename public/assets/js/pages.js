@@ -163,10 +163,8 @@ const GlobalCustomerSidebar = {
             });
         }
 
-        // Musteri ekle butonu
-        document.querySelector('#globalCustomerPanel [data-action="add-customer"]')?.addEventListener('click', () => {
-            CustomerModule.openModal();
-        });
+        // Müşteri ekle artık external sayfa ile yapılıyor (/customer/new)
+        // add-customer event listener'ı kaldırıldı
 
         // Musteri tiklama
         document.getElementById('globalCustomerList')?.addEventListener('click', (e) => {
@@ -1256,9 +1254,8 @@ const CustomerDetailModule = {
             btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
         });
 
-        document.getElementById('btnEditCustomer')?.addEventListener('click', () => {
-            CustomerModule.openModal(this.customerId);
-        });
+        // Müşteri düzenleme artık external sayfa ile yapılıyor (/customer/{id}/edit)
+        // btnEditCustomer event listener'ı kaldırıldı
     },
 
     switchTab(tab) {
@@ -1393,7 +1390,7 @@ const CustomerDetailModule = {
                 <div class="card-header py-2 d-flex justify-content-between align-items-center bg-white">
                     <span class="fw-semibold"><i class="bi ${icon} me-2"></i>${title}</span>
                     <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-success btn-sm" data-add="${addType}"${addPermissionAttr}>
+                        <button type="button" class="btn btn-primary btn-sm" data-add="${addType}"${addPermissionAttr}>
                             <i class="bi bi-plus-lg me-1"></i>Ekle
                         </button>
                         <div class="btn-group btn-group-sm">
@@ -1430,7 +1427,7 @@ const CustomerDetailModule = {
             const endValue = tableFilters[c.field + '_end'] || '';
             
             // Tarih alanlari icin cift date input (baslangic-bitis) - yan yana
-            const isDateField = c.isDate || c.field.toLowerCase().includes('tarih') || c.field === 'BaslangicTarihi' || c.field === 'BitisTarihi' || c.field === 'TeklifTarihi' || c.field === 'TerminTarihi' || c.field === 'SozlesmeTarihi' || c.field === 'OlusturmaZamani';
+            const isDateField = c.isDate || c.field.toLowerCase().includes('tarih') || c.field === 'TeklifTarihi' || c.field === 'TerminTarihi' || c.field === 'SozlesmeTarihi' || c.field === 'OlusturmaZamani';
             if (isDateField) {
                 return `<th class="p-1" style="min-width:200px;">
                     <div class="d-flex gap-1">
@@ -2682,8 +2679,8 @@ const CustomerDetailModule = {
                         const bugun = new Date();
                         bugun.setHours(0, 0, 0, 0);
                         data = data.map(item => {
-                            const bitisTarihi = item.BitisTarihi ? new Date(item.BitisTarihi) : null;
-                            const tamamlandi = bitisTarihi && bitisTarihi < bugun ? 1 : 0;
+                            const terminTarihi = item.TerminTarihi ? new Date(item.TerminTarihi) : null;
+                            const tamamlandi = terminTarihi && terminTarihi < bugun ? 1 : 0;
                             return { ...item, Tamamlandi: tamamlandi };
                         });
                     }
@@ -2741,8 +2738,8 @@ const CustomerDetailModule = {
                 const bugun = new Date();
                 bugun.setHours(0, 0, 0, 0);
                 filtered = filtered.filter(item => {
-                    const bitisTarihi = item.BitisTarihi ? new Date(item.BitisTarihi) : null;
-                    const tamamlandi = bitisTarihi && bitisTarihi < bugun ? '1' : '0';
+                    const terminTarihi = item.TerminTarihi ? new Date(item.TerminTarihi) : null;
+                    const tamamlandi = terminTarihi && terminTarihi < bugun ? '1' : '0';
                     return tamamlandi === value;
                 });
                 return;
@@ -2763,7 +2760,7 @@ const CustomerDetailModule = {
                 let cellValue = item[field];
                 
                 // Tarih alani icin ozel karsilastirma
-                const isDateField = field.toLowerCase().includes('tarih') || field === 'BaslangicTarihi' || field === 'BitisTarihi' || field === 'TeklifTarihi' || field === 'TerminTarihi' || field === 'SozlesmeTarihi';
+                const isDateField = field.toLowerCase().includes('tarih') || field === 'TeklifTarihi' || field === 'TerminTarihi' || field === 'SozlesmeTarihi';
                 if (isDateField) {
                     const cellDate = NbtUtils.formatDateForCompare(cellValue);
                     return cellDate === value;
@@ -2864,6 +2861,14 @@ const CustomerDetailModule = {
                     { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                     { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
                     { field: 'TeklifTarihi', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
+                    { field: 'DosyaAdi', label: 'Dosya', render: (v, row) => {
+                        if (!v || !row.DosyaYolu) return '-';
+                        const ext = v.split('.').pop().toLowerCase();
+                        let icon = 'bi-file-earmark';
+                        if (ext === 'pdf') icon = 'bi-file-pdf text-danger';
+                        else if (ext === 'doc' || ext === 'docx') icon = 'bi-file-word text-primary';
+                        return `<a href="/src/${row.DosyaYolu}" target="_blank" title="${NbtUtils.escapeHtml(v)}"><i class="bi ${icon}"></i></a>`;
+                    }},
                     { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'offer'), statusType: 'teklif' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
@@ -3650,20 +3655,14 @@ const InvoiceModule = {
         document.getElementById('invoiceModalTitle').innerHTML = id ? '<i class="bi bi-receipt me-2"></i>Fatura Düzenle' : '<i class="bi bi-receipt me-2"></i>Yeni Fatura';
         document.getElementById('invoiceId').value = id || '';
 
-        const select = document.getElementById('invoiceMusteriId');
-        CustomerDetailModule.populateCustomerSelect(select);
-        select.disabled = false;
+        // Müşteri ID hidden input'a set edilecek
+        const musteriIdEl = document.getElementById('invoiceMusteriId');
 
         const projeSelect = document.getElementById('invoiceProjeId');
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
-        
-        // Doviz seceneklerini dinamik yukle
-        const dovizSelect = document.getElementById('invoiceDoviz');
-        if (dovizSelect) {
-            await NbtParams.populateCurrencySelect(dovizSelect);
-        }
 
         // Yeni alanlari sifirla
+        const dovizSelect = document.getElementById('invoiceDoviz');
         const faturaNoEl = document.getElementById('invoiceFaturaNo');
         const supheliEl = document.getElementById('invoiceSupheliAlacak');
         const tevkifatAktifEl = document.getElementById('invoiceTevkifatAktif');
@@ -3674,17 +3673,27 @@ const InvoiceModule = {
         if (faturaNoEl) faturaNoEl.value = '';
         if (supheliEl) supheliEl.checked = false;
         if (tevkifatAktifEl) tevkifatAktifEl.checked = false;
-        if (tevkifatOran1El) tevkifatOran1El.value = '';
-        if (tevkifatOran2El) tevkifatOran2El.value = '';
+        // Tevkifat oranları default: 100,00 ve 0,00
+        if (tevkifatOran1El) tevkifatOran1El.value = '100,00';
+        if (tevkifatOran2El) tevkifatOran2El.value = '0,00';
         if (tevkifatAlani) tevkifatAlani.style.display = 'none';
+
+        // Takvim hatırlatma alanlarını sıfırla
+        const takvimAktifEl = document.getElementById('invoiceTakvimAktif');
+        const takvimSureEl = document.getElementById('invoiceTakvimSure');
+        const takvimSureTipiEl = document.getElementById('invoiceTakvimSureTipi');
+        const takvimAlani = document.getElementById('takvimHatirlatmaAlani');
+        if (takvimAktifEl) takvimAktifEl.checked = false;
+        if (takvimSureEl) takvimSureEl.value = '7';
+        if (takvimSureTipiEl) takvimSureTipiEl.value = 'gun';
+        if (takvimAlani) takvimAlani.style.display = 'none';
 
         // Fatura kalemlerini sifirla
         this.resetInvoiceItems();
 
-        // Musteri degistiginde projeleri yukleme
-        select.onchange = async () => {
+        // Projeleri yukle fonksiyonu
+        const loadProjects = async (musteriId) => {
             projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
-            const musteriId = select.value;
             if (musteriId) {
                 try {
                     const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
@@ -3703,11 +3712,18 @@ const InvoiceModule = {
             }
         };
 
-        // Eger customer detail sayfasindaysak musteriyi auto-select et ve disable yap
-        if (CustomerDetailModule.customerId) {
-            select.value = CustomerDetailModule.customerId;
-            select.disabled = true;
-            await select.onchange();
+        // Customer detail sayfasından MusteriId'yi al
+        let musteriId = CustomerDetailModule.customerId || null;
+        if (musteriIdEl) musteriIdEl.value = musteriId || '';
+        
+        // Projeleri yükle
+        if (musteriId) {
+            await loadProjects(musteriId);
+        }
+
+        // Döviz seçeneklerini yükle
+        if (dovizSelect) {
+            await NbtParams.populateCurrencySelect(dovizSelect);
         }
 
         if (id) {
@@ -3717,13 +3733,21 @@ const InvoiceModule = {
                 invoice = CustomerDetailModule.data?.invoices?.find(i => parseInt(i.Id, 10) === parsedId);
             }
             if (invoice) {
-                select.value = invoice.MusteriId;
-                select.disabled = true;
+                // MusteriId hidden input'a set et
+                if (musteriIdEl) musteriIdEl.value = invoice.MusteriId;
                 // Projeleri yukleme ve secili projeyi ayarlama
-                await select.onchange();
+                await loadProjects(invoice.MusteriId);
                 document.getElementById('invoiceProjeId').value = invoice.ProjeId || '';
                 document.getElementById('invoiceTarih').value = invoice.Tarih?.split('T')[0] || '';
-                document.getElementById('invoiceDoviz').value = invoice.DovizCinsi || 'TRY';
+                if (dovizSelect) {
+                    dovizSelect.value = invoice.DovizCinsi || invoice.ParaBirimi || NbtParams.getDefaultCurrency();
+                }
+                
+                // Türkçe format helper (1234.56 -> 1.234,56)
+                const formatTR = (num) => {
+                    const val = parseFloat(num) || 0;
+                    return val.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                };
                 
                 // Yeni alanlari doldur
                 if (faturaNoEl && invoice.FaturaNo) faturaNoEl.value = invoice.FaturaNo;
@@ -3732,8 +3756,19 @@ const InvoiceModule = {
                 if (parseInt(invoice.TevkifatAktif, 10) === 1) {
                     if (tevkifatAktifEl) tevkifatAktifEl.checked = true;
                     if (tevkifatAlani) tevkifatAlani.style.display = 'block';
-                    if (tevkifatOran1El) tevkifatOran1El.value = NbtUtils.formatDecimal(invoice.TevkifatOran1) || '';
-                    if (tevkifatOran2El) tevkifatOran2El.value = NbtUtils.formatDecimal(invoice.TevkifatOran2) || '';
+                    if (tevkifatOran1El) tevkifatOran1El.value = formatTR(invoice.TevkifatOran1);
+                    if (tevkifatOran2El) tevkifatOran2El.value = formatTR(invoice.TevkifatOran2);
+                }
+                
+                // Takvim hatırlatma ayarlarını yükle
+                if (parseInt(invoice.TakvimAktif, 10) === 1) {
+                    if (takvimAktifEl) takvimAktifEl.checked = true;
+                    if (takvimAlani) takvimAlani.style.display = 'block';
+                    if (takvimSureEl && invoice.TakvimSure) takvimSureEl.value = invoice.TakvimSure;
+                    if (takvimSureTipiEl && invoice.TakvimSureTipi) takvimSureTipiEl.value = invoice.TakvimSureTipi;
+                } else {
+                    if (takvimAktifEl) takvimAktifEl.checked = false;
+                    if (takvimAlani) takvimAlani.style.display = 'none';
                 }
 
                 // Fatura kalemlerini API'den yukle (her zaman guncel veri icin)
@@ -3777,22 +3812,42 @@ const InvoiceModule = {
         
         const projeIdVal = document.getElementById('invoiceProjeId').value;
         
-        // Tutar'ı fatura kalemlerinin genel toplamından al
-        const genelToplamEl = document.getElementById('invoiceItemsGenelToplam');
-        const tutar = genelToplamEl ? parseFloat(genelToplamEl.value) || 0 : 0;
+        // Türkçe formatı parse et (1.234,56 -> 1234.56)
+        const parseTR = (str) => {
+            if (!str) return 0;
+            return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+        };
         
+        // Tutar'ı fatura kalemlerinin genel toplamından al (Türkçe formatlı)
+        const genelToplamEl = document.getElementById('invoiceItemsGenelToplam');
+        const tutar = genelToplamEl ? parseTR(genelToplamEl.value) : 0;
+        
+        // Tevkifat oranlarını Türkçe formatla parse et
+        const tevkifatOran1 = parseTR(document.getElementById('invoiceTevkifatOran1')?.value);
+        const tevkifatOran2 = parseTR(document.getElementById('invoiceTevkifatOran2')?.value);
+        
+        // Takvim hatırlatma değerlerini al
+        const takvimAktif = document.getElementById('invoiceTakvimAktif')?.checked ? 1 : 0;
+        const takvimSure = parseInt(document.getElementById('invoiceTakvimSure')?.value) || null;
+        const takvimSureTipi = document.getElementById('invoiceTakvimSureTipi')?.value || null;
+        
+        const doviz = document.getElementById('invoiceDoviz')?.value || NbtParams.getDefaultCurrency();
+
         const data = {
             MusteriId: musteriId,
             ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
             Tarih: document.getElementById('invoiceTarih').value,
             Tutar: tutar,
-            DovizCinsi: document.getElementById('invoiceDoviz')?.value || 'TRY',
+            DovizCinsi: doviz,
             // Yeni alanlar
             FaturaNo: document.getElementById('invoiceFaturaNo')?.value.trim() || null,
             SupheliAlacak: document.getElementById('invoiceSupheliAlacak')?.checked ? 1 : 0,
             TevkifatAktif: document.getElementById('invoiceTevkifatAktif')?.checked ? 1 : 0,
-            TevkifatOran1: parseFloat(document.getElementById('invoiceTevkifatOran1')?.value) || null,
-            TevkifatOran2: parseFloat(document.getElementById('invoiceTevkifatOran2')?.value) || null,
+            TevkifatOran1: tevkifatOran1 || null,
+            TevkifatOran2: tevkifatOran2 || null,
+            TakvimAktif: takvimAktif,
+            TakvimSure: takvimAktif ? takvimSure : null,
+            TakvimSureTipi: takvimAktif ? takvimSureTipi : null,
             Kalemler: this.getInvoiceItems()
         };
 
@@ -3810,11 +3865,6 @@ const InvoiceModule = {
         if (!data.Tarih) {
             NbtModal.showFieldError('invoiceModal', 'invoiceTarih', 'Tarih zorunludur');
             NbtModal.showError('invoiceModal', 'Lütfen zorunlu alanları doldurun');
-            return;
-        }
-        if (!data.DovizCinsi) {
-            NbtModal.showFieldError('invoiceModal', 'invoiceDoviz', 'Döviz cinsi seçiniz');
-            NbtModal.showError('invoiceModal', 'Döviz cinsi zorunludur');
             return;
         }
         if (!data.Kalemler || data.Kalemler.length === 0) {
@@ -3877,12 +3927,19 @@ const InvoiceModule = {
     getInvoiceItems() {
         const kalemler = [];
         const rows = document.querySelectorAll('#invoiceItemsBody .invoice-item-row');
+        
+        // Türkçe formatı parse et (1.234,56 -> 1234.56)
+        const parseTR = (str) => {
+            if (!str) return 0;
+            return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+        };
+        
         rows.forEach((row, index) => {
             const miktar = parseFloat(row.querySelector('.item-miktar').value) || 0;
             const aciklama = row.querySelector('.item-aciklama').value.trim();
             const kdvOran = parseFloat(row.querySelector('.item-kdv').value) || 0;
             const birimFiyat = parseFloat(row.querySelector('.item-birimfiyat').value) || 0;
-            const tutar = parseFloat(row.querySelector('.item-tutar').value) || 0;
+            const tutar = parseTR(row.querySelector('.item-tutar').value);
             
             // Sadece dolu kalemleri ekle (en az miktar veya aciklama olmali)
             if (miktar > 0 || aciklama || birimFiyat > 0) {
@@ -3903,6 +3960,18 @@ const InvoiceModule = {
     pendingFiles: [],
     existingFiles: [],
     filesToDelete: [],
+
+    /**
+     * Tum state'i sifirla - sayfa acildiginda veya modal kapandiginda cagrilir
+     * form.php'den InvoiceModule.resetState() olarak cagriliyor
+     */
+    resetState() {
+        this.pendingFiles = [];
+        this.existingFiles = [];
+        this.filesToDelete = [];
+        this.resetInvoiceItems();
+        this.renderInvoiceFiles();
+    },
 
     resetInvoiceFiles() {
         this.pendingFiles = [];
@@ -4485,23 +4554,27 @@ const PaymentModule = {
         if (!musteriId) return;
         
         try {
-            const response = await NbtApi.get(`/api/invoices?musteri_id=${musteriId}`);
-            // API zaten musteri_id ile filtreliyor, ek filtreye gerek yok
+            // Backend'den sadece kalan>0 olan faturaları al (sadece_odenmemis=1)
+            const response = await NbtApi.get(`/api/invoices?musteri_id=${musteriId}&sadece_odenmemis=1`);
+            // API zaten musteri_id ve kalan>0 ile filtreliyor
             let faturalar = response.data || [];
             
-            // Odenmemis faturalari filtrele (Kalan > 0)
-            // Kalan yoksa Tutar'i kullan (hic odeme yapilmamis faturalar icin)
-            // Edit modda: duzenlenen odemenin faturasini her durumda goster
-            faturalar = faturalar.filter(f => {
-                // Edit modda duzenlenen odemenin faturasi her zaman gosterilmeli
-                if (editingPayment && parseInt(f.Id) === parseInt(editingPayment.FaturaId)) {
-                    return true;
+            // Edit modda: duzenlenen odemenin faturasini listeye ekle (kalan=0 olsa bile)
+            if (editingPayment && editingPayment.FaturaId) {
+                const editFaturaId = parseInt(editingPayment.FaturaId);
+                const existsInList = faturalar.some(f => parseInt(f.Id) === editFaturaId);
+                if (!existsInList) {
+                    // Düzenlenen ödemenin faturası listede yok, ayrıca çek
+                    try {
+                        const faturaRes = await NbtApi.get(`/api/invoices/${editFaturaId}`);
+                        if (faturaRes && faturaRes.Id) {
+                            faturalar.push(faturaRes);
+                        }
+                    } catch (e) {
+                        // Fatura bulunamazsa es geç
+                    }
                 }
-                const kalan = f.Kalan !== undefined && f.Kalan !== null 
-                    ? parseFloat(f.Kalan) 
-                    : parseFloat(f.Tutar) || 0;
-                return kalan > 0;
-            });
+            }
             
             this._invoicesCache = faturalar;
             
@@ -5067,7 +5140,7 @@ const StampTaxModule = {
                 await CustomerDetailModule.populateProjectSelect('stampTaxProjeId', item.ProjeId);
                 document.getElementById('stampTaxTarih').value = item.Tarih?.split('T')[0] || '';
                 document.getElementById('stampTaxTutar').value = NbtUtils.formatDecimal(item.Tutar) || '';
-                document.getElementById('stampTaxDovizCinsi').value = item.DovizCinsi || 'TRY';
+                document.getElementById('stampTaxDovizCinsi').value = item.DovizCinsi || NbtParams.getDefaultCurrency();
                 document.getElementById('stampTaxAciklama').value = item.Aciklama || '';
                 
                 if (item.DosyaAdi) {
@@ -5121,7 +5194,7 @@ const StampTaxModule = {
             ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
             Tarih: document.getElementById('stampTaxTarih').value,
             Tutar: parseFloat(document.getElementById('stampTaxTutar').value) || 0,
-            DovizCinsi: document.getElementById('stampTaxDovizCinsi').value || 'TRY',
+            DovizCinsi: document.getElementById('stampTaxDovizCinsi').value || NbtParams.getDefaultCurrency(),
             // BelgeNo kaldırıldı
             Aciklama: document.getElementById('stampTaxAciklama').value.trim() || null
         };
@@ -6444,11 +6517,15 @@ const LogModule = {
 const ParameterModule = {
     _eventsBound: false,
     data: {},
+    cities: [],
+    districts: [],
     activeGroup: 'genel',
     
     groups: {
         'genel': { icon: 'bi-gear', label: 'Genel Ayarlar', color: 'primary', badgeId: 'paramCountGenel' },
         'doviz': { icon: 'bi-currency-exchange', label: 'Döviz Türleri', color: 'success', badgeId: 'paramCountDoviz' },
+        'sehir': { icon: 'bi-geo-alt', label: 'İller', color: 'info', badgeId: 'paramCountSehir' },
+        'ilce': { icon: 'bi-pin-map', label: 'İlçeler', color: 'secondary', badgeId: 'paramCountIlce' },
         'durum_proje': { icon: 'bi-kanban', label: 'Proje Durumları', color: 'info', badgeId: 'paramCountDurumProje' },
         'durum_teklif': { icon: 'bi-file-text', label: 'Teklif Durumları', color: 'warning', badgeId: 'paramCountDurumTeklif' },
         'durum_sozlesme': { icon: 'bi-file-earmark-text', label: 'Sözleşme Durumları', color: 'secondary', badgeId: 'paramCountDurumSozlesme' },
@@ -6464,8 +6541,14 @@ const ParameterModule = {
 
     async loadData() {
         try {
-            const response = await NbtApi.get('/api/parameters');
-            this.data = response.data || {};
+            const [paramRes, citiesRes, districtsRes] = await Promise.all([
+                NbtApi.get('/api/parameters'),
+                NbtApi.get('/api/cities'),
+                NbtApi.get('/api/districts')
+            ]);
+            this.data = paramRes.data || {};
+            this.cities = citiesRes.data || [];
+            this.districts = districtsRes.data || [];
         } catch (err) {
             NbtToast.error('Parametreler yüklenemedi: ' + err.message);
         }
@@ -6475,7 +6558,14 @@ const ParameterModule = {
         Object.entries(this.groups).forEach(([key, group]) => {
             const badgeEl = document.getElementById(group.badgeId);
             if (badgeEl) {
-                const count = this.data[key]?.length || 0;
+                let count = 0;
+                if (key === 'sehir') {
+                    count = this.cities.length || 0;
+                } else if (key === 'ilce') {
+                    count = this.districts.length || 0;
+                } else {
+                    count = this.data[key]?.length || 0;
+                }
                 badgeEl.textContent = count;
             }
         });
@@ -6498,7 +6588,16 @@ const ParameterModule = {
         if (!container) return;
 
         const group = this.groups[this.activeGroup];
-        const items = this.data[this.activeGroup] || [];
+        
+        // Sehir ve ilce icin ozel veri kaynaklari
+        let items = [];
+        if (this.activeGroup === 'sehir') {
+            items = this.cities || [];
+        } else if (this.activeGroup === 'ilce') {
+            items = this.districts || [];
+        } else {
+            items = this.data[this.activeGroup] || [];
+        }
 
         // Card yapisi ile panel olustur
         let html = `
@@ -6509,7 +6608,7 @@ const ParameterModule = {
                     </span>
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-${group.color}">${items.length} kayıt</span>
-                        ${(this.activeGroup.startsWith('durum_') || this.activeGroup === 'doviz') ? 
+                        ${(this.activeGroup.startsWith('durum_') || this.activeGroup === 'doviz' || this.activeGroup === 'sehir' || this.activeGroup === 'ilce') ? 
                             `<button class="btn btn-sm btn-${group.color}" id="btnAddParameter" data-can="parameters.create">
                                 <i class="bi bi-plus-lg me-1"></i>Yeni Ekle
                             </button>` : ''}
@@ -6521,7 +6620,7 @@ const ParameterModule = {
             html += `
                 <div class="text-center text-muted py-5">
                     <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                    <p class="mb-0 fw-medium">Bu grupta parametre bulunamadı</p>
+                    <p class="mb-0 fw-medium">Bu grupta kayıt bulunamadı</p>
                 </div>`;
         } else {
             // Gruba gore farkli render
@@ -6529,6 +6628,10 @@ const ParameterModule = {
                 html += this.renderGeneralContent(items);
             } else if (this.activeGroup === 'doviz') {
                 html += this.renderCurrencyContent(items);
+            } else if (this.activeGroup === 'sehir') {
+                html += this.renderCityContent(items);
+            } else if (this.activeGroup === 'ilce') {
+                html += this.renderDistrictContent(items);
             } else {
                 html += this.renderStatusContent(items);
             }
@@ -6689,7 +6792,7 @@ const ParameterModule = {
             
             html += `</tbody></table></div>
                     <div class="mt-2">
-                        <button class="btn btn-success" id="btnSaveAllHatirlatma" data-can="parameters.update">
+                        <button class="btn btn-primary" id="btnSaveAllHatirlatma" data-can="parameters.update">
                             <i class="bi bi-check-all me-1"></i> Tümünü Kaydet
                         </button>
                     </div>
@@ -6809,6 +6912,82 @@ const ParameterModule = {
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <button class="btn btn-outline-danger" data-action="delete" data-id="${item.Id}" title="Sil" data-can="parameters.delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        return html;
+    },
+
+    // Sehir (İl) icerigi
+    renderCityContent(items) {
+        let html = `
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:80px;">Plaka</th>
+                            <th>İl Adı</th>
+                            <th>Bölge</th>
+                            <th style="width:100px;">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        items.forEach(item => {
+            html += `
+                <tr data-id="${item.Id}">
+                    <td><span class="badge bg-primary">${NbtUtils.escapeHtml(item.PlakaKodu)}</span></td>
+                    <td><span class="fw-semibold">${NbtUtils.escapeHtml(item.Ad)}</span></td>
+                    <td><span class="text-muted">${NbtUtils.escapeHtml(item.Bolge || '-')}</span></td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" data-action="edit-city" data-id="${item.Id}" title="Düzenle" data-can="parameters.update">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" data-action="delete-city" data-id="${item.Id}" title="Sil" data-can="parameters.delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        return html;
+    },
+
+    // Ilce icerigi
+    renderDistrictContent(items) {
+        let html = `
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:80px;">Plaka</th>
+                            <th>İl</th>
+                            <th>İlçe Adı</th>
+                            <th style="width:100px;">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        items.forEach(item => {
+            html += `
+                <tr data-id="${item.Id}">
+                    <td><span class="badge bg-secondary">${NbtUtils.escapeHtml(item.PlakaKodu || '')}</span></td>
+                    <td><span class="text-muted">${NbtUtils.escapeHtml(item.SehirAdi || '')}</span></td>
+                    <td><span class="fw-semibold">${NbtUtils.escapeHtml(item.Ad)}</span></td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" data-action="edit-district" data-id="${item.Id}" title="Düzenle" data-can="parameters.update">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" data-action="delete-district" data-id="${item.Id}" title="Sil" data-can="parameters.delete">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -7059,13 +7238,272 @@ const ParameterModule = {
                 }
             });
         });
+
+        // Sehir duzenle
+        container.querySelectorAll('[data-action="edit-city"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.dataset.id);
+                this.openCityModal(id);
+            });
+        });
+
+        // Sehir sil
+        container.querySelectorAll('[data-action="delete-city"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.id;
+                const result = await Swal.fire({
+                    title: 'Emin misiniz?',
+                    text: 'Bu şehri silmek istediğinizden emin misiniz? Bağlı ilçeler de etkilenecektir.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonText: 'İptal',
+                    confirmButtonText: 'Evet, Sil'
+                });
+                
+                if (!result.isConfirmed) return;
+                
+                try {
+                    await NbtApi.post(`/api/cities/${id}/delete`);
+                    NbtToast.success('Şehir silindi');
+                    await this.loadData();
+                    this.updateTabBadges();
+                    this.renderTabContent();
+                } catch (err) {
+                    NbtToast.error(err.message);
+                }
+            });
+        });
+
+        // Ilce duzenle
+        container.querySelectorAll('[data-action="edit-district"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.dataset.id);
+                this.openDistrictModal(id);
+            });
+        });
+
+        // Ilce sil
+        container.querySelectorAll('[data-action="delete-district"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.id;
+                const result = await Swal.fire({
+                    title: 'Emin misiniz?',
+                    text: 'Bu ilçeyi silmek istediğinizden emin misiniz?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonText: 'İptal',
+                    confirmButtonText: 'Evet, Sil'
+                });
+                
+                if (!result.isConfirmed) return;
+                
+                try {
+                    await NbtApi.post(`/api/districts/${id}/delete`);
+                    NbtToast.success('İlçe silindi');
+                    await this.loadData();
+                    this.updateTabBadges();
+                    this.renderTabContent();
+                } catch (err) {
+                    NbtToast.error(err.message);
+                }
+            });
+        });
     },
 
     openModal(id = null) {
         if (this.activeGroup === 'doviz') {
             this.openCurrencyModal(id);
+        } else if (this.activeGroup === 'sehir') {
+            this.openCityModal(id);
+        } else if (this.activeGroup === 'ilce') {
+            this.openDistrictModal(id);
         } else if (this.activeGroup.startsWith('durum_')) {
             this.openStatusModal(id);
+        }
+    },
+
+    // Sehir Modal
+    openCityModal(id = null) {
+        const modalHtml = `
+            <div class="modal fade" id="cityModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="cityModalTitle">${id ? 'Şehir Düzenle' : 'Yeni Şehir'}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="cityId" value="${id || ''}">
+                            <div class="mb-3">
+                                <label class="form-label">Plaka Kodu <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="cityPlakaKodu" maxlength="2" placeholder="01">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Şehir Adı <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="cityAd" placeholder="Adana">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Bölge</label>
+                                <select class="form-select" id="cityBolge">
+                                    <option value="">Seçiniz</option>
+                                    <option value="Marmara">Marmara</option>
+                                    <option value="Ege">Ege</option>
+                                    <option value="Akdeniz">Akdeniz</option>
+                                    <option value="Iç Anadolu">İç Anadolu</option>
+                                    <option value="Karadeniz">Karadeniz</option>
+                                    <option value="Dogu Anadolu">Doğu Anadolu</option>
+                                    <option value="Güneydogu Anadolu">Güneydoğu Anadolu</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                            <button type="button" class="btn btn-primary" id="btnSaveCity">Kaydet</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        
+        // Mevcut modali kaldir
+        const existingModal = document.getElementById('cityModal');
+        if (existingModal) existingModal.remove();
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        if (id) {
+            const item = this.cities.find(c => c.Id == id);
+            if (item) {
+                document.getElementById('cityPlakaKodu').value = item.PlakaKodu || '';
+                document.getElementById('cityAd').value = item.Ad || '';
+                document.getElementById('cityBolge').value = item.Bolge || '';
+            }
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('cityModal'));
+        modal.show();
+        
+        document.getElementById('btnSaveCity').addEventListener('click', () => this.saveCity());
+    },
+
+    // Sehir Kaydet
+    async saveCity() {
+        const id = document.getElementById('cityId').value;
+        const data = {
+            PlakaKodu: document.getElementById('cityPlakaKodu').value.trim(),
+            Ad: document.getElementById('cityAd').value.trim(),
+            Bolge: document.getElementById('cityBolge').value
+        };
+        
+        if (!data.PlakaKodu || !data.Ad) {
+            NbtToast.error('Plaka kodu ve şehir adı zorunludur');
+            return;
+        }
+        
+        try {
+            if (id) {
+                await NbtApi.post(`/api/cities/${id}/update`, data);
+                NbtToast.success('Şehir güncellendi');
+            } else {
+                await NbtApi.post('/api/cities', data);
+                NbtToast.success('Şehir eklendi');
+            }
+            
+            bootstrap.Modal.getInstance(document.getElementById('cityModal')).hide();
+            await this.loadData();
+            this.updateTabBadges();
+            this.renderTabContent();
+        } catch (err) {
+            NbtToast.error(err.message);
+        }
+    },
+
+    // Ilce Modal
+    openDistrictModal(id = null) {
+        // Sehir select optionlarini olustur
+        const cityOptions = this.cities.map(c => 
+            `<option value="${c.Id}">${c.PlakaKodu} - ${c.Ad}</option>`
+        ).join('');
+        
+        const modalHtml = `
+            <div class="modal fade" id="districtModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="districtModalTitle">${id ? 'İlçe Düzenle' : 'Yeni İlçe'}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="districtId" value="${id || ''}">
+                            <div class="mb-3">
+                                <label class="form-label">İl <span class="text-danger">*</span></label>
+                                <select class="form-select" id="districtSehirId">
+                                    <option value="">İl Seçiniz</option>
+                                    ${cityOptions}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">İlçe Adı <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="districtAd" placeholder="Kadıköy">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                            <button type="button" class="btn btn-primary" id="btnSaveDistrict">Kaydet</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        
+        // Mevcut modali kaldir
+        const existingModal = document.getElementById('districtModal');
+        if (existingModal) existingModal.remove();
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        if (id) {
+            const item = this.districts.find(d => d.Id == id);
+            if (item) {
+                document.getElementById('districtSehirId').value = item.SehirId || '';
+                document.getElementById('districtAd').value = item.Ad || '';
+            }
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('districtModal'));
+        modal.show();
+        
+        document.getElementById('btnSaveDistrict').addEventListener('click', () => this.saveDistrict());
+    },
+
+    // Ilce Kaydet
+    async saveDistrict() {
+        const id = document.getElementById('districtId').value;
+        const data = {
+            SehirId: parseInt(document.getElementById('districtSehirId').value),
+            Ad: document.getElementById('districtAd').value.trim()
+        };
+        
+        if (!data.SehirId || !data.Ad) {
+            NbtToast.error('İl ve ilçe adı zorunludur');
+            return;
+        }
+        
+        try {
+            if (id) {
+                await NbtApi.post(`/api/districts/${id}/update`, data);
+                NbtToast.success('İlçe güncellendi');
+            } else {
+                await NbtApi.post('/api/districts', data);
+                NbtToast.success('İlçe eklendi');
+            }
+            
+            bootstrap.Modal.getInstance(document.getElementById('districtModal')).hide();
+            await this.loadData();
+            this.updateTabBadges();
+            this.renderTabContent();
+        } catch (err) {
+            NbtToast.error(err.message);
         }
     },
 
@@ -7349,7 +7787,6 @@ const UserModule = {
                     <input class="form-check-input user-role-checkbox" type="checkbox" 
                            value="${rol.Id}" id="userRole_${rol.Id}" ${checked}>
                     <label class="form-check-label" for="userRole_${rol.Id}">
-                        <span class="badge bg-${rol.Seviye >= 100 ? 'danger' : rol.Seviye >= 50 ? 'warning' : 'secondary'} me-1">${rol.Seviye}</span>
                         ${rol.RolAdi}
                         <small class="text-muted">(${rol.RolKodu})</small>
                     </label>
@@ -7375,21 +7812,10 @@ const UserModule = {
     },
 
     initToolbar() {
-        const toolbarContainer = document.getElementById('usersToolbar');
-        if (!toolbarContainer || toolbarContainer.children.length > 0) return;
-        
-        toolbarContainer.innerHTML = NbtListToolbar.create({
-            onSearch: false,
-            onAdd: true,
-            onFilter: false,
-            addPermission: 'users.create'
-        });
+        const addBtn = document.getElementById('usersAddBtn');
+        if (!addBtn) return;
 
-        const panel = document.getElementById('panelUsers');
-        NbtListToolbar.bind(toolbarContainer, {
-            onAdd: () => this.openModal(),
-            panelElement: panel
-        });
+        addBtn.addEventListener('click', () => this.openModal());
     },
 
     async applyFilters(page = 1) {
@@ -7478,8 +7904,7 @@ const UserModule = {
                 // Yeni RBAC: Roller dizisi
                 if (row.Roller && Array.isArray(row.Roller) && row.Roller.length > 0) {
                     return row.Roller.map(rol => {
-                        const bgClass = rol.Seviye >= 100 ? 'danger' : rol.Seviye >= 50 ? 'warning' : 'info';
-                        return `<span class="badge bg-${bgClass} me-1">${rol.RolAdi}</span>`;
+                        return `<span class="badge bg-info me-1">${rol.RolAdi}</span>`;
                     }).join('');
                 }
                 // Eski sistem fallback: Tek Rol alani
@@ -7769,10 +8194,18 @@ const UserModule = {
         document.querySelectorAll('.user-role-checkbox:checked').forEach(cb => {
             selectedRoleIds.push(parseInt(cb.value, 10));
         });
+
+        // Gecersiz/tekrarlayan rol ID'lerini temizle
+        const assignableIdSet = this.assignableRoles
+            ? new Set(this.assignableRoles.map(r => parseInt(r.Id, 10)).filter(Number.isInteger))
+            : null;
+        const normalizedRoleIds = Array.from(new Set(selectedRoleIds))
+            .filter(id => Number.isInteger(id) && id > 0)
+            .filter(id => !assignableIdSet || assignableIdSet.has(id));
         
         const data = {
             AdSoyad: document.getElementById('userAdSoyad').value.trim(),
-            RolIdler: selectedRoleIds // Yeni RBAC: rol ID listesi
+            RolIdler: normalizedRoleIds // Yeni RBAC: rol ID listesi
         };
         
         const sifre = document.getElementById('userSifre').value;
@@ -7810,7 +8243,7 @@ const UserModule = {
                 await NbtApi.put(`/api/users/${id}`, data);
                 
                 // Rolleri ayri endpoint ile guncelle
-                await NbtApi.post(`/api/users/${id}/roles`, { RolIdler: selectedRoleIds });
+                await NbtApi.post(`/api/users/${id}/roles`, { RolIdler: normalizedRoleIds });
                 
                 NbtToast.success('Kullanıcı güncellendi');
             } else {
@@ -8739,8 +9172,8 @@ const OfferModule = {
         NbtModal.open('offerModal');
     },
 
-    // PDF dosya dogrulama
-    validatePdfFile(file) {
+    // PDF ve Word dosya dogrulama
+    validateOfferFile(file) {
         const errors = [];
         const maxSize = 10 * 1024 * 1024; // 10MB
         
@@ -8749,12 +9182,16 @@ const OfferModule = {
             errors.push(`Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
         }
         
-        const allowedTypes = ['application/pdf'];
-        const allowedExtensions = ['.pdf'];
+        const allowedTypes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
+        const allowedExtensions = ['.pdf', '.doc', '.docx'];
         const fileExt = '.' + file.name.split('.').pop().toLowerCase();
         
         if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
-            errors.push('Sadece PDF dosyası yüklenebilir.');
+            errors.push('Sadece PDF veya Word dosyası (.pdf, .doc, .docx) yüklenebilir.');
         }
         
         return errors;
@@ -8807,7 +9244,7 @@ const OfferModule = {
         // Dosya dogrulama
         const file = fileInput?.files?.[0];
         if (file) {
-            const errors = this.validatePdfFile(file);
+            const errors = this.validateOfferFile(file);
             if (errors.length > 0) {
                 fileInput.classList.add('is-invalid');
                 document.getElementById('offerDosyaError').textContent = errors.join(' ');
@@ -8887,7 +9324,7 @@ const OfferModule = {
             if (errorEl) errorEl.textContent = '';
             
             if (file) {
-                const errors = this.validatePdfFile(file);
+                const errors = this.validateOfferFile(file);
                 if (errors.length > 0) {
                     e.target.classList.add('is-invalid');
                     if (errorEl) errorEl.textContent = errors.join(' ');
@@ -10027,7 +10464,6 @@ const GuaranteeModule = {
                 // Projeleri yukleme ve secili projeyi ayarlama
                 await select.onchange();
                 document.getElementById('guaranteeProjeId').value = guarantee.ProjeId || '';
-                document.getElementById('guaranteeNo').value = guarantee.BelgeNo || '';
                 document.getElementById('guaranteeType').value = guarantee.Tur || 'Nakit';
                 document.getElementById('guaranteeBank').value = guarantee.BankaAdi || '';
                 document.getElementById('guaranteeAmount').value = NbtUtils.formatDecimal(guarantee.Tutar) || '';
@@ -10081,7 +10517,6 @@ const GuaranteeModule = {
         const data = {
             MusteriId: musteriId,
             ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
-            BelgeNo: document.getElementById('guaranteeNo').value.trim() || null,
             Tur: document.getElementById('guaranteeType').value,
             BankaAdi: document.getElementById('guaranteeBank').value.trim() || null,
             Tutar: parseFloat(document.getElementById('guaranteeAmount').value) || 0,
@@ -10307,6 +10742,18 @@ const NbtOfferPageForm = {
             // Mevcut dosyayi goster
             if (offer.DosyaAdi && offer.DosyaYolu) {
                 document.getElementById('offerCurrentFileName').textContent = offer.DosyaAdi;
+                // Dosya tipine göre ikon
+                const iconEl = document.getElementById('offerCurrentFileIcon');
+                if (iconEl) {
+                    const ext = (offer.DosyaAdi || '').split('.').pop().toLowerCase();
+                    if (ext === 'pdf') {
+                        iconEl.className = 'bi bi-file-pdf me-1';
+                    } else if (ext === 'doc' || ext === 'docx') {
+                        iconEl.className = 'bi bi-file-word me-1';
+                    } else {
+                        iconEl.className = 'bi bi-file-earmark me-1';
+                    }
+                }
                 document.getElementById('offerCurrentFile').classList.remove('d-none');
             }
         } catch (err) {
@@ -10314,7 +10761,7 @@ const NbtOfferPageForm = {
         }
     },
 
-    validatePdfFile(file) {
+    validateOfferFile(file) {
         const errors = [];
         const maxSize = 10 * 1024 * 1024; // 10MB
         
@@ -10322,12 +10769,16 @@ const NbtOfferPageForm = {
             errors.push(`Dosya boyutu çok büyük. Maksimum 10MB.`);
         }
         
-        const allowedTypes = ['application/pdf'];
-        const allowedExtensions = ['.pdf'];
+        const allowedTypes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
+        const allowedExtensions = ['.pdf', '.doc', '.docx'];
         const fileExt = '.' + file.name.split('.').pop().toLowerCase();
         
         if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
-            errors.push('Sadece PDF dosyası yüklenebilir.');
+            errors.push('Sadece PDF veya Word dosyası (.pdf, .doc, .docx) yüklenebilir.');
         }
         
         return errors;
@@ -10382,7 +10833,7 @@ const NbtOfferPageForm = {
         // Dosya dogrulama
         const file = fileInput?.files?.[0];
         if (file) {
-            const errors = this.validatePdfFile(file);
+            const errors = this.validateOfferFile(file);
             if (errors.length > 0) {
                 this.showError(errors.join(' '));
                 return;
@@ -10441,7 +10892,7 @@ const NbtOfferPageForm = {
         document.getElementById('offerDosya')?.addEventListener('change', (e) => {
             const file = e.target.files?.[0];
             if (file) {
-                const errors = this.validatePdfFile(file);
+                const errors = this.validateOfferFile(file);
                 if (errors.length > 0) {
                     this.showError(errors.join(' '));
                 }
@@ -10663,6 +11114,201 @@ const NbtContractPageForm = {
 };
 
 // =============================================
+// MUSTERI SAYFA FORMU - Modal yerine tam sayfa
+// =============================================
+const NbtCustomerPageForm = {
+    _eventsBound: false,
+    musteriId: null,
+
+    async init(musteriId = null) {
+        // Sayfa formunun olup olmadigini kontrol et
+        const form = document.getElementById('customerPageForm');
+        if (!form) return;
+
+        this.musteriId = musteriId || parseInt(document.getElementById('customerId')?.value) || 0;
+
+        // Il/Ilce select'lerini doldur
+        await this.loadCities();
+
+        // Eger edit modundaysak verileri yukle
+        if (this.musteriId > 0) {
+            await this.loadCustomerData();
+        }
+
+        // Event binding
+        this.bindEvents();
+    },
+
+    async loadCities() {
+        const sehirSelect = document.getElementById('customerSehirId');
+        if (!sehirSelect) return;
+
+        sehirSelect.innerHTML = '<option value="">İl Seçiniz...</option>';
+        try {
+            const response = await NbtApi.get('/api/cities');
+            const cities = response.data || [];
+            cities.forEach(c => {
+                sehirSelect.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Ad)}</option>`;
+            });
+        } catch (err) {
+            NbtLogger.error('İller yüklenemedi:', err);
+        }
+    },
+
+    async loadDistricts(sehirId, selectedValue = null) {
+        const ilceSelect = document.getElementById('customerIlceId');
+        if (!ilceSelect) return;
+
+        if (!sehirId) {
+            ilceSelect.innerHTML = '<option value="">Önce il seçiniz...</option>';
+            ilceSelect.disabled = true;
+            return;
+        }
+
+        ilceSelect.innerHTML = '<option value="">İlçe Seçiniz...</option>';
+        ilceSelect.disabled = false;
+
+        try {
+            const response = await NbtApi.get(`/api/districts?sehir_id=${sehirId}`);
+            const districts = response.data || [];
+            districts.forEach(d => {
+                const selected = selectedValue && String(d.Id) === String(selectedValue) ? ' selected' : '';
+                ilceSelect.innerHTML += `<option value="${d.Id}"${selected}>${NbtUtils.escapeHtml(d.Ad)}</option>`;
+            });
+        } catch (err) {
+            NbtLogger.error('İlçeler yüklenemedi:', err);
+        }
+    },
+
+    async loadCustomerData() {
+        try {
+            const response = await NbtApi.get(`/api/customers/${this.musteriId}`);
+            const customer = response.data;
+            if (!customer) {
+                NbtToast.error('Müşteri bulunamadı');
+                return;
+            }
+
+            document.getElementById('customerUnvan').value = customer.Unvan || '';
+            document.getElementById('customerMusteriKodu').value = customer.MusteriKodu || '';
+            document.getElementById('customerVergiDairesi').value = customer.VergiDairesi || '';
+            document.getElementById('customerVergiNo').value = customer.VergiNo || '';
+            document.getElementById('customerMersisNo').value = customer.MersisNo || '';
+            document.getElementById('customerTelefon').value = customer.Telefon || '';
+            document.getElementById('customerFaks').value = customer.Faks || '';
+            document.getElementById('customerWeb').value = customer.Web || '';
+            document.getElementById('customerAdres').value = customer.Adres || '';
+            document.getElementById('customerAciklama').value = customer.Aciklama || '';
+
+            // Il/Ilce select'lerini doldur
+            if (customer.SehirId) {
+                document.getElementById('customerSehirId').value = customer.SehirId;
+                await this.loadDistricts(customer.SehirId, customer.IlceId);
+            }
+        } catch (err) {
+            this.showError('Müşteri yüklenemedi: ' + err.message);
+        }
+    },
+
+    showError(message) {
+        const errorEl = document.getElementById('customerFormError');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.classList.remove('d-none');
+        }
+    },
+
+    clearError() {
+        const errorEl = document.getElementById('customerFormError');
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.add('d-none');
+        }
+    },
+
+    validate() {
+        this.clearError();
+        const unvan = document.getElementById('customerUnvan')?.value?.trim();
+        const vergiDairesi = document.getElementById('customerVergiDairesi')?.value?.trim();
+        const vergiNo = document.getElementById('customerVergiNo')?.value?.trim();
+
+        if (!unvan || unvan.length < 2) {
+            this.showError('Ünvan en az 2 karakter olmalıdır');
+            return false;
+        }
+        if (!vergiDairesi) {
+            this.showError('Vergi Dairesi zorunludur');
+            return false;
+        }
+        if (!vergiNo || !/^\d{10,11}$/.test(vergiNo)) {
+            this.showError('Vergi No 10-11 haneli sayısal olmalıdır');
+            return false;
+        }
+        return true;
+    },
+
+    async save() {
+        if (!this.validate()) return;
+
+        const btn = document.getElementById('btnSaveCustomerPage');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kaydediliyor...';
+        }
+
+        try {
+            const data = {
+                Unvan: document.getElementById('customerUnvan').value.trim(),
+                MusteriKodu: document.getElementById('customerMusteriKodu').value.trim() || null,
+                VergiDairesi: document.getElementById('customerVergiDairesi').value.trim(),
+                VergiNo: document.getElementById('customerVergiNo').value.trim(),
+                MersisNo: document.getElementById('customerMersisNo').value.trim() || null,
+                Telefon: document.getElementById('customerTelefon').value.trim() || null,
+                Faks: document.getElementById('customerFaks').value.trim() || null,
+                Web: document.getElementById('customerWeb').value.trim() || null,
+                SehirId: document.getElementById('customerSehirId').value || null,
+                IlceId: document.getElementById('customerIlceId').value || null,
+                Adres: document.getElementById('customerAdres').value.trim() || null,
+                Aciklama: document.getElementById('customerAciklama').value.trim() || null
+            };
+
+            if (this.musteriId > 0) {
+                await NbtApi.put(`/api/customers/${this.musteriId}`, data);
+                NbtToast.success('Müşteri güncellendi');
+                window.location.href = `/customer/${this.musteriId}`;
+            } else {
+                const result = await NbtApi.post('/api/customers', data);
+                NbtToast.success('Müşteri eklendi');
+                if (result && result.id) {
+                    window.location.href = `/customer/${result.id}`;
+                } else {
+                    window.location.href = '/dashboard';
+                }
+            }
+        } catch (err) {
+            this.showError(err.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Kaydet';
+            }
+        }
+    },
+
+    bindEvents() {
+        if (this._eventsBound) return;
+        this._eventsBound = true;
+
+        document.getElementById('btnSaveCustomerPage')?.addEventListener('click', () => this.save());
+
+        // Il secildiginde ilceleri yukle
+        document.getElementById('customerSehirId')?.addEventListener('change', (e) => {
+            this.loadDistricts(e.target.value);
+        });
+    }
+};
+
+// =============================================
 // GENEL SAYFA FORMU - Tum modulleri kapsayan PageForm
 // =============================================
 const NbtPageForm = {
@@ -10789,7 +11435,7 @@ const NbtPageForm = {
             fieldMappings: {
                 'stampTaxProjeId': 'ProjeId',
                 'stampTaxSozlesmeId': 'SozlesmeId',
-                'stampTaxBelgeTarihi': 'BelgeTarihi',
+                'stampTaxBelgeTarihi': 'Tarih',
                 'stampTaxTutar': 'Tutar',
                 'stampTaxOdemeDurumu': 'OdemeDurumu',
                 'stampTaxNotlar': 'Notlar'
@@ -10814,26 +11460,23 @@ const NbtPageForm = {
             musteriIdFieldId: 'guaranteeMusteriId',
             needsProject: true,
             projeSelectId: 'guaranteeProjeId',
-            fields: ['guaranteeProjeId', 'guaranteeTur', 'guaranteeNo', 'guaranteeTutar', 'guaranteeDoviz', 'guaranteeBaslangicTarihi', 'guaranteeBitisTarihi', 'guaranteeBanka', 'guaranteeDurum', 'guaranteeNotlar'],
+            fields: ['guaranteeProjeId', 'guaranteeTur', 'guaranteeTutar', 'guaranteeDoviz', 'guaranteeTerminTarihi', 'guaranteeBanka', 'guaranteeDurum', 'guaranteeNotlar'],
             fieldMappings: {
                 'guaranteeProjeId': 'ProjeId',
-                'guaranteeTur': 'TeminatTuru',
-                'guaranteeNo': 'TeminatNo',
+                'guaranteeTur': 'Tur',
                 'guaranteeTutar': 'Tutar',
                 'guaranteeDoviz': 'ParaBirimi',
-                'guaranteeBaslangicTarihi': 'BaslangicTarihi',
-                'guaranteeBitisTarihi': 'BitisTarihi',
-                'guaranteeBanka': 'BankaKurum',
+                'guaranteeTerminTarihi': 'TerminTarihi',
+                'guaranteeBanka': 'BankaAdi',
                 'guaranteeDurum': 'Durum',
                 'guaranteeNotlar': 'Notlar'
             },
-            required: ['guaranteeProjeId', 'guaranteeTur', 'guaranteeTutar', 'guaranteeBaslangicTarihi', 'guaranteeBitisTarihi'],
+            required: ['guaranteeProjeId', 'guaranteeTur', 'guaranteeTutar', 'guaranteeTerminTarihi'],
             requiredMessages: {
                 'guaranteeProjeId': 'Proje seçimi zorunludur',
                 'guaranteeTur': 'Teminat türü seçimi zorunludur',
                 'guaranteeTutar': 'Tutar zorunludur',
-                'guaranteeBaslangicTarihi': 'Başlangıç tarihi zorunludur',
-                'guaranteeBitisTarihi': 'Bitiş tarihi zorunludur'
+                'guaranteeTerminTarihi': 'Termin tarihi zorunludur'
             },
             amountField: 'guaranteeTutar',
             currencyField: 'guaranteeDoviz',
@@ -10890,22 +11533,22 @@ const NbtPageForm = {
             needsProject: true,
             projeSelectId: 'paymentProjeId',
             faturaSelectId: 'paymentFaturaId',
-            fields: ['paymentProjeId', 'paymentFaturaId', 'paymentTarih', 'paymentTutar', 'paymentDoviz', 'paymentTur', 'paymentYon', 'paymentBanka', 'paymentReferans', 'paymentNotlar'],
+            fields: ['paymentProjeId', 'paymentFaturaId', 'paymentTarih', 'paymentTutar', 'paymentDoviz', 'paymentTur', 'paymentBanka', 'paymentReferans', 'paymentNotlar'],
             fieldMappings: {
                 'paymentProjeId': 'ProjeId',
                 'paymentFaturaId': 'FaturaId',
-                'paymentTarih': 'OdemeTarihi',
+                'paymentTarih': 'Tarih',
                 'paymentTutar': 'Tutar',
                 'paymentDoviz': 'ParaBirimi',
                 'paymentTur': 'OdemeTuru',
-                'paymentYon': 'OdemeYonu',
                 'paymentBanka': 'BankaHesap',
                 'paymentReferans': 'ReferansNo',
                 'paymentNotlar': 'Notlar'
             },
-            required: ['paymentProjeId', 'paymentTarih', 'paymentTutar', 'paymentTur'],
+            required: ['paymentProjeId', 'paymentFaturaId', 'paymentTarih', 'paymentTutar', 'paymentTur'],
             requiredMessages: {
                 'paymentProjeId': 'Proje seçimi zorunludur',
+                'paymentFaturaId': 'Fatura seçimi zorunludur',
                 'paymentTarih': 'Ödeme tarihi zorunludur',
                 'paymentTutar': 'Tutar zorunludur',
                 'paymentTur': 'Ödeme türü seçimi zorunludur'
@@ -10927,13 +11570,10 @@ const NbtPageForm = {
             projeSelectId: 'fileProjeId',
             hasFileUpload: true,
             fileInputId: 'fileUpload',
-            fields: ['fileProjeId', 'fileKategori', 'fileName', 'fileAciklama', 'fileEtiketler'],
+            fields: ['fileProjeId', 'fileAciklama'],
             fieldMappings: {
                 'fileProjeId': 'ProjeId',
-                'fileKategori': 'Kategori',
-                'fileName': 'DosyaAdi',
-                'fileAciklama': 'Aciklama',
-                'fileEtiketler': 'Etiketler'
+                'fileAciklama': 'Aciklama'
             },
             required: [],
             requiredMessages: {}
@@ -10997,6 +11637,13 @@ const NbtPageForm = {
             await this.loadGuaranteeTypes();
         }
 
+        // Doviz select'ini doldur (varsa)
+        if (config.currencyField) {
+            await NbtParams.populateCurrencySelect(
+                document.getElementById(config.currencyField)
+            );
+        }
+
         // Edit modundaysa verileri yukle
         if (this.recordId > 0) {
             await this.loadRecordData(config);
@@ -11048,12 +11695,22 @@ const NbtPageForm = {
         const faturaSelect = document.getElementById(config.faturaSelectId);
         if (!faturaSelect || !this.musteriId) return;
 
-        faturaSelect.innerHTML = '<option value="">Fatura Seçiniz (Opsiyonel)...</option>';
+        faturaSelect.innerHTML = '<option value="">Fatura Seçiniz...</option>';
         try {
             const response = await NbtApi.get(`/api/invoices?musteri_id=${this.musteriId}`);
             const invoices = response.data || [];
+            
+            // Sadece bakiyesi > 0 olan faturaları göster (düzenleme modunda mevcut fatura hariç)
+            const editingPaymentId = this.recordId || 0;
+            
             invoices.forEach(f => {
-                const label = `${f.FaturaNo} - ${NbtUtils.formatDate(f.FaturaTarihi)} - ${NbtUtils.formatMoney(f.Tutar, f.ParaBirimi)}`;
+                const kalan = parseFloat(f.Kalan) || 0;
+                
+                // Bakiyesi 0 olan faturaları gösterme (düzenleme modunda mevcut fatura hariç)
+                if (kalan <= 0 && editingPaymentId === 0) return;
+                
+                const kalanStr = kalan > 0 ? ` [Kalan: ${NbtUtils.formatMoney(kalan, f.ParaBirimi)}]` : ' [Tam Ödendi]';
+                const label = `${f.FaturaNo} - ${NbtUtils.formatDate(f.FaturaTarihi)} - ${NbtUtils.formatMoney(f.Tutar, f.ParaBirimi)}${kalanStr}`;
                 faturaSelect.innerHTML += `<option value="${f.Id}">${NbtUtils.escapeHtml(label)}</option>`;
             });
         } catch (err) {
@@ -11108,6 +11765,14 @@ const NbtPageForm = {
                 }
 
                 element.value = value ?? '';
+            }
+
+            // Doviz alaninda deger yoksa varsayilan dovizi sec
+            if (config.currencyField) {
+                const currencyEl = document.getElementById(config.currencyField);
+                if (currencyEl && !currencyEl.value) {
+                    currencyEl.value = NbtParams.getDefaultCurrency();
+                }
             }
 
             // Dosya modulu icin mevcut dosyayi goster
@@ -11507,6 +12172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // NbtOfferPageForm ve NbtContractPageForm geriye donuk uyumluluk icin korundu
     NbtOfferPageForm.init();
     NbtContractPageForm.init();
+    NbtCustomerPageForm.init();
 
     // Server-rendered mimaride: Sayfa init
     // CURRENT_PAGE degerine gore ilgili modulu baslat

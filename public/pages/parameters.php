@@ -7,7 +7,7 @@
  * /alarms sayfası ile aynı tab tasarım dili uygulandı.
  */
 
-$pageTitle = 'Parametreler';
+$pageTitle = 'Tanımlamalar';
 $activeNav = 'sistem';
 $currentPage = 'parameters';
 
@@ -25,7 +25,7 @@ require __DIR__ . '/partials/header.php';
                 <i class="bi bi-sliders text-success fs-4"></i>
               </div>
               <div>
-                <h5 class="mb-0">Parametreler</h5>
+                <h5 class="mb-0">Tanımlamalar</h5>
                 <small class="text-muted" id="parametersSummary">Sistem tanımlamaları ve ayarları</small>
               </div>
             </div>
@@ -48,6 +48,18 @@ require __DIR__ . '/partials/header.php';
           <button class="nav-link" data-param-tab="doviz" type="button">
             <i class="bi bi-currency-exchange me-1"></i>Döviz Türleri
             <span class="badge bg-success ms-1" id="paramCountDoviz">0</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-param-tab="sehir" type="button">
+            <i class="bi bi-geo-alt me-1"></i>İller
+            <span class="badge bg-info ms-1" id="paramCountSehir">0</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-param-tab="ilce" type="button">
+            <i class="bi bi-pin-map me-1"></i>İlçeler
+            <span class="badge bg-secondary ms-1" id="paramCountIlce">0</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">

@@ -259,4 +259,120 @@ class Page
         $Uri = $_SERVER['REQUEST_URI'] ?? '/';
         error_log("[PAGE-RBAC] Yetkisiz sayfa erisimi: userId={$UserId} uri={$Uri} gerekliYetki={$GerekliYetki}");
     }
+    
+    /**
+     * ID parametresini dogrula - 0 veya negatif ise hata sayfasi goster
+     * 
+     * @param int $Id
+     * @param string $EntityName Varlik adi (log ve hata mesaji icin)
+     * @return bool
+     */
+    public static function requireValidId(int $Id, string $EntityName = 'Kayıt'): bool
+    {
+        if ($Id <= 0) {
+            self::showNotFound($EntityName, 'Geçersiz ID');
+            return false;
+        }
+        return true;
+    }
+    
+    /**
+     * Müşteri kaydını dogrula - veritabaninda var mi kontrol et
+     * 
+     * @param int $MusteriId
+     * @return bool
+     */
+    public static function requireCustomer(int $MusteriId): bool
+    {
+        if ($MusteriId <= 0) {
+            self::showNotFound('Müşteri', 'Geçersiz müşteri ID');
+            return false;
+        }
+        
+        $Repo = new \App\Repositories\CustomerRepository();
+        $Kayit = $Repo->bul($MusteriId);
+        
+        if (!$Kayit) {
+            self::showNotFound('Müşteri', 'Müşteri bulunamadı veya silinmiş');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Genel kayıt dogrulama - Repository ve ID ile kontrol et
+     * 
+     * @param string $RepoClass Repository sinif adi (App\Repositories\ prefix'i otomatik eklenir)
+     * @param int $Id
+     * @param string $EntityName
+     * @return bool
+     */
+    public static function requireRecord(string $RepoClass, int $Id, string $EntityName = 'Kayıt'): bool
+    {
+        if ($Id <= 0) {
+            self::showNotFound($EntityName, 'Geçersiz ID');
+            return false;
+        }
+        
+        // Repository class adini tam yap
+        if (strpos($RepoClass, '\\') === false) {
+            $RepoClass = 'App\\Repositories\\' . $RepoClass;
+        }
+        
+        if (!class_exists($RepoClass)) {
+            error_log("[PAGE] Repository bulunamadi: {$RepoClass}");
+            self::showNotFound($EntityName, 'Sistem hatası');
+            return false;
+        }
+        
+        $Repo = new $RepoClass();
+        $Kayit = $Repo->bul($Id);
+        
+        if (!$Kayit) {
+            self::showNotFound($EntityName, $EntityName . ' bulunamadı veya silinmiş');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Kayıt bulunamadığında toastr mesajı ile geri yönlendir
+     * 
+     * 404 sayfası yerine referrer'a veya dashboard'a error query param ile redirect yapar.
+     * JS tarafında bu param okunup toastr gösterilir.
+     * 
+     * @param string $EntityName
+     * @param string $Mesaj
+     */
+    private static function showNotFound(string $EntityName, string $Mesaj): void
+    {
+        // Tam hata mesajını oluştur
+        $FullMessage = $EntityName . ': ' . $Mesaj;
+        
+        // Referrer'a veya dashboard'a yönlendir
+        $Referrer = $_SERVER['HTTP_REFERER'] ?? null;
+        
+        // Güvenlik: Referrer yoksa veya aynı sayfaysa (sonsuz döngü riski) dashboard'a git
+        $CurrentUri = $_SERVER['REQUEST_URI'] ?? '/';
+        if (empty($Referrer) || strpos($Referrer, $CurrentUri) !== false) {
+            $RedirectUrl = '/dashboard';
+        } else {
+            // Referrer URL'i parse et ve _error param ekle
+            $ParsedUrl = parse_url($Referrer);
+            $BasePath = $ParsedUrl['path'] ?? '/dashboard';
+            
+            // Mevcut query string'i al
+            parse_str($ParsedUrl['query'] ?? '', $QueryParams);
+            $RedirectUrl = $BasePath . (!empty($QueryParams) ? '?' . http_build_query($QueryParams) : '');
+        }
+        
+        // _error param'ını ekle
+        $Separator = (strpos($RedirectUrl, '?') !== false) ? '&' : '?';
+        $RedirectUrl .= $Separator . '_error=' . urlencode($FullMessage);
+        
+        header('Location: ' . $RedirectUrl);
+        exit;
+    }
 }

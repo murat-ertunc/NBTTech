@@ -180,6 +180,7 @@ if (strpos($CleanPath, '..') !== false) {
         $PageRoute = 'customer-detail';
         $PageParams['id'] = $M[1];
         $_GET['id'] = $M[1]; // Query param olarak da ata
+        $MusteriId = (int)$M[1];
     }
     // Pattern 2: project/{id} → projects.php veya project-detail.php
     elseif (preg_match('#^project/([0-9]+)$#', $CleanPath, $M)) {

@@ -321,10 +321,10 @@ function addInvoiceItemRow(data = null) {
         </td>
         <td>
           <select class="form-control form-control-sm item-kdv">
-            <option ${formatNum(data?.KdvOran) == 1 ? 'selected' : ''}>1</option>
-            <option ${formatNum(data?.KdvOran) == 8 ? 'selected' : ''}>8</option>
-            <option ${formatNum(data?.KdvOran) == 18 ? 'selected' : ''}>18</option>
-            <option ${formatNum(data?.KdvOran) == 20 ? 'selected' : ''}>20</option>
+              <option value="1" ${formatNum(data?.KdvOran) == 1 ? 'selected' : ''}>1</option>
+              <option value="8" ${formatNum(data?.KdvOran) == 8 ? 'selected' : ''}>8</option>
+              <option value="18" ${formatNum(data?.KdvOran) == 18 ? 'selected' : ''}>18</option>
+              <option value="20" ${formatNum(data?.KdvOran) == 20 ? 'selected' : ''}>20</option>
           </select>
         </td>
         <td>

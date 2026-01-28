@@ -107,12 +107,12 @@ class ParameterRepository extends BaseRepository
     {
         $Simdi = date('Y-m-d H:i:s');
         
-        // tbl_parametre icin ozel standart alanlar (Guid yok, farkli kolon isimleri)
+        // tbl_parametre icin standart alanlar (kurallar.txt'ye uygun: DegisiklikZamani, DegistirenUserId)
         $Yukleme = array_merge([
             'EklemeZamani' => $Simdi,
             'EkleyenUserId' => $KullaniciId,
-            'GuncellemeZamani' => $Simdi,
-            'GuncelleyenUserId' => $KullaniciId,
+            'DegisiklikZamani' => $Simdi,
+            'DegistirenUserId' => $KullaniciId,
             'Sil' => 0,
         ], $Veri);
         

@@ -6,6 +6,8 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\CustomerRepository;
+use App\Repositories\CityRepository;
+use App\Repositories\DistrictRepository;
 use App\Services\Authorization\AuthorizationService;
 use App\Services\Logger\ActionLogger;
 
@@ -102,6 +104,8 @@ class CustomerController
         'Ilce' => 50,
         'Adres' => 300,
         'Aciklama' => 500,
+        'SehirId' => null, // INT alan, karakter limiti yok
+        'IlceId' => null,  // INT alan, karakter limiti yok
     ];
 
     private static function alanDogrula(string $Alan, ?string $Deger): ?string
@@ -114,6 +118,48 @@ class CustomerController
             return "$Alan en fazla $Limit karakter olabilir.";
         }
         return null;
+    }
+
+    private static function sehirIlceDogrula(array $Girdi): array
+    {
+        $SehirId = array_key_exists('SehirId', $Girdi) && $Girdi['SehirId'] !== '' ? (int)$Girdi['SehirId'] : null;
+        $IlceId = array_key_exists('IlceId', $Girdi) && $Girdi['IlceId'] !== '' ? (int)$Girdi['IlceId'] : null;
+
+        if ($IlceId !== null && $SehirId === null) {
+            return ['ok' => false, 'message' => 'Ilce secildiyse SehirId zorunludur.'];
+        }
+
+        $SehirAdi = null;
+        $IlceAdi = null;
+
+        if ($SehirId !== null) {
+            $SehirRepo = new CityRepository();
+            $Sehir = $SehirRepo->bul($SehirId);
+            if (!$Sehir) {
+                return ['ok' => false, 'message' => 'Gecersiz sehir secimi.'];
+            }
+            $SehirAdi = $Sehir['Ad'] ?? null;
+        }
+
+        if ($IlceId !== null) {
+            $IlceRepo = new DistrictRepository();
+            $Ilce = $IlceRepo->bul($IlceId);
+            if (!$Ilce) {
+                return ['ok' => false, 'message' => 'Gecersiz ilce secimi.'];
+            }
+            if ($SehirId !== null && (int)$Ilce['SehirId'] !== $SehirId) {
+                return ['ok' => false, 'message' => 'Ilce, secilen sehre ait degil.'];
+            }
+            $IlceAdi = $Ilce['Ad'] ?? null;
+        }
+
+        return [
+            'ok' => true,
+            'SehirId' => $SehirId,
+            'IlceId' => $IlceId,
+            'Il' => $SehirAdi,
+            'Ilce' => $IlceAdi,
+        ];
     }
 
     public static function store(): void
@@ -169,26 +215,34 @@ class CustomerController
             }
         }
 
+        $SehirIlce = self::sehirIlceDogrula($Girdi);
+        if (!$SehirIlce['ok']) {
+            Response::json(['errors' => ['SehirId' => $SehirIlce['message']], 'message' => $SehirIlce['message']], 422);
+            return;
+        }
+
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
         $Repo = new CustomerRepository();
-        $Id = Transaction::wrap(function () use ($Repo, $Unvan, $Girdi, $KullaniciId) {
+        $Id = Transaction::wrap(function () use ($Repo, $Unvan, $Girdi, $KullaniciId, $SehirIlce) {
             return $Repo->ekle([
                 'Unvan' => $Unvan,
                 'Aciklama' => isset($Girdi['Aciklama']) ? mb_substr(trim((string) $Girdi['Aciklama']), 0, 500) : null,
                 'MusteriKodu' => isset($Girdi['MusteriKodu']) ? mb_substr(trim((string) $Girdi['MusteriKodu']), 0, 10) : null,
                 'VergiDairesi' => isset($Girdi['VergiDairesi']) ? mb_substr(trim((string) $Girdi['VergiDairesi']), 0, 50) : null,
                 'VergiNo' => isset($Girdi['VergiNo']) ? mb_substr(trim((string) $Girdi['VergiNo']), 0, 11) : null,
-                'Il' => isset($Girdi['Il']) ? mb_substr(trim((string) $Girdi['Il']), 0, 50) : null,
-                'Ilce' => isset($Girdi['Ilce']) ? mb_substr(trim((string) $Girdi['Ilce']), 0, 50) : null,
+                'Il' => $SehirIlce['Il'] ?? (isset($Girdi['Il']) ? mb_substr(trim((string) $Girdi['Il']), 0, 50) : null),
+                'Ilce' => $SehirIlce['Ilce'] ?? (isset($Girdi['Ilce']) ? mb_substr(trim((string) $Girdi['Ilce']), 0, 50) : null),
                 'Adres' => isset($Girdi['Adres']) ? mb_substr(trim((string) $Girdi['Adres']), 0, 300) : null,
                 'Telefon' => isset($Girdi['Telefon']) ? mb_substr(trim((string) $Girdi['Telefon']), 0, 20) : null,
                 'Faks' => isset($Girdi['Faks']) ? mb_substr(trim((string) $Girdi['Faks']), 0, 20) : null,
                 'MersisNo' => isset($Girdi['MersisNo']) ? mb_substr(trim((string) $Girdi['MersisNo']), 0, 16) : null,
                 'Web' => isset($Girdi['Web']) ? mb_substr(trim((string) $Girdi['Web']), 0, 150) : null,
+                'SehirId' => $SehirIlce['SehirId'],
+                'IlceId' => $SehirIlce['IlceId'],
             ], $KullaniciId);
         });
 
@@ -275,7 +329,14 @@ class CustomerController
             Response::error('Musteri bulunamadi.', 404);
             return;
         }
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId, $TumunuDuzenleyebilir, $Mevcut) {
+
+        $SehirIlce = self::sehirIlceDogrula($Girdi);
+        if (!$SehirIlce['ok']) {
+            Response::json(['errors' => ['SehirId' => $SehirIlce['message']], 'message' => $SehirIlce['message']], 422);
+            return;
+        }
+
+        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId, $TumunuDuzenleyebilir, $Mevcut, $SehirIlce) {
             $GuncellenecekVeri = [];
             if (isset($Girdi['Unvan'])) {
                 $GuncellenecekVeri['Unvan'] = mb_substr(trim((string) $Girdi['Unvan']), 0, 150);
@@ -312,6 +373,14 @@ class CustomerController
             }
             if (array_key_exists('Web', $Girdi)) {
                 $GuncellenecekVeri['Web'] = $Girdi['Web'] ? mb_substr(trim((string) $Girdi['Web']), 0, 150) : null;
+            }
+            if (array_key_exists('SehirId', $Girdi)) {
+                $GuncellenecekVeri['SehirId'] = $SehirIlce['SehirId'];
+                $GuncellenecekVeri['Il'] = $SehirIlce['Il'];
+            }
+            if (array_key_exists('IlceId', $Girdi)) {
+                $GuncellenecekVeri['IlceId'] = $SehirIlce['IlceId'];
+                $GuncellenecekVeri['Ilce'] = $SehirIlce['Ilce'];
             }
             if (!empty($GuncellenecekVeri)) {
                 $Repo->guncelle($Id, $GuncellenecekVeri, $KullaniciId, $TumunuDuzenleyebilir ? [] : ['EkleyenUserId' => $KullaniciId]);

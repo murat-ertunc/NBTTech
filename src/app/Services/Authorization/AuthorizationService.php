@@ -348,6 +348,7 @@ class AuthorizationService
     /**
     * Bir kullanicinin baska bir kullaniciya rol atayip atayamayacagini kontrol eder
     * Kural: Atanan rolun permission seti, kullanicinin permission setinin alt kumesi olmalidir
+    * Istisna: Superadmin her rolu atayabilir
      * 
      * @param int $AtayanUserId Rol atayan kullanici
      * @param int $RolId Atanacak rol
@@ -355,6 +356,11 @@ class AuthorizationService
      */
     public function rolAtayabilirMi(int $AtayanUserId, int $RolId): bool
     {
+        // Superadmin her rolu atayabilir
+        if ($this->kullaniciSuperadminMi($AtayanUserId)) {
+            return true;
+        }
+        
         $RolPermissionlari = $this->rolPermissionlariGetir($RolId);
         
         if (empty($RolPermissionlari)) {
@@ -381,6 +387,7 @@ class AuthorizationService
     
     /**
      * Bir kullanicinin bir role permission listesi ekleyip ekleyemeyecegini kontrol eder
+     * Superadmin tum permissionlari ekleyebilir
      * 
      * @param int $EkleyenUserId
      * @param array $PermissionKodlari
@@ -388,6 +395,14 @@ class AuthorizationService
      */
     public function rolePermissionlarEkleyebilirMi(int $EkleyenUserId, array $PermissionKodlari): array
     {
+        // Superadmin tum permissionlari ekleyebilir
+        if ($this->kullaniciSuperadminMi($EkleyenUserId)) {
+            return [
+                'izinVerilenler' => $PermissionKodlari,
+                'izinVerilmeyenler' => []
+            ];
+        }
+        
         $KullaniciPermissionlari = $this->kullaniciPermissionlariGetir($EkleyenUserId);
         
         $IzinVerilenler = array_intersect($PermissionKodlari, $KullaniciPermissionlari);

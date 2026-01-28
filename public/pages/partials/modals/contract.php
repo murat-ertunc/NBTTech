@@ -15,8 +15,8 @@
         <div class="alert alert-danger d-none modal-error" id="contractModalError"></div>
         <input type="hidden" id="contractId">
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Müşteri <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Müşteri <span class="text-danger">*</span></label>
+          <div class="col-8">
             <select class="form-select" id="contractMusteriId" required>
               <option value="">Seçiniz...</option>
             </select>
@@ -25,8 +25,8 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Proje <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
+          <div class="col-8">
             <select class="form-select" id="contractProjeId" required>
               <option value="">Proje Seçiniz...</option>
             </select>
@@ -35,15 +35,15 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Sözleşme Tarihi</label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Sözleşme Tarihi</label>
+          <div class="col-8">
             <input type="date" class="form-control" id="contractStart">
             <div class="invalid-feedback"></div>
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Tutar <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
+          <div class="col-8">
             <div class="input-group">
                <input type="text" class="form-control nbt-money-input" id="contractAmount" placeholder="0,00" required value="0,00">
               <select class="form-select" id="contractCurrency" style="max-width: 90px;">
@@ -54,8 +54,8 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Durum</label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Durum</label>
+          <div class="col-8">
             <select class="form-select" id="contractStatus">
               <!-- Dinamik olarak doldurulacak -->
             </select>
@@ -63,8 +63,8 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">PDF Dosya</label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">PDF Dosya</label>
+          <div class="col-8">
             <input type="file" class="form-control" id="contractDosya" accept=".pdf,application/pdf">
             <small class="form-hint">PDF, Maks 10MB</small>
             <div class="invalid-feedback" id="contractDosyaError"></div>

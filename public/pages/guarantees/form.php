@@ -17,11 +17,10 @@ $FormMusteriId = $MusteriId;
 $FormTabKey = 'teminatlar';
 $FormTitle = $pageTitle;
 $FormIcon = 'bi-shield-check';
-$FormColor = 'danger';
 $FormBreadcrumb = $pageTitle;
 $FormSaveButtonId = 'btnSaveGuaranteePage';
 $FormPermission = 'guarantees.create,guarantees.update';
-$FormButtonColor = 'danger';
+$FormButtonColor = 'primary';
 
 require __DIR__ . '/../partials/header.php';
 ?>
@@ -39,8 +38,8 @@ require __DIR__ . '/../partials/header.php';
           <input type="hidden" id="guaranteeMusteriId" value="<?= (int)$MusteriId ?>">
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Proje <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
+            <div class="col-8">
               <select class="form-select" id="guaranteeProjeId" required>
                 <option value="">Proje Seçiniz...</option>
               </select>
@@ -48,8 +47,8 @@ require __DIR__ . '/../partials/header.php';
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Teminat Türü <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Teminat Türü <span class="text-danger">*</span></label>
+            <div class="col-8">
               <select class="form-select" id="guaranteeTur" required>
                 <option value="">Teminat Türü Seçiniz...</option>
               </select>
@@ -57,17 +56,10 @@ require __DIR__ . '/../partials/header.php';
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Teminat No</label>
-            <div class="col-12 col-md-9">
-              <input type="text" class="form-control" id="guaranteeNo">
-            </div>
-          </div>
-          
-          <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Tutar <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
+            <div class="col-8">
               <div class="input-group">
-                <input type="text" class="form-control" id="guaranteeTutar" required>
+                <input type="text" class="form-control price__input nbt-money-input" id="guaranteeTutar" placeholder="0.00" value="0.00" required>
                 <select class="form-select" id="guaranteeDoviz" style="max-width: 80px;">
                   <option value="TL" selected>TL</option>
                   <option value="USD">USD</option>
@@ -78,29 +70,22 @@ require __DIR__ . '/../partials/header.php';
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Başlangıç Tarihi <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
-              <input type="date" class="form-control" id="guaranteeBaslangicTarihi" required>
+            <label class="col-4 col-form-label">Termin Tarihi <span class="text-danger">*</span></label>
+            <div class="col-8">
+              <input type="date" class="form-control" id="guaranteeTerminTarihi" required>
             </div>
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Bitiş Tarihi <span class="text-danger">*</span></label>
-            <div class="col-12 col-md-9">
-              <input type="date" class="form-control" id="guaranteeBitisTarihi" required>
-            </div>
-          </div>
-          
-          <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Banka/Kurum</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Banka/Kurum</label>
+            <div class="col-8">
               <input type="text" class="form-control" id="guaranteeBanka">
             </div>
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Durum</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Durum</label>
+            <div class="col-8">
               <select class="form-select" id="guaranteeDurum">
                 <option value="Aktif">Aktif</option>
                 <option value="İade Edildi">İade Edildi</option>
@@ -111,8 +96,8 @@ require __DIR__ . '/../partials/header.php';
           </div>
           
           <div class="row mb-3">
-            <label class="col-12 col-md-3 col-form-label">Notlar</label>
-            <div class="col-12 col-md-9">
+            <label class="col-4 col-form-label">Notlar</label>
+            <div class="col-8">
               <textarea class="form-control" id="guaranteeNotlar" rows="2"></textarea>
             </div>
           </div>

@@ -23,13 +23,16 @@ class InvoiceController
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
         $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
+        
+        // Backend kalan>0 filtresi - ödeme formu için sadece ödenmemiş faturaları döndür
+        $SadeceOdenmemis = isset($_GET['sadece_odenmemis']) && $_GET['sadece_odenmemis'] === '1';
 
         if ($MusteriId > 0) {
             if (isset($_GET['page']) || isset($_GET['limit'])) {
                 $Sonuc = $Repo->musteriyeGorePaginated($MusteriId, $Sayfa, $Limit);
                 Response::json($Sonuc);
             } else {
-                $Satirlar = $Repo->musteriyeGore($MusteriId);
+                $Satirlar = $Repo->musteriyeGore($MusteriId, $SadeceOdenmemis);
                 Response::json(['data' => $Satirlar]);
             }
         } else {

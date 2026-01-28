@@ -272,8 +272,110 @@ const NbtUtils = {
     getMoneyInputValue(input) {
         const value = typeof input === 'string' ? input : (input?.value || '');
         return this.normalizeMoneyValue(value);
+    },
+
+    /**
+     * Turkce formatli decimal string'i float sayiya cevir
+     * Virgul ve noktayi handle eder (1.234,56 veya 1,234.56 formatlarini destekler)
+     * @param {string|number} value - Parse edilecek deger
+     * @returns {number} - Parse edilmis sayi (gecersizse 0)
+     */
+    parseDecimal(value) {
+        if (value === null || value === undefined || value === '') return 0;
+        
+        // Zaten sayi ise direkt dondur
+        if (typeof value === 'number') return isNaN(value) ? 0 : value;
+        
+        // String'e cevir ve temizle
+        let strVal = String(value).trim();
+        
+        // Bos ise 0 dondur
+        if (strVal === '') return 0;
+        
+        // Turkce format: 1.234,56 -> 1234.56
+        // Amerikan format: 1,234.56 -> 1234.56
+        // Her iki formati da destekle
+        
+        const lastComma = strVal.lastIndexOf(',');
+        const lastDot = strVal.lastIndexOf('.');
+        
+        if (lastComma > lastDot) {
+            // Turkce format: virgul ondalik ayirici
+            strVal = strVal.replace(/\./g, '').replace(',', '.');
+        } else if (lastDot > lastComma) {
+            // Amerikan format: nokta ondalik ayirici
+            strVal = strVal.replace(/,/g, '');
+        } else if (lastComma === -1 && lastDot === -1) {
+            // Sadece rakam
+            // Aynen birak
+        } else if (lastComma !== -1 && lastDot === -1) {
+            // Sadece virgul var - ondalik olarak kabul et
+            strVal = strVal.replace(',', '.');
+        }
+        // lastDot !== -1 && lastComma === -1 durumu zaten dogru formatta
+        
+        const num = parseFloat(strVal);
+        return isNaN(num) ? 0 : num;
     }
 };
+
+// =============================================
+// GLOBAL NUMBER INPUT HANDLER
+// Sadece rakam girisine izin veren input'lar icin
+// =============================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Global number input handler - sadece 0-9 rakamlarına izin ver (event delegation)
+    document.addEventListener('input', function(e) {
+        if (e.target && e.target.classList.contains('number__input')) {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        }
+        
+        // Price input handler - sadece rakamlar ve tek nokta, noktadan sonra max 2 basamak
+        if (e.target && e.target.classList.contains('price__input')) {
+            let value = e.target.value;
+            
+            // Sadece rakamlar ve tek nokta
+            value = value.replace(/[^0-9.]/g, '');
+            
+            // Birden fazla nokta varsa sadece ilkini tut
+            const parts = value.split('.');
+            if (parts.length > 2) {
+                value = parts[0] + '.' + parts.slice(1).join('');
+            }
+            
+            // Noktadan sonra maksimum 2 basamak
+            if (parts.length === 2 && parts[1].length > 2) {
+                value = parts[0] + '.' + parts[1].substring(0, 2);
+            }
+            
+            e.target.value = value;
+        }
+    });
+    
+    // Price input için blur event - boşsa 0.00 yap
+    document.addEventListener('blur', function(e) {
+        if (e.target && e.target.classList.contains('price__input')) {
+            if (e.target.value === '' || e.target.value === '.') {
+                e.target.value = '0.00';
+            } else {
+                // Değer varsa formatla (örn: "5" -> "5.00", "5.5" -> "5.50")
+                const num = parseFloat(e.target.value);
+                if (!isNaN(num)) {
+                    e.target.value = num.toFixed(2);
+                }
+            }
+        }
+    }, true);
+    
+    // Price input için focus event - 0.00 ise temizle
+    document.addEventListener('focus', function(e) {
+        if (e.target && e.target.classList.contains('price__input')) {
+            if (e.target.value === '0.00') {
+                e.target.value = '';
+            }
+        }
+    }, true);
+});
 
 // =============================================
 // PARAMETRE YONETICISI
@@ -308,6 +410,19 @@ const NbtParams = {
                 { Kod: 'USD', Etiket: 'Amerikan Doları', Deger: '$', Varsayilan: false },
                 { Kod: 'EUR', Etiket: 'Euro', Deger: '€', Varsayilan: false }
             ];
+        }
+    },
+
+    /**
+     * Varsayilan doviz turlerini getir
+     */
+    async getDefaultCurrency() {
+        try {
+            const response = await NbtApi.get('/api/parameters/default-currency');
+            return response.default || "TRY";
+        } catch (err) {
+            NbtLogger.error('Varsayilan doviz alinamadi:', err);
+            return "TRY";
         }
     },
 
@@ -418,12 +533,13 @@ const NbtParams = {
     async populateCurrencySelect(selectElement, selectedValue = null) {
         if (!selectElement) return;
         const currencies = await this.getCurrencies();
+        const defaultVal = await this.getDefaultCurrency();
         selectElement.innerHTML = '';
         currencies.forEach(c => {
             const option = document.createElement('option');
             option.value = c.Kod;
             option.textContent = `${c.Kod} (${c.Deger})`;
-            if (selectedValue ? c.Kod === selectedValue : c.Varsayilan) {
+            if (selectedValue ? c.Kod === selectedValue : (defaultVal ? c.Kod === defaultVal : c.Varsayilan)) {
                 option.selected = true;
             }
             selectElement.appendChild(option);
@@ -760,14 +876,26 @@ const NbtApi = {
                 throw new Error('Oturum suresi doldu');
             }
             if (response.status === 403) {
-                const msg = data?.error?.message || data?.message || data?.error || 'Bu işlem için yetkiniz yok.';
+                const rawErr = data?.error;
+                const msg = typeof rawErr === 'object' ? (rawErr?.message || JSON.stringify(rawErr)) : (data?.error?.message || data?.message || rawErr || 'Bu işlem için yetkiniz yok.');
                 throw new Error(msg);
             }
             if (response.status === 404) {
-                throw new Error(data.error || 'Kayit bulunamadi');
+                const rawErr = data?.error;
+                const msg = typeof rawErr === 'object' ? (rawErr?.message || JSON.stringify(rawErr)) : (rawErr || 'Kayit bulunamadi');
+                throw new Error(msg);
             }
             if (response.status === 422) {
-                const err = new Error(data?.error?.message || data?.message || data?.error || 'Doğrulama hatası');
+                const rawErr = data?.error;
+                let errMsg = 'Doğrulama hatası';
+                if (typeof rawErr === 'object' && rawErr !== null) {
+                    errMsg = rawErr?.message || JSON.stringify(rawErr);
+                } else if (typeof rawErr === 'string') {
+                    errMsg = rawErr;
+                } else if (data?.message) {
+                    errMsg = data.message;
+                }
+                const err = new Error(errMsg);
                 if (data?.error?.fields) {
                     err.fields = data.error.fields;
                 }
@@ -779,9 +907,12 @@ const NbtApi = {
                 throw err;
             }
             if (response.status >= 500) {
-                throw new Error(data.error || 'Sunucu hatasi');
+                const errMsg = typeof data.error === 'object' ? (data.error?.message || JSON.stringify(data.error)) : (data.error || 'Sunucu hatasi');
+                throw new Error(errMsg);
             }
-            throw new Error(data.error || 'Bir hata olustu');
+            // Diger durum kodlari icin genel hata
+            const fallbackMsg = typeof data.error === 'object' ? (data.error?.message || JSON.stringify(data.error)) : (data.error || 'Bir hata olustu');
+            throw new Error(fallbackMsg);
         }
 
         return data;
@@ -960,8 +1091,9 @@ const NbtListToolbar = {
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-toolbar="filter" title="Filtrele">
                     <i class="bi bi-funnel"></i>
                 </button>` : ''}
+                <div class="ms-auto"></div>
                 ${options.onAdd ? `
-                <button type="button" class="btn btn-success btn-sm" data-toolbar="add" title="Yeni Ekle"${addPermissionAttr}>
+                <button type="button" class="btn btn-primary btn-sm" data-toolbar="add" title="Yeni Ekle"${addPermissionAttr}>
                     <i class="bi bi-plus-lg me-1"></i><span class="d-none d-md-inline">Ekle</span>
                 </button>` : ''}
             </div>
@@ -1595,8 +1727,7 @@ const NbtDetailModal = {
             project: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Proje Adı', field: 'ProjeAdi' },
-                { label: 'Başlangıç', field: 'BaslangicTarihi', format: 'date' },
-                { label: 'Bitiş', field: 'BitisTarihi', format: 'date' },
+                { label: 'Bütçe', field: 'Butce', format: 'money' },
                 { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'proje' }
             ],
             offer: [
@@ -1610,8 +1741,7 @@ const NbtDetailModal = {
             contract: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Sözleşme No', field: 'SozlesmeNo' },
-                { label: 'Başlangıç', field: 'BaslangicTarihi', format: 'date' },
-                { label: 'Bitiş', field: 'BitisTarihi', format: 'date' },
+                { label: 'Sözleşme Tarihi', field: 'SozlesmeTarihi', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
                 { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'sozlesme' }
             ],
@@ -1656,9 +1786,7 @@ const NbtDetailModal = {
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Proje', field: 'ProjeAdi' },
                 { label: 'Özet', field: 'Ozet' },
-                { label: 'Başlangıç', field: 'BaslangicTarihi', format: 'date' },
-                { label: 'Bitiş', field: 'BitisTarihi', format: 'date' },
-                { label: 'Açıklama', field: 'Aciklama' }
+                { label: 'Termin Tarihi', field: 'TerminTarihi', format: 'date' }
             ]
         };
 
@@ -1991,8 +2119,8 @@ const NbtCalendar = {
             
             html += `
                 <div class="p-1 border-bottom border-end ${bgClass} position-relative" style="min-height:60px;cursor:pointer;" data-date="${dateStr}">
-                    <small class="${isToday ? 'badge bg-primary rounded-circle' : ''}">${day}</small>
-                    <div class="position-absolute start-0 end-0 px-1" style="top:22px;">
+                    <span class="calendar-day-label ${isToday ? 'badge bg-primary rounded-circle' : ''}">${day}</span>
+                    <div class="calendar-day-events position-absolute start-0 end-0 px-1">
             `;
             
             dayEvents.slice(0, 2).forEach(event => {
@@ -2259,6 +2387,17 @@ const NbtCalendar = {
 // GLOBAL INIT
 // =============================================
 document.addEventListener('DOMContentLoaded', () => {
+    // URL'den flash error message kontrolü
+    const urlParams = new URLSearchParams(window.location.search);
+    const flashError = urlParams.get('_error');
+    if (flashError) {
+        NbtToast.error(decodeURIComponent(flashError), 5000);
+        // URL'den parametre temizle (history'yi bozmadan)
+        urlParams.delete('_error');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
     if (!NbtUtils.getToken()) {
         const cookieToken = NbtUtils.getCookie('nbt_token');
         if (cookieToken) {

@@ -75,9 +75,9 @@ $DefaultTab = !empty($AllowedTabs) ? $AllowedTabs[0] : null;
               </div>
             </div>
             <?php if ($can('customers.update')): ?>
-            <button type="button" class="btn btn-primary btn-sm" id="btnEditCustomer">
+            <a href="/customer/<?= (int)$MusteriId ?>/edit" class="btn btn-primary btn-sm">
               <i class="bi bi-pencil me-1"></i>Düzenle
-            </button>
+            </a>
             <?php endif; ?>
           </div>
         </div>

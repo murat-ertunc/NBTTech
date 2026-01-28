@@ -104,13 +104,27 @@ class OfferController
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            // Dosya uzanti ve boyut kontrolu
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
+            $IzinliUzantilar = ['pdf', 'doc', 'docx'];
+            $MaksimumBoyut = 10 * 1024 * 1024; // 10MB
+            
+            if (!in_array($Uzanti, $IzinliUzantilar)) {
+                Response::json(['errors' => ['dosya' => 'Sadece PDF veya Word dosyası (.pdf, .doc, .docx) yüklenebilir.'], 'message' => 'Dosya formatı geçersiz.'], 422);
+                return;
+            }
+            
+            if ($_FILES['dosya']['size'] > $MaksimumBoyut) {
+                Response::json(['errors' => ['dosya' => 'Dosya boyutu maksimum 10MB olabilir.'], 'message' => 'Dosya boyutu çok büyük.'], 422);
+                return;
+            }
+            
             $YuklemeKlasoru = STORAGE_PATH . 'uploads' . DIRECTORY_SEPARATOR;
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
             }
             
-            $OrijinalAd = $_FILES['dosya']['name'];
-            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
             $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
             
@@ -205,6 +219,22 @@ class OfferController
 
         // Yeni dosya yuklendiyse eskisini silip yenisini kaydediyoruz
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            // Dosya uzanti ve boyut kontrolu
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
+            $IzinliUzantilar = ['pdf', 'doc', 'docx'];
+            $MaksimumBoyut = 10 * 1024 * 1024; // 10MB
+            
+            if (!in_array($Uzanti, $IzinliUzantilar)) {
+                Response::json(['errors' => ['dosya' => 'Sadece PDF veya Word dosyası (.pdf, .doc, .docx) yüklenebilir.'], 'message' => 'Dosya formatı geçersiz.'], 422);
+                return;
+            }
+            
+            if ($_FILES['dosya']['size'] > $MaksimumBoyut) {
+                Response::json(['errors' => ['dosya' => 'Dosya boyutu maksimum 10MB olabilir.'], 'message' => 'Dosya boyutu çok büyük.'], 422);
+                return;
+            }
+            
             // Eski dosyayi fiziksel olarak sil
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
@@ -219,8 +249,6 @@ class OfferController
                 mkdir($YuklemeKlasoru, 0755, true);
             }
             
-            $OrijinalAd = $_FILES['dosya']['name'];
-            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
             $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
             

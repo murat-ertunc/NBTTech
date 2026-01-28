@@ -40,7 +40,7 @@
       </div>
       <div class="modal-footer py-2">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">İptal</button>
-        <button type="button" class="btn btn-success btn-sm" id="btnSaveCurrency" data-can-any="parameters.create,parameters.update">
+        <button type="button" class="btn btn-primary btn-sm" id="btnSaveCurrency" data-can-any="parameters.create,parameters.update">
           <i class="bi bi-check-lg me-1"></i>Kaydet
         </button>
       </div>

@@ -322,9 +322,9 @@ $canAll = function(array $permissions) use ($PermissionSet): bool {
           <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
             <span class="fw-semibold"><i class="bi bi-people-fill me-2"></i>Müşteriler</span>
             <?php if ($can('customers.create')): ?>
-            <button type="button" class="btn btn-sm btn-light" data-action="add-customer" title="Yeni Müşteri">
+            <a href="/customer/new" class="btn btn-sm btn-light" title="Yeni Müşteri">
               <i class="bi bi-plus-lg"></i>
-            </button>
+            </a>
             <?php endif; ?>
           </div>
           <div class="bg-light border-bottom px-2 py-1">

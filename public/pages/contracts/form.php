@@ -36,7 +36,7 @@ require __DIR__ . '/../partials/header.php';
 
       <!-- Form Card -->
       <div class="card shadow-sm">
-        <div class="card-header bg-success text-white">
+        <div class="card-header bg-primary text-white">
           <h5 class="card-title mb-0">
             <i class="bi bi-file-text me-2"></i><?= $IsEdit ? 'Sözleşme Düzenle' : 'Yeni Sözleşme' ?>
           </h5>
@@ -49,8 +49,8 @@ require __DIR__ . '/../partials/header.php';
             <input type="hidden" id="contractMusteriId" value="<?= (int)$MusteriId ?>">
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">Proje <span class="text-danger">*</span></label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
+              <div class="col-8">
                 <select class="form-select" id="contractProjeId" required>
                   <option value="">Proje Seçiniz...</option>
                 </select>
@@ -59,15 +59,15 @@ require __DIR__ . '/../partials/header.php';
             </div>
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">Sözleşme Tarihi</label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">Sözleşme Tarihi</label>
+              <div class="col-8">
                 <input type="date" class="form-control" id="contractStart" value="<?= date('Y-m-d') ?>">
               </div>
             </div>
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">Tutar <span class="text-danger">*</span></label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
+              <div class="col-8">
                 <div class="input-group">
                   <input type="text" class="form-control nbt-money-input" id="contractAmount" placeholder="0,00" required value="0,00">
                   <select class="form-select" id="contractCurrency" style="max-width: 100px;">
@@ -79,8 +79,8 @@ require __DIR__ . '/../partials/header.php';
             </div>
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">Durum</label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">Durum</label>
+              <div class="col-8">
                 <select class="form-select" id="contractStatus">
                   <!-- Dinamik olarak doldurulacak -->
                 </select>
@@ -88,8 +88,8 @@ require __DIR__ . '/../partials/header.php';
             </div>
             
             <div class="row mb-3">
-              <label class="col-12 col-md-3 col-form-label">PDF Dosya</label>
-              <div class="col-12 col-md-9">
+              <label class="col-4 col-form-label">PDF Dosya</label>
+              <div class="col-8">
                 <input type="file" class="form-control" id="contractDosya" accept=".pdf,application/pdf">
                 <div class="form-text text-muted">Sadece PDF dosyası. Maksimum 10MB.</div>
                 <div class="invalid-feedback" id="contractDosyaError"></div>
@@ -110,7 +110,7 @@ require __DIR__ . '/../partials/header.php';
           <a href="/customer/<?= (int)$MusteriId ?>?tab=sozlesmeler" class="btn btn-secondary">
             <i class="bi bi-x-lg me-1"></i>İptal
           </a>
-          <button type="button" class="btn btn-success" id="btnSaveContractPage" data-can-any="contracts.create,contracts.update">
+          <button type="button" class="btn btn-primary" id="btnSaveContractPage" data-can-any="contracts.create,contracts.update">
             <i class="bi bi-check-lg me-1"></i>Kaydet
           </button>
         </div>

@@ -15,8 +15,8 @@
         <div class="alert alert-danger d-none modal-error" id="projectModalError"></div>
         <input type="hidden" id="projectId">
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Müşteri <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Müşteri <span class="text-danger">*</span></label>
+          <div class="col-8">
             <select class="form-select" id="projectMusteriId" required>
               <option value="">Seçiniz...</option>
             </select>
@@ -25,16 +25,16 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Proje Adı <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Proje Adı <span class="text-danger">*</span></label>
+          <div class="col-8">
             <input type="text" class="form-control" id="projectName" required>
             <small class="form-hint">Zorunlu</small>
             <div class="invalid-feedback"></div>
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Durum</label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Durum</label>
+          <div class="col-8">
             <select class="form-select" id="projectStatus">
               <!-- Dinamik olarak doldurulacak -->
             </select>

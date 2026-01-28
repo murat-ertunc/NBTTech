@@ -15,8 +15,8 @@
         <div class="alert alert-danger d-none modal-error" id="paymentModalError"></div>
         <input type="hidden" id="paymentId">
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Müşteri <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Müşteri <span class="text-danger">*</span></label>
+          <div class="col-8">
             <select class="form-select" id="paymentMusteriId" required>
               <option value="">Seçiniz...</option>
             </select>
@@ -25,8 +25,8 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Proje <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
+          <div class="col-8">
             <select class="form-select" id="paymentProjeId" required>
               <option value="">Proje Seçiniz...</option>
             </select>
@@ -35,8 +35,8 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Fatura <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Fatura <span class="text-danger">*</span></label>
+          <div class="col-8">
             <select class="form-select" id="paymentFaturaId" required>
               <option value="">Fatura Seçiniz...</option>
             </select>
@@ -45,24 +45,24 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Tarih <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Tarih <span class="text-danger">*</span></label>
+          <div class="col-8">
             <input type="date" class="form-control" id="paymentTarih" value="<?= date('Y-m-d') ?>">
             <small class="form-hint">Zorunlu</small>
             <div class="invalid-feedback"></div>
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Tutar <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
+          <div class="col-8">
             <input type="text" class="form-control nbt-money-input" id="paymentTutar" placeholder="0,00" value="0,00">
             <small class="form-hint">Zorunlu, Sayısal</small>
             <div class="invalid-feedback"></div>
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Açıklama</label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Açıklama</label>
+          <div class="col-8">
             <textarea class="form-control" id="paymentAciklama" rows="2"></textarea>
             <div class="invalid-feedback"></div>
           </div>

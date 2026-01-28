@@ -146,6 +146,7 @@ $Router->add('GET', '/api/auth/permissions', guard('', fn() => App\Controllers\R
 $Router->add('GET', '/api/roles/assignable', guard('', fn() => App\Controllers\RoleController::assignableRoles()));
 $Router->add('POST', '/api/users/change-password', guard('', fn() => App\Controllers\UserController::changePassword()));
 $Router->add('GET', '/api/parameters/currencies', guard('', fn() => App\Controllers\ParameterController::currencies()));
+$Router->add('GET', '/api/parameters/default-currency', guard('', fn() => App\Controllers\ParameterController::defaultCurrency()));
 $Router->add('GET', '/api/parameters/statuses', guard('', fn() => App\Controllers\ParameterController::statuses()));
 $Router->add('GET', '/api/parameters/settings', guard('', fn() => App\Controllers\ParameterController::settings()));
 
@@ -260,3 +261,21 @@ resource('parameters', App\Controllers\ParameterController::class, [
         ['POST', '/api/parameters/reminder-settings', 'parameters.update', 'updateReminderSettings'],
     ]
 ]);
+
+// =============================================
+// IL / ILCE YONETIMI
+// =============================================
+
+// Şehir (İl) endpoint'leri - parameters permission'ları ile korunur
+$Router->add('GET', '/api/cities', guard('parameters.read', fn($P) => App\Controllers\CityController::index()));
+$Router->add('GET', '/api/cities/{id}', guard('parameters.read', fn($P) => App\Controllers\CityController::show($P)));
+$Router->add('POST', '/api/cities', guard('parameters.create', fn($P) => App\Controllers\CityController::store()));
+$Router->add('POST', '/api/cities/{id}/update', guard('parameters.update', fn($P) => App\Controllers\CityController::update($P)));
+$Router->add('POST', '/api/cities/{id}/delete', guard('parameters.delete', fn($P) => App\Controllers\CityController::delete($P)));
+
+// İlçe endpoint'leri - parameters permission'ları ile korunur
+$Router->add('GET', '/api/districts', guard('parameters.read', fn($P) => App\Controllers\DistrictController::index()));
+$Router->add('GET', '/api/districts/{id}', guard('parameters.read', fn($P) => App\Controllers\DistrictController::show($P)));
+$Router->add('POST', '/api/districts', guard('parameters.create', fn($P) => App\Controllers\DistrictController::store()));
+$Router->add('POST', '/api/districts/{id}/update', guard('parameters.update', fn($P) => App\Controllers\DistrictController::update($P)));
+$Router->add('POST', '/api/districts/{id}/delete', guard('parameters.delete', fn($P) => App\Controllers\DistrictController::delete($P)));

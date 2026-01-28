@@ -58,6 +58,24 @@ class ParameterController
     }
 
     /**
+     * Varsayilan dovizi getir
+     */
+    public static function defaultCurrency(): void
+    {
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+        
+        $Varsayilan = $Repo->varsayilanDoviz();
+        
+        Response::json([
+            'default' => $Varsayilan ? $Varsayilan['Kod'] : 'TRY'
+        ]);
+    }
+
+    /**
      * Durum parametrelerini getir (belirli bir entity icin)
      */
     public static function statuses(): void

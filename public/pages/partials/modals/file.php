@@ -15,8 +15,8 @@
         <div class="alert alert-danger d-none modal-error" id="fileModalError"></div>
         <input type="hidden" id="fileMusteriId">
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Proje <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
+          <div class="col-8">
             <select class="form-select" id="fileProjeId" required>
               <option value="">Proje Seçiniz...</option>
             </select>
@@ -25,8 +25,8 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Dosya Seç <span class="text-danger">*</span></label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Dosya Seç <span class="text-danger">*</span></label>
+          <div class="col-8">
             <input type="file" class="form-control" id="fileInput" required
               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/jpeg,image/png,image/gif">
             <small class="form-hint">Zorunlu, PDF/Word/Excel/Resim, Maks 10MB</small>
@@ -34,8 +34,8 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-12 col-md-4 col-form-label">Açıklama</label>
-          <div class="col-12 col-md-8">
+          <label class="col-4 col-form-label">Açıklama</label>
+          <div class="col-8">
             <input type="text" class="form-control" id="fileAciklama">
             <div class="invalid-feedback"></div>
           </div>

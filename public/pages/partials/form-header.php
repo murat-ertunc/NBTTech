@@ -16,7 +16,6 @@ $FormMusteriId = $FormMusteriId ?? 0;
 $FormTabKey = $FormTabKey ?? 'bilgi';
 $FormTitle = $FormTitle ?? 'Form';
 $FormIcon = $FormIcon ?? 'bi-file-text';
-$FormColor = $FormColor ?? 'primary';
 $FormBreadcrumb = $FormBreadcrumb ?? $FormTitle;
 
 $BackUrl = "/customer/{$FormMusteriId}?tab={$FormTabKey}";
@@ -36,7 +35,7 @@ $BackUrl = "/customer/{$FormMusteriId}?tab={$FormTabKey}";
 
 <!-- Form Card Header -->
 <div class="card shadow-sm">
-  <div class="card-header bg-<?= htmlspecialchars($FormColor, ENT_QUOTES, 'UTF-8') ?> text-white">
+  <div class="card-header bg-primary text-white">
     <h5 class="card-title mb-0">
       <i class="bi <?= htmlspecialchars($FormIcon, ENT_QUOTES, 'UTF-8') ?> me-2"></i><?= htmlspecialchars($FormTitle, ENT_QUOTES, 'UTF-8') ?>
     </h5>

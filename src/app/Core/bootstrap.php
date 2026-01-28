@@ -75,3 +75,81 @@ if (!function_exists('logger')) {
 }
 
 date_default_timezone_set('UTC');
+
+// =========================================================================
+// GLOBAL EXCEPTION HANDLER
+// API istekleri için tutarlı JSON hata yanıtları
+// =========================================================================
+set_exception_handler(function (\Throwable $Exception) {
+    $RequestUri = $_SERVER['REQUEST_URI'] ?? '';
+    $IsApiRequest = strpos($RequestUri, '/api/') !== false;
+    
+    // Hata logla
+    $LogMessage = sprintf(
+        "[UNCAUGHT EXCEPTION] %s: %s in %s:%d\nStack trace:\n%s",
+        get_class($Exception),
+        $Exception->getMessage(),
+        $Exception->getFile(),
+        $Exception->getLine(),
+        $Exception->getTraceAsString()
+    );
+    error_log($LogMessage);
+    
+    // Logger varsa onu da kullan
+    if (function_exists('logger')) {
+        try {
+            logger()->error($LogMessage);
+        } catch (\Throwable $LogError) {
+            // Logger hatası olursa sessizce devam et
+        }
+    }
+    
+    if ($IsApiRequest) {
+        // API isteği - JSON yanıt
+        http_response_code(500);
+        header('Content-Type: application/json');
+        
+        $Response = [
+            'ok' => false,
+            'error' => [
+                'code' => 'INTERNAL_ERROR',
+                'message' => 'Sunucu hatası oluştu.'
+            ]
+        ];
+        
+        // Development modunda detay göster
+        if (env('APP_DEBUG', false) === true || env('APP_DEBUG', 'false') === 'true') {
+            $Response['error']['debug'] = [
+                'exception' => get_class($Exception),
+                'message' => $Exception->getMessage(),
+                'file' => $Exception->getFile(),
+                'line' => $Exception->getLine()
+            ];
+        }
+        
+        echo json_encode($Response, JSON_UNESCAPED_UNICODE);
+    } else {
+        // Web isteği - HTML hata sayfası
+        http_response_code(500);
+        
+        if (defined('PUBLIC_PATH') && file_exists(PUBLIC_PATH . '500.php')) {
+            require PUBLIC_PATH . '500.php';
+        } else {
+            echo "<h1>500 - Internal Server Error</h1>";
+            if (env('APP_DEBUG', false) === true || env('APP_DEBUG', 'false') === 'true') {
+                echo "<pre>" . htmlspecialchars($Exception->getMessage()) . "</pre>";
+            }
+        }
+    }
+    
+    exit(1);
+});
+
+// PHP hatalarını exception'a çevir (E_WARNING, E_NOTICE vb.)
+set_error_handler(function ($Severity, $Message, $File, $Line) {
+    // Error reporting seviyesinde değilse atla
+    if (!(error_reporting() & $Severity)) {
+        return false;
+    }
+    throw new \ErrorException($Message, 0, $Severity, $File, $Line);
+});
