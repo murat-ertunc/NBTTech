@@ -2050,7 +2050,7 @@ const CustomerDetailModule = {
                 { field: 'AdSoyad', label: 'Ad Soyad' },
                 { field: 'Unvan', label: 'Ünvan' },
                 { field: 'Telefon', label: 'Telefon' },
-                { field: 'DahiliNo', label: 'Dahili' },
+                { field: 'DahiliNo', label: 'Dahili No' },
                 { field: 'Email', label: 'E-posta' }
             ],
             data: this.data.contacts || []
@@ -3257,7 +3257,8 @@ const CustomerDetailModule = {
             kisiler: () => `<div><strong>Ad Soyad:</strong> ${data.AdSoyad || '-'}</div>
                            <div><strong>Telefon:</strong> ${data.Telefon || '-'}</div>`,
             gorusme: () => `<div><strong>Tarih:</strong> ${formatDate(data.Tarih)}</div>
-                           <div><strong>Konu:</strong> ${data.Konu || '-'}</div>`,
+                           <div><strong>Konu:</strong> ${data.Konu || '-'}</div>
+                           <div><strong>Görüşülen Kişi:</strong> ${data.Kisi || '-'}</div>`,
             projeler: () => `<div><strong>Proje:</strong> ${data.ProjeAdi || '-'}</div>
                             <div><strong>Durum:</strong> ${NbtParams.getStatusBadge('proje', data.Durum)}</div>`,
             faturalar: () => `<div><strong>Tarih:</strong> ${formatDate(data.FaturaTarihi)}</div>
@@ -11860,7 +11861,7 @@ const NbtPageForm = {
                 'meetingProjeId': 'ProjeId',
                 'meetingTarih': 'Tarih',
                 'meetingKonu': 'Konu',
-                'meetingKisi': 'GorusulenKisi',
+                'meetingKisi': 'Kisi',
                 'meetingEposta': 'Eposta',
                 'meetingTelefon': 'Telefon',
                 'meetingNotlar': 'Notlar'

@@ -1821,7 +1821,7 @@ const NbtDetailModal = {
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Tarih', field: 'Tarih', format: 'date' },
                 { label: 'Konu', field: 'Konu' },
-                { label: 'Kişi', field: 'Kisi' },
+                { label: 'Görüşülen Kişi', field: 'Kisi' },
                 { label: 'E-posta', field: 'Eposta' },
                 { label: 'Telefon', field: 'Telefon' },
                 { label: 'Notlar', field: 'Notlar' }
@@ -1831,6 +1831,7 @@ const NbtDetailModal = {
                 { label: 'Ad Soyad', field: 'AdSoyad' },
                 { label: 'Unvan', field: 'Unvan' },
                 { label: 'Telefon', field: 'Telefon' },
+                { label: 'Dahili No', field: 'DahiliNo' },
                 { label: 'E-posta', field: 'Email' },
                 { label: 'Notlar', field: 'Notlar' }
             ],
