@@ -224,6 +224,7 @@ class InvoiceController
                     'ProjeId' => $ProjeId,
                     'TerminTarihi' => $EkTarih,
                     'Ozet' => $Ozet,
+                    'Durum' => CalendarService::getDefaultTakvimDurum(),
                     'KaynakTuru' => 'fatura_hatirlatma',
                     'KaynakId' => $FaturaId
                 ], $KullaniciId);

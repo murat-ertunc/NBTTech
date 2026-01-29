@@ -34,7 +34,6 @@ class GuaranteeController
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            // Standalone sayfa - pagination ile tum teminatlar
             if (isset($_GET['page']) || isset($_GET['limit'])) {
                 $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
                 Response::json($Sonuc);
@@ -132,7 +131,8 @@ class GuaranteeController
             'ParaBirimi' => $Girdi['ParaBirimi'] ?? 'TRY',
             'BankaAdi' => $Girdi['BankaAdi'] ?? null,
             'TerminTarihi' => $Girdi['TerminTarihi'] ?? null,
-            'Durum' => isset($Girdi['Durum']) ? (int)$Girdi['Durum'] : 1,
+            'Durum' => (isset($Girdi['Durum']) && trim((string)$Girdi['Durum']) !== '') ? (int)$Girdi['Durum'] : 1,
+            'Notlar' => isset($Girdi['Notlar']) ? trim((string)$Girdi['Notlar']) : null,
             'DosyaAdi' => $DosyaAdi,
             'DosyaYolu' => $DosyaYolu
         ];
@@ -243,7 +243,11 @@ class GuaranteeController
             if (isset($Girdi['ParaBirimi'])) $Guncellenecek['ParaBirimi'] = $Girdi['ParaBirimi'];
             if (isset($Girdi['BankaAdi'])) $Guncellenecek['BankaAdi'] = $Girdi['BankaAdi'];
             if (isset($Girdi['TerminTarihi'])) $Guncellenecek['TerminTarihi'] = $Girdi['TerminTarihi'];
-            if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
+            if (isset($Girdi['Notlar'])) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
+            if (array_key_exists('Durum', $Girdi)) {
+                $DurumDeger = trim((string)$Girdi['Durum']);
+                $Guncellenecek['Durum'] = $DurumDeger === '' ? 1 : (int)$DurumDeger;
+            }
             if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = !empty($Girdi['ProjeId']) ? (int)$Girdi['ProjeId'] : null;
 
             // Dosya guncellemesi varsa ekle

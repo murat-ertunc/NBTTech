@@ -88,6 +88,7 @@ class ContactController
             'AdSoyad' => trim((string)$Girdi['AdSoyad']),
             'Unvan' => isset($Girdi['Unvan']) ? trim((string)$Girdi['Unvan']) : null,
             'Telefon' => isset($Girdi['Telefon']) ? trim((string)$Girdi['Telefon']) : null,
+            'DahiliNo' => isset($Girdi['DahiliNo']) ? trim((string)$Girdi['DahiliNo']) : null,
             'Email' => isset($Girdi['Email']) ? trim((string)$Girdi['Email']) : null,
             'Notlar' => isset($Girdi['Notlar']) ? trim((string)$Girdi['Notlar']) : null
         ];
@@ -118,6 +119,10 @@ class ContactController
         if (isset($Girdi['AdSoyad'])) $Guncellenecek['AdSoyad'] = trim((string)$Girdi['AdSoyad']);
         if (isset($Girdi['Unvan'])) $Guncellenecek['Unvan'] = trim((string)$Girdi['Unvan']);
         if (isset($Girdi['Telefon'])) $Guncellenecek['Telefon'] = trim((string)$Girdi['Telefon']);
+        if (array_key_exists('DahiliNo', $Girdi)) {
+            $Deger = $Girdi['DahiliNo'];
+            $Guncellenecek['DahiliNo'] = ($Deger === null || $Deger === '') ? null : trim((string)$Deger);
+        }
         if (isset($Girdi['Email'])) $Guncellenecek['Email'] = trim((string)$Girdi['Email']);
         if (isset($Girdi['Notlar'])) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
 

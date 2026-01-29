@@ -5,11 +5,6 @@ namespace App\Core;
 class UploadValidator
 {
     private const IzinliUzantilar = ['pdf', 'doc', 'docx'];
-    private const IzinliMimler = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ];
 
     public static function validateDocument(array $Dosya, int $MaksimumBoyut): ?string
     {
@@ -28,7 +23,7 @@ class UploadValidator
 
         $MimeType = self::tespitEtMime($Dosya);
         if ($Uzanti === 'pdf') {
-            if ($MimeType !== '' && $MimeType !== 'application/pdf') {
+            if ($MimeType !== 'application/pdf') {
                 return $HataMesaji;
             }
         }
@@ -46,10 +41,6 @@ class UploadValidator
 
         if ($MimeType === '') {
             $MimeType = $Dosya['type'] ?? '';
-        }
-
-        if ($MimeType !== '' && !in_array($MimeType, self::IzinliMimler, true)) {
-            return $MimeType;
         }
 
         return $MimeType;

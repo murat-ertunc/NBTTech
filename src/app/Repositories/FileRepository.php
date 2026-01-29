@@ -11,7 +11,11 @@ class FileRepository extends BaseRepository
      */
     public function tumAktifler(): array
     {
-        $Sql = "SELECT f.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
+        $Sql = "SELECT f.*, 
+                   f.EklemeZamani AS OlusturmaZamani,
+                   f.EklemeZamani AS OlusturmaTarihi,
+                   m.Unvan AS MusteriUnvan, 
+                   p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} f 
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id 
                 LEFT JOIN tbl_proje p ON f.ProjeId = p.Id 
@@ -25,7 +29,11 @@ class FileRepository extends BaseRepository
 
     public function musteriDosyalari(int $MusteriId): array
     {
-        $Sql = "SELECT f.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
+        $Sql = "SELECT f.*, 
+                   f.EklemeZamani AS OlusturmaZamani,
+                   f.EklemeZamani AS OlusturmaTarihi,
+                   m.Unvan AS MusteriUnvan, 
+                   p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} f 
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id 
                 LEFT JOIN tbl_proje p ON f.ProjeId = p.Id 
@@ -40,7 +48,11 @@ class FileRepository extends BaseRepository
 
     public function musteriDosyalariPaginated(int $MusteriId, int $page = 1, int $limit = 10): array
     {
-        $Sql = "SELECT f.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 
+        $Sql = "SELECT f.*, 
+                   f.EklemeZamani AS OlusturmaZamani,
+                   f.EklemeZamani AS OlusturmaTarihi,
+                   m.Unvan AS MusteriUnvan, 
+                   p.ProjeAdi AS ProjeAdi 
                 FROM {$this->Tablo} f 
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id 
                 LEFT JOIN tbl_proje p ON f.ProjeId = p.Id 

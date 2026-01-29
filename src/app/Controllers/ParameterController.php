@@ -37,6 +37,33 @@ class ParameterController
     }
 
     /**
+     * Parametre detayi getir
+     */
+    public static function show(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int)$Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Parametre ID gecersiz veya eksik.', 422);
+            return;
+        }
+
+        $KullaniciId = Context::kullaniciId();
+        if (!$KullaniciId) {
+            Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Repo = new ParameterRepository();
+        $Parametre = $Repo->bul($Id);
+        if (!$Parametre) {
+            Response::error('Parametre bulunamadi.', 404);
+            return;
+        }
+
+        Response::json(['data' => $Parametre]);
+    }
+
+    /**
      * Aktif dovizleri getir
      */
     public static function currencies(): void
@@ -62,6 +89,7 @@ class ParameterController
      */
     public static function defaultCurrency(): void
     {
+        $Repo = new ParameterRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);

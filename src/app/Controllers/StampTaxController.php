@@ -124,8 +124,9 @@ class StampTaxController
             'Tarih' => $Girdi['Tarih'],
             'Tutar' => (float)$Girdi['Tutar'],
             'DovizCinsi' => isset($Girdi['DovizCinsi']) ? trim((string)$Girdi['DovizCinsi']) : 'TRY',
-            'Aciklama' => isset($Girdi['Aciklama']) ? trim((string)$Girdi['Aciklama']) : null,
             'BelgeNo' => isset($Girdi['BelgeNo']) ? trim((string)$Girdi['BelgeNo']) : null,
+            'OdemeDurumu' => isset($Girdi['OdemeDurumu']) ? trim((string)$Girdi['OdemeDurumu']) : null,
+            'Notlar' => isset($Girdi['Notlar']) ? trim((string)$Girdi['Notlar']) : null,
             'DosyaAdi' => $DosyaAdi,
             'DosyaYolu' => $DosyaYolu
         ];
@@ -134,13 +135,13 @@ class StampTaxController
 
         // Takvim hatirlatmasi olustur - tarih varsa
         if (!empty($YuklenecekVeri['Tarih'])) {
-            $Aciklama = !empty($YuklenecekVeri['Aciklama']) ? $YuklenecekVeri['Aciklama'] : 'Damga Vergisi';
+            $Notlar = !empty($YuklenecekVeri['Notlar']) ? $YuklenecekVeri['Notlar'] : 'Damga Vergisi';
             CalendarService::createOrUpdateReminder(
                 (int)$YuklenecekVeri['MusteriId'],
                 'damgavergisi',
                 $Id,
                 $YuklenecekVeri['Tarih'],
-                'Damga Vergisi: ' . $Aciklama,
+                'Damga Vergisi: ' . $Notlar,
                 $KullaniciId
             );
         }
@@ -184,8 +185,9 @@ class StampTaxController
         if (isset($Girdi['Tarih'])) $Guncellenecek['Tarih'] = $Girdi['Tarih'];
         if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
         if (isset($Girdi['DovizCinsi'])) $Guncellenecek['DovizCinsi'] = trim((string)$Girdi['DovizCinsi']);
-        if (isset($Girdi['Aciklama'])) $Guncellenecek['Aciklama'] = trim((string)$Girdi['Aciklama']);
         if (isset($Girdi['BelgeNo'])) $Guncellenecek['BelgeNo'] = trim((string)$Girdi['BelgeNo']);
+        if (isset($Girdi['OdemeDurumu'])) $Guncellenecek['OdemeDurumu'] = trim((string)$Girdi['OdemeDurumu']);
+        if (array_key_exists('Notlar', $Girdi)) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
         if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
 
         // Dosya silme veya guncelleme islemi
@@ -241,13 +243,13 @@ class StampTaxController
             if (isset($Guncellenecek['Tarih'])) {
                 $Mevcut = $Repo->bul($Id);
                 if ($Mevcut) {
-                    $Aciklama = isset($Guncellenecek['Aciklama']) ? $Guncellenecek['Aciklama'] : ($Mevcut['Aciklama'] ?? 'Damga Vergisi');
+                    $Notlar = isset($Guncellenecek['Notlar']) ? $Guncellenecek['Notlar'] : ($Mevcut['Notlar'] ?? 'Damga Vergisi');
                     CalendarService::createOrUpdateReminder(
                         (int)$Mevcut['MusteriId'],
                         'damgavergisi',
                         $Id,
                         $Guncellenecek['Tarih'],
-                        'Damga Vergisi: ' . $Aciklama,
+                        'Damga Vergisi: ' . $Notlar,
                         $KullaniciId
                     );
                 }

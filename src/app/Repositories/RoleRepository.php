@@ -413,7 +413,7 @@ class RoleRepository extends BaseRepository
     public function kullaniciyaRolAta(int $UserId, int $RolId, ?int $AtayanUserId = null): bool
     {
         // Subset constraint kontrolu
-        if ($AtayanUserId) {
+        if ($AtayanUserId && $AtayanUserId !== $UserId) {
             $AuthService = AuthorizationService::getInstance();
             if (!$AuthService->rolAtayabilirMi($AtayanUserId, $RolId)) {
                 throw new \InvalidArgumentException('Bu rolu atama yetkiniz yok. Sadece sahip oldugunuz permission setinin alt kumesi olan rolleri atayabilirsiniz.');

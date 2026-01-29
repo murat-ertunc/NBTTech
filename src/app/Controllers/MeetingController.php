@@ -89,7 +89,9 @@ class MeetingController
             'Tarih' => $Girdi['Tarih'],
             'Konu' => trim((string)$Girdi['Konu']),
             'Notlar' => isset($Girdi['Notlar']) ? trim((string)$Girdi['Notlar']) : null,
-            'Kisi' => isset($Girdi['Kisi']) ? trim((string)$Girdi['Kisi']) : null
+            'Kisi' => isset($Girdi['Kisi']) ? trim((string)$Girdi['Kisi']) : null,
+            'Eposta' => isset($Girdi['Eposta']) ? trim((string)$Girdi['Eposta']) : null,
+            'Telefon' => isset($Girdi['Telefon']) ? trim((string)$Girdi['Telefon']) : null
         ];
 
         $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
@@ -130,6 +132,8 @@ class MeetingController
         if (isset($Girdi['Konu'])) $Guncellenecek['Konu'] = trim((string)$Girdi['Konu']);
         if (isset($Girdi['Notlar'])) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
         if (isset($Girdi['Kisi'])) $Guncellenecek['Kisi'] = trim((string)$Girdi['Kisi']);
+        if (isset($Girdi['Eposta'])) $Guncellenecek['Eposta'] = trim((string)$Girdi['Eposta']);
+        if (isset($Girdi['Telefon'])) $Guncellenecek['Telefon'] = trim((string)$Girdi['Telefon']);
         if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
 
         if (!empty($Guncellenecek)) {

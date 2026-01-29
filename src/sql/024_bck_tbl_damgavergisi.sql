@@ -25,6 +25,8 @@ BEGIN
         DovizCinsi NVARCHAR(10) NULL,
         Aciklama NVARCHAR(500) NULL,
         BelgeNo NVARCHAR(100) NULL,
+        OdemeDurumu NVARCHAR(50) NULL,
+        Notlar NVARCHAR(500) NULL,
         
         -- Dosya Bilgileri
         DosyaAdi NVARCHAR(255) NULL,

@@ -51,7 +51,7 @@ require __DIR__ . '/../partials/header.php';
             <label class="col-4 col-form-label">Dosya <span class="text-danger">*</span></label>
             <div class="col-8">
               <input type="file" class="form-control" id="fileUpload" required>
-              <small class="text-muted">Max 10MB, İzin verilen: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP</small>
+              <small class="text-muted">Max 10MB, tüm dosya türleri kabul edilir.</small>
             </div>
           </div>
           <?php else: ?>
@@ -61,6 +61,13 @@ require __DIR__ . '/../partials/header.php';
               <div class="alert alert-info mb-0" id="fileCurrentInfo">
                 <i class="bi bi-file-earmark"></i> <span id="fileCurrentName">Yükleniyor...</span>
               </div>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <label class="col-4 col-form-label">Dosya Değiştir</label>
+            <div class="col-8">
+              <input type="file" class="form-control" id="fileUpload">
+              <small class="text-muted">Opsiyonel. Max 10MB, tüm dosya türleri kabul edilir.</small>
             </div>
           </div>
           <?php endif; ?>

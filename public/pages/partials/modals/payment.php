@@ -61,9 +61,31 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-4 col-form-label">Açıklama</label>
+          <label class="col-4 col-form-label">Ödeme Türü <span class="text-danger">*</span></label>
           <div class="col-8">
-            <textarea class="form-control" id="paymentAciklama" rows="2"></textarea>
+            <select class="form-select" id="paymentTur" required>
+              <option value="">Ödeme Türü Seçiniz...</option>
+              <option value="Nakit">Nakit</option>
+              <option value="Havale/EFT">Havale/EFT</option>
+              <option value="Kredi Kartı">Kredi Kartı</option>
+              <option value="Çek">Çek</option>
+              <option value="Senet">Senet</option>
+              <option value="Diğer">Diğer</option>
+            </select>
+            <div class="invalid-feedback"></div>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <label class="col-4 col-form-label">Banka/Hesap</label>
+          <div class="col-8">
+            <input type="text" class="form-control" id="paymentBanka">
+            <div class="invalid-feedback"></div>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <label class="col-4 col-form-label">Notlar</label>
+          <div class="col-8">
+            <textarea class="form-control" id="paymentNotlar" rows="2"></textarea>
             <div class="invalid-feedback"></div>
           </div>
         </div>

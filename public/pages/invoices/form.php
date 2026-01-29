@@ -744,7 +744,14 @@ function calculateInvoiceItemsTotals() {
     const tevkifatOran1 = tevkifatAktif ? (parseFloat(document.getElementById('invoiceTevkifatOran1')?.value) || 0) : 0;
     
     // Tevkifat oranı varsa KDV'yi ona göre düşür
-    const kdvSonrasi = tevkifatOran1 > 0 ? toplamKdv * (tevkifatOran1 / 100) : toplamKdv;
+    let kdvSonrasi = toplamKdv;
+    if (tevkifatAktif) {
+      if (tevkifatOran1 === 0) {
+        kdvSonrasi = 0;
+      } else if (tevkifatOran1 > 0) {
+        kdvSonrasi = toplamKdv * (tevkifatOran1 / 100);
+      }
+    }
 
     const toplamEl = document.getElementById('invoiceItemsToplam');
     const kdvEl = document.getElementById('invoiceItemsKdv');

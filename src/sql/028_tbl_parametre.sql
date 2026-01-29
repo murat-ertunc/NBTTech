@@ -59,7 +59,8 @@ BEGIN
         Etiket NVARCHAR(100) NULL,
         Sira INT NULL,
         Aktif BIT NULL,
-        Varsayilan BIT NULL
+        Varsayilan BIT NULL,
+        Pasif BIT NULL
     );
 END
 GO

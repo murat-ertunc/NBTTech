@@ -96,6 +96,9 @@ class PaymentController
         $Tutar = (float)$Girdi['Tutar'];
         $Tarih = trim((string)$Girdi['Tarih']); 
         $Aciklama = isset($Girdi['Aciklama']) ? trim((string)$Girdi['Aciklama']) : null;
+        $OdemeTuru = isset($Girdi['OdemeTuru']) ? trim((string)$Girdi['OdemeTuru']) : null;
+        $BankaHesap = isset($Girdi['BankaHesap']) ? trim((string)$Girdi['BankaHesap']) : null;
+        $Notlar = isset($Girdi['Notlar']) ? trim((string)$Girdi['Notlar']) : null;
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -130,7 +133,7 @@ class PaymentController
         }
 
         $Repo = new PaymentRepository();
-        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $FaturaId, $Tarih, $Tutar, $Aciklama, $DosyaAdi, $DosyaYolu, $KullaniciId) {
+        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $FaturaId, $Tarih, $Tutar, $Aciklama, $OdemeTuru, $BankaHesap, $Notlar, $DosyaAdi, $DosyaYolu, $KullaniciId) {
             return $Repo->ekle([
                 'MusteriId' => $MusteriId,
                 'ProjeId' => $ProjeId,
@@ -138,6 +141,9 @@ class PaymentController
                 'Tarih' => $Tarih,
                 'Tutar' => $Tutar,
                 'Aciklama' => $Aciklama,
+                'OdemeTuru' => $OdemeTuru,
+                'BankaHesap' => $BankaHesap,
+                'Notlar' => $Notlar,
                 'DosyaAdi' => $DosyaAdi,
                 'DosyaYolu' => $DosyaYolu
             ], $KullaniciId);
@@ -241,6 +247,9 @@ class PaymentController
             if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
             if (isset($Girdi['FaturaId'])) $Guncellenecek['FaturaId'] = !empty($Girdi['FaturaId']) ? (int)$Girdi['FaturaId'] : null;
             if (isset($Girdi['Aciklama'])) $Guncellenecek['Aciklama'] = $Girdi['Aciklama'];
+            if (isset($Girdi['OdemeTuru'])) $Guncellenecek['OdemeTuru'] = trim((string)$Girdi['OdemeTuru']);
+            if (isset($Girdi['BankaHesap'])) $Guncellenecek['BankaHesap'] = trim((string)$Girdi['BankaHesap']);
+            if (array_key_exists('Notlar', $Girdi)) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
 
             $Guncellenecek = array_merge($Guncellenecek, $DosyaGuncellemesi);
 

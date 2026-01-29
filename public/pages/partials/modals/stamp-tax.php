@@ -46,9 +46,20 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-4 col-form-label">Açıklama</label>
+          <label class="col-4 col-form-label">Ödeme Durumu</label>
           <div class="col-8">
-            <textarea class="form-control" id="stampTaxAciklama" rows="2"></textarea>
+            <select class="form-select" id="stampTaxOdemeDurumu">
+              <option value="Ödenmedi">Ödenmedi</option>
+              <option value="Ödendi">Ödendi</option>
+              <option value="Kısmi">Kısmi</option>
+            </select>
+            <div class="invalid-feedback"></div>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <label class="col-4 col-form-label">Notlar</label>
+          <div class="col-8">
+            <textarea class="form-control" id="stampTaxNotlar" rows="2"></textarea>
             <div class="invalid-feedback"></div>
           </div>
         </div>

@@ -18,8 +18,9 @@ BEGIN
         Tarih DATE NOT NULL,
         Tutar DECIMAL(18,2) NOT NULL,
         DovizCinsi NVARCHAR(10) DEFAULT 'TRY',
-        Aciklama NVARCHAR(500) NULL,
         BelgeNo NVARCHAR(100) NULL,
+        OdemeDurumu NVARCHAR(50) NULL,
+        Notlar NVARCHAR(500) NULL,
         
         -- Dosya Bilgileri
         DosyaAdi NVARCHAR(255) NULL,

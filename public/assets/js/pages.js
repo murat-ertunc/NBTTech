@@ -1688,7 +1688,8 @@ const CustomerDetailModule = {
             'meetings': '/api/meetings',
             'contacts': '/api/contacts',
             'stampTaxes': '/api/stamp-taxes',
-            'files': '/api/files'
+            'files': '/api/files',
+            'calendars': '/api/takvim'
         };
         
         const endpoint = endpointMap[dataKey];
@@ -2072,7 +2073,9 @@ const CustomerDetailModule = {
                 { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Konu', label: 'Konu' },
                 { field: 'Notlar', label: 'Notlar' },
-                { field: 'Kisi', label: 'Görüşülen Kişi' }
+                { field: 'Kisi', label: 'Görüşülen Kişi' },
+                { field: 'Eposta', label: 'E-posta' },
+                { field: 'Telefon', label: 'Telefon' }
             ],
             data: this.data.meetings || []
         });
@@ -2143,15 +2146,6 @@ const CustomerDetailModule = {
     },
 
     renderTakvim() {
-        // Takvim verilerine tamamlandi durumu ekle
-        const calendars = (this.data.calendars || []).map(item => {
-            const terminTarihi = item.TerminTarihi ? new Date(item.TerminTarihi) : null;
-            const bugun = new Date();
-            bugun.setHours(0, 0, 0, 0);
-            const tamamlandi = terminTarihi && terminTarihi < bugun ? 1 : 0;
-            return { ...item, Tamamlandi: tamamlandi };
-        });
-        
         return this.renderPanel({
             id: 'takvim',
             title: 'Takvim',
@@ -2162,12 +2156,9 @@ const CustomerDetailModule = {
                 { field: 'ProjeAdi', label: 'Proje' },
                 { field: 'TerminTarihi', label: 'Termin Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Ozet', label: 'Özet' },
-                { field: 'Tamamlandi', label: 'Durum', render: v => v === 1 
-                    ? '<span class="badge bg-success">Tamamlandı</span>' 
-                    : '<span class="badge bg-warning text-dark">Tamamlanmadı</span>' 
-                }
+                { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'takvim'), statusType: 'takvim' }
             ],
-            data: calendars
+            data: this.data.calendars || []
         });
     },
 
@@ -2186,7 +2177,7 @@ const CustomerDetailModule = {
                 { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                 { field: 'DovizCinsi', label: 'Döviz', render: v => v || 'TL' },
-                { field: 'Aciklama', label: 'Açıklama' }
+                { field: 'Notlar', label: 'Notlar' }
             ],
             data: this.data.stampTaxes || []
         });
@@ -2285,7 +2276,9 @@ const CustomerDetailModule = {
                 }},
                 { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                 { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TRY' },
-                { field: 'Aciklama', label: 'Açıklama' }
+                { field: 'OdemeTuru', label: 'Ödeme Türü' },
+                { field: 'BankaHesap', label: 'Banka/Hesap' },
+                { field: 'Notlar', label: 'Notlar' }
             ],
             data: this.data.payments
         });
@@ -2334,7 +2327,8 @@ const CustomerDetailModule = {
             project: { 1: ['Aktif', 'success'], 2: ['Tamamlandı', 'info'], 3: ['İptal', 'danger'] },
             offer: { 0: ['Taslak', 'secondary'], 1: ['Gönderildi', 'warning'], 2: ['Onaylandı', 'success'], 3: ['Reddedildi', 'danger'] },
             contract: { 1: ['Aktif', 'success'], 2: ['Pasif', 'secondary'], 3: ['İptal', 'danger'] },
-            guarantee: { 1: ['Bekliyor', 'warning'], 2: ['İade Edildi', 'info'], 3: ['Tahsil Edildi', 'success'], 4: ['Yandı', 'danger'] }
+            guarantee: { 1: ['Bekliyor', 'warning'], 2: ['İade Edildi', 'info'], 3: ['Tahsil Edildi', 'success'], 4: ['Yandı', 'danger'] },
+            takvim: { 1: ['Aktif', 'success'], 2: ['Pasif', 'secondary'], 3: ['İptal', 'danger'] }
         };
         const config = fallback[type]?.[status] || ['Bilinmiyor', 'secondary'];
         return `<span class="badge bg-${config[1]}">${config[0]}</span>`;
@@ -2401,6 +2395,17 @@ const CustomerDetailModule = {
         container._delegationBound = true;
 
         container.addEventListener('click', (e) => {
+            const filteredLink = e.target.closest('[data-filtered-page]');
+            if (filteredLink) {
+                e.preventDefault();
+                const page = parseInt(filteredLink.dataset.filteredPage);
+                const tableId = filteredLink.dataset.tableId;
+                if (!isNaN(page) && tableId) {
+                    this.applyColumnFilters(tableId, page);
+                }
+                return;
+            }
+
             const addBtn = e.target.closest('[data-add]');
             if (addBtn) {
                 e.preventDefault();
@@ -2700,17 +2705,6 @@ const CustomerDetailModule = {
                     const response = await NbtApi.get(`${endpoint}?musteri_id=${this.customerId}&page=1&limit=10000`);
                     let data = response.data || [];
                     
-                    // Takvim icin Tamamlandi alanini hesapla
-                    if (dataKey === 'calendars') {
-                        const bugun = new Date();
-                        bugun.setHours(0, 0, 0, 0);
-                        data = data.map(item => {
-                            const terminTarihi = item.TerminTarihi ? new Date(item.TerminTarihi) : null;
-                            const tamamlandi = terminTarihi && terminTarihi < bugun ? 1 : 0;
-                            return { ...item, Tamamlandi: tamamlandi };
-                        });
-                    }
-                    
                     this.allData[tableId] = data;
                 } catch (err) {
                     console.error('Tüm veriler yüklenemedi:', err);
@@ -2869,7 +2863,9 @@ const CustomerDetailModule = {
                     { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
                     { field: 'Konu', label: 'Konu' },
                     { field: 'Notlar', label: 'Notlar' },
-                    { field: 'Kisi', label: 'Görüşülen Kişi' }
+                    { field: 'Kisi', label: 'Görüşülen Kişi' },
+                    { field: 'Eposta', label: 'E-posta' },
+                    { field: 'Telefon', label: 'Telefon' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
@@ -2947,7 +2943,9 @@ const CustomerDetailModule = {
                     }},
                     { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                     { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TRY' },
-                    { field: 'Aciklama', label: 'Açıklama' }
+                    { field: 'OdemeTuru', label: 'Ödeme Türü' },
+                    { field: 'BankaHesap', label: 'Banka/Hesap' },
+                    { field: 'Notlar', label: 'Notlar' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
@@ -2958,6 +2956,8 @@ const CustomerDetailModule = {
                     { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
                     { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                     { field: 'DovizCinsi', label: 'Döviz', render: v => v || 'TL' },
+                    { field: 'OdemeDurumu', label: 'Ödeme Durumu' },
+                    { field: 'Notlar', label: 'Notlar' },
                     { field: 'Aciklama', label: 'Açıklama' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
@@ -2976,10 +2976,7 @@ const CustomerDetailModule = {
                     { field: 'ProjeAdi', label: 'Proje' },
                     { field: 'TerminTarihi', label: 'Termin Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
                     { field: 'Ozet', label: 'Özet' },
-                    { field: 'Tamamlandi', label: 'Durum', render: v => v === 1 
-                        ? '<span class="badge bg-success">Tamamlandı</span>' 
-                        : '<span class="badge bg-warning text-dark">Devam Ediyor</span>' 
-                    }
+                    { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'takvim'), statusType: 'takvim' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             }
@@ -3115,6 +3112,23 @@ const CustomerDetailModule = {
                     (deleteId, deleteData) => this.confirmDelete(tab, config.endpoint, deleteId, config.key, deleteData)
                 );
             } else {
+                if (tab === 'takvim') {
+                    try {
+                        const detail = await NbtApi.get(`/api/takvim/${parsedId}`);
+                        if (detail?.data) {
+                            await NbtDetailModal.show(
+                                config.detailType,
+                                detail.data,
+                                (editId) => this.openEditModal(config.type, editId),
+                                (deleteId, deleteData) => this.confirmDelete(tab, config.endpoint, deleteId, config.key, deleteData)
+                            );
+                            return;
+                        }
+                    } catch (err) {
+                        NbtToast.error('Takvim kaydı bulunamadı');
+                        return;
+                    }
+                }
                 NbtToast.error('Kayıt bulunamadı');
             }
         } else if (action === 'edit') {
@@ -3245,7 +3259,7 @@ const CustomerDetailModule = {
             gorusme: () => `<div><strong>Tarih:</strong> ${formatDate(data.Tarih)}</div>
                            <div><strong>Konu:</strong> ${data.Konu || '-'}</div>`,
             projeler: () => `<div><strong>Proje:</strong> ${data.ProjeAdi || '-'}</div>
-                            <div><strong>Durum:</strong> ${data.Durum == 1 ? 'Aktif' : data.Durum == 2 ? 'Tamamlandı' : 'İptal'}</div>`,
+                            <div><strong>Durum:</strong> ${NbtParams.getStatusBadge('proje', data.Durum)}</div>`,
             faturalar: () => `<div><strong>Tarih:</strong> ${formatDate(data.FaturaTarihi)}</div>
                              <div><strong>Tutar:</strong> ${formatMoney(data.Tutar, data.DovizCinsi)}</div>`,
             odemeler: () => `<div><strong>Tarih:</strong> ${formatDate(data.OdemeTarihi)}</div>
@@ -3698,7 +3712,8 @@ const InvoiceModule = {
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
 
         // Yeni alanlari sifirla
-        const dovizSelect = document.getElementById('invoiceDoviz');
+        await NbtParams.populateStatusSelect(document.getElementById('calendarDurum'), 'takvim'); 
+        document.getElementById('calendarDurum').value = ''; // Ensure the status select is reset
         const faturaNoEl = document.getElementById('invoiceFaturaNo');
         const supheliEl = document.getElementById('invoiceSupheliAlacak');
         const tevkifatAktifEl = document.getElementById('invoiceTevkifatAktif');
@@ -4413,7 +4428,9 @@ const PaymentModule = {
             { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
             { field: 'Tutar', label: 'Tutar', render: (v, row) => NbtUtils.formatMoney(v, row.ParaBirimi) },
             { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TRY', isSelect: true },
-            { field: 'Aciklama', label: 'Açıklama' }
+            { field: 'OdemeTuru', label: 'Ödeme Türü' },
+            { field: 'BankaHesap', label: 'Banka/Hesap' },
+            { field: 'Notlar', label: 'Notlar' }
         ];
 
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
@@ -4752,7 +4769,9 @@ const PaymentModule = {
                 await CustomerDetailModule.populateProjectSelect('paymentProjeId', payment.ProjeId);
                 document.getElementById('paymentTarih').value = payment.Tarih?.split('T')[0] || '';
                 document.getElementById('paymentTutar').value = NbtUtils.formatDecimal(payment.Tutar) || '';
-                document.getElementById('paymentAciklama').value = payment.Aciklama || '';
+                document.getElementById('paymentTur').value = payment.OdemeTuru || '';
+                document.getElementById('paymentBanka').value = payment.BankaHesap || '';
+                document.getElementById('paymentNotlar').value = payment.Notlar || '';
                 if (faturaSelect && payment.FaturaId) {
                     // Edit modda mevcut odeme bilgisini gonder - kalan tutar hesaplamasi icin
                     await this.loadInvoicesForCustomer(payment.MusteriId, payment);
@@ -4791,7 +4810,9 @@ const PaymentModule = {
             FaturaId: faturaIdVal ? parseInt(faturaIdVal) : null,
             Tarih: document.getElementById('paymentTarih').value,
             Tutar: parseFloat(document.getElementById('paymentTutar').value) || 0,
-            Aciklama: document.getElementById('paymentAciklama').value.trim() || null
+            OdemeTuru: document.getElementById('paymentTur').value || null,
+            BankaHesap: document.getElementById('paymentBanka').value.trim() || null,
+            Notlar: document.getElementById('paymentNotlar').value.trim() || null
         };
 
         NbtModal.clearError('paymentModal');
@@ -4818,6 +4839,11 @@ const PaymentModule = {
         if (!data.Tutar || data.Tutar <= 0) {
             NbtModal.showFieldError('paymentModal', 'paymentTutar', 'Tutar zorunludur');
             NbtModal.showError('paymentModal', 'Lütfen zorunlu alanları doldurun');
+            return;
+        }
+        if (!data.OdemeTuru) {
+            NbtModal.showFieldError('paymentModal', 'paymentTur', 'Ödeme türü seçiniz');
+            NbtModal.showError('paymentModal', 'Ödeme türü seçimi zorunludur');
             return;
         }
         
@@ -4856,7 +4882,9 @@ const PaymentModule = {
                 if (data.FaturaId) formData.append('FaturaId', data.FaturaId);
                 formData.append('Tarih', data.Tarih);
                 formData.append('Tutar', data.Tutar);
-                if (data.Aciklama) formData.append('Aciklama', data.Aciklama);
+                if (data.OdemeTuru) formData.append('OdemeTuru', data.OdemeTuru);
+                if (data.BankaHesap) formData.append('BankaHesap', data.BankaHesap);
+                if (data.Notlar) formData.append('Notlar', data.Notlar);
                 if (file) formData.append('dosya', file);
                 if (this.removeExistingFile) formData.append('removeFile', '1');
 
@@ -5054,6 +5082,8 @@ const CalendarTabModule = {
             };
         }
 
+        await NbtParams.populateStatusSelect(document.getElementById('calendarDurum'), 'takvim');
+
         if (id) {
             const calendar = CustomerDetailModule.data.calendars?.find(c => parseInt(c.Id, 10) === parseInt(id, 10));
             if (calendar) {
@@ -5062,6 +5092,7 @@ const CalendarTabModule = {
                 await CustomerDetailModule.populateProjectSelect('calendarProjeId', calendar.ProjeId);
                 document.getElementById('calendarTerminTarihi').value = calendar.TerminTarihi?.split('T')[0] || '';
                 document.getElementById('calendarOzet').value = calendar.Ozet || '';
+                document.getElementById('calendarDurum').value = calendar.Durum ?? '';
                 if (ozetCount) ozetCount.textContent = (calendar.Ozet || '').length;
             } else {
                 NbtToast.error('Takvim kaydı bulunamadı');
@@ -5088,7 +5119,8 @@ const CalendarTabModule = {
             MusteriId: musteriId,
             ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
             TerminTarihi: document.getElementById('calendarTerminTarihi').value,
-            Ozet: document.getElementById('calendarOzet').value.trim()
+            Ozet: document.getElementById('calendarOzet').value.trim(),
+            Durum: document.getElementById('calendarDurum').value
         };
 
         NbtModal.clearError('calendarModal');
@@ -5304,6 +5336,8 @@ const StampTaxModule = {
                 document.getElementById('stampTaxTutar').value = NbtUtils.formatDecimal(item.Tutar) || '';
                 document.getElementById('stampTaxDovizCinsi').value = item.DovizCinsi || NbtParams.getDefaultCurrency();
                 document.getElementById('stampTaxAciklama').value = item.Aciklama || '';
+                document.getElementById('stampTaxOdemeDurumu').value = item.OdemeDurumu || 'Ödenmedi';
+                document.getElementById('stampTaxNotlar').value = item.Notlar || '';
                 
                 if (item.DosyaAdi) {
                     document.getElementById('stampTaxCurrentFileName').textContent = item.DosyaAdi;
@@ -5342,7 +5376,9 @@ const StampTaxModule = {
             Tutar: parseFloat(document.getElementById('stampTaxTutar').value) || 0,
             DovizCinsi: document.getElementById('stampTaxDovizCinsi').value || NbtParams.getDefaultCurrency(),
             // BelgeNo kaldırıldı
-            Aciklama: document.getElementById('stampTaxAciklama').value.trim() || null
+            Aciklama: document.getElementById('stampTaxAciklama').value.trim() || null,
+            OdemeDurumu: document.getElementById('stampTaxOdemeDurumu').value || null,
+            Notlar: document.getElementById('stampTaxNotlar').value.trim() || null
         };
 
         NbtModal.clearError('stampTaxModal');
@@ -5392,6 +5428,8 @@ const StampTaxModule = {
                 formData.append('DovizCinsi', data.DovizCinsi);
                 if (data.BelgeNo) formData.append('BelgeNo', data.BelgeNo);
                 if (data.Aciklama) formData.append('Aciklama', data.Aciklama);
+                if (data.OdemeDurumu) formData.append('OdemeDurumu', data.OdemeDurumu);
+                if (data.Notlar) formData.append('Notlar', data.Notlar);
                 if (file) formData.append('dosya', file);
                 if (this.removeExistingFile) formData.append('removeFile', '1');
                 
@@ -5480,7 +5518,9 @@ const FileModule = {
         if (id) {
             // Duzenleme modu
             document.getElementById('fileModalTitle').textContent = 'Dosya Düzenle';
-            document.getElementById('fileInput').closest('.row').style.display = 'none'; // Dosya degistirilmez
+            const fileRow = document.getElementById('fileInput').closest('.row');
+            if (fileRow) fileRow.style.display = '';
+            document.getElementById('fileInput').required = false;
             
             // Mevcut dosya bilgilerini yukle
             const parsedId = parseInt(id, 10);
@@ -5498,7 +5538,9 @@ const FileModule = {
             // Yeni kayit modu
             document.getElementById('fileModalTitle').textContent = 'Dosya Yükle';
             document.getElementById('fileInput').value = '';
-            document.getElementById('fileInput').closest('.row').style.display = '';
+            const fileRow = document.getElementById('fileInput').closest('.row');
+            if (fileRow) fileRow.style.display = '';
+            document.getElementById('fileInput').required = true;
             
             // Yeni kayit icin musteri id'sini set et
             if (CustomerDetailModule.customerId) {
@@ -5536,16 +5578,17 @@ const FileModule = {
             return;
         }
         
-        // Duzenleme modunda dosya kontrolu yapma
+        const file = fileInput?.files?.[0];
         if (!this.editingId) {
-            if (!fileInput.files || !fileInput.files[0]) {
+            if (!file) {
                 NbtModal.showFieldError('fileModal', 'fileInput', 'Dosya seçiniz');
                 NbtModal.showError('fileModal', 'Lütfen bir dosya seçin');
                 return;
             }
+        }
 
+        if (file) {
             const maxSize = 10 * 1024 * 1024; // 10MB
-            const file = fileInput.files[0];
             if (file.size > maxSize) {
                 const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
                 NbtModal.showFieldError('fileModal', 'fileInput', `Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
@@ -5578,17 +5621,26 @@ const FileModule = {
         NbtModal.setLoading('fileModal', true);
         try {
             if (this.editingId) {
-                // Duzenleme: JSON ile PUT
-                const data = {
-                    ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
-                    Aciklama: aciklama || null
-                };
-                await NbtApi.put(`/api/files/${this.editingId}`, data);
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('MusteriId', musteriId);
+                    if (projeIdVal) formData.append('ProjeId', projeIdVal);
+                    if (aciklama) formData.append('Aciklama', aciklama);
+                    await NbtApi.postFormData(`/api/files/${this.editingId}`, formData, 'PUT');
+                } else {
+                    // Duzenleme: JSON ile PUT (sadece metadata)
+                    const data = {
+                        ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
+                        Aciklama: aciklama || null
+                    };
+                    await NbtApi.put(`/api/files/${this.editingId}`, data);
+                }
                 NbtToast.success('Dosya güncellendi');
             } else {
                 // Yeni kayit: FormData ile POST
                 const formData = new FormData();
-                formData.append('file', fileInput.files[0]);
+                formData.append('file', file);
                 formData.append('MusteriId', musteriId);
                 if (projeIdVal) formData.append('ProjeId', projeIdVal);
                 if (aciklama) formData.append('Aciklama', aciklama);
@@ -6675,7 +6727,8 @@ const ParameterModule = {
         'durum_proje': { icon: 'bi-kanban', label: 'Proje Durumları', color: 'info', badgeId: 'paramCountDurumProje' },
         'durum_teklif': { icon: 'bi-file-text', label: 'Teklif Durumları', color: 'warning', badgeId: 'paramCountDurumTeklif' },
         'durum_sozlesme': { icon: 'bi-file-earmark-text', label: 'Sözleşme Durumları', color: 'secondary', badgeId: 'paramCountDurumSozlesme' },
-        'durum_teminat': { icon: 'bi-shield-check', label: 'Teminat Durumları', color: 'danger', badgeId: 'paramCountDurumTeminat' }
+        'durum_teminat': { icon: 'bi-shield-check', label: 'Teminat Durumları', color: 'danger', badgeId: 'paramCountDurumTeminat' },
+        'durum_takvim': { icon: 'bi-calendar3', label: 'Takvim Durumları', color: 'success', badgeId: 'paramCountDurumTakvim' }
     },
 
     async init() {
@@ -11853,10 +11906,11 @@ const NbtPageForm = {
             musteriIdFieldId: 'calendarMusteriId',
             needsProject: true,
             projeSelectId: 'calendarProjeId',
-            fields: ['calendarProjeId', 'calendarTerminTarihi', 'calendarOzet'],
+            fields: ['calendarProjeId', 'calendarTerminTarihi', 'calendarDurum', 'calendarOzet'],
             fieldMappings: {
                 'calendarProjeId': 'ProjeId',
                 'calendarTerminTarihi': 'TerminTarihi',
+                'calendarDurum': 'Durum',
                 'calendarOzet': 'Ozet'
             },
             required: ['calendarProjeId', 'calendarTerminTarihi', 'calendarOzet'],
@@ -11864,7 +11918,8 @@ const NbtPageForm = {
                 'calendarProjeId': 'Proje seçimi zorunludur',
                 'calendarTerminTarihi': 'Termin tarihi zorunludur',
                 'calendarOzet': 'İşin özeti zorunludur'
-            }
+            },
+            statusField: { id: 'calendarDurum', type: 'takvim' }
         },
         'stamp-tax': {
             formId: 'stampTaxPageForm',
@@ -11942,7 +11997,7 @@ const NbtPageForm = {
             },
             amountField: 'guaranteeTutar',
             currencyField: 'guaranteeDoviz',
-            statusField: { id: 'guaranteeTur', type: 'teminat' }
+            statusField: { id: 'guaranteeDurum', type: 'teminat' }
         },
         'invoice': {
             formId: 'invoicePageForm',

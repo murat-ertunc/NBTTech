@@ -9,12 +9,14 @@ class PaymentRepository extends BaseRepository
     public function musteriyeGore(int $MusteriId): array
     {
         $Sql = "
-            SELECT o.*, 
-                   p.ProjeAdi,
-                   f.Tarih as FaturaTarihi,
-                   f.Tutar as FaturaTutari,
-                   f.DovizCinsi as FaturaDovizi,
-                   f.Aciklama as FaturaAciklama
+                 SELECT o.*, 
+                     p.ProjeAdi,
+                     f.FaturaNo as FaturaNo,
+                     f.FaturaNo as FaturaNumarasi,
+                     f.Tarih as FaturaTarihi,
+                     f.Tutar as FaturaTutari,
+                     f.DovizCinsi as FaturaDovizi,
+                     f.Aciklama as FaturaAciklama
             FROM tbl_odeme o
             LEFT JOIN tbl_proje p ON o.ProjeId = p.Id
             LEFT JOIN tbl_fatura f ON o.FaturaId = f.Id
@@ -31,13 +33,14 @@ class PaymentRepository extends BaseRepository
     public function musteriyeGorePaginated(int $MusteriId, int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "
-            SELECT o.*, 
-                   p.ProjeAdi,
-                   f.Tarih as FaturaTarihi,
-                   f.Tutar as FaturaTutari,
-                   f.DovizCinsi as FaturaDovizi,
-                   f.FaturaNo as FaturaNumarasi,
-                   f.Aciklama as FaturaAciklama
+                 SELECT o.*, 
+                     p.ProjeAdi,
+                     f.FaturaNo as FaturaNo,
+                     f.FaturaNo as FaturaNumarasi,
+                     f.Tarih as FaturaTarihi,
+                     f.Tutar as FaturaTutari,
+                     f.DovizCinsi as FaturaDovizi,
+                     f.Aciklama as FaturaAciklama
             FROM tbl_odeme o
             LEFT JOIN tbl_proje p ON o.ProjeId = p.Id
             LEFT JOIN tbl_fatura f ON o.FaturaId = f.Id
@@ -52,13 +55,15 @@ class PaymentRepository extends BaseRepository
     public function tumAktifler(): array
     {
         $Sql = "
-            SELECT o.*, 
-                   m.Unvan as MusteriUnvan,
-                   p.ProjeAdi,
-                   f.Tarih as FaturaTarihi,
-                   f.Tutar as FaturaTutari,
-                   f.DovizCinsi as FaturaDovizi,
-                   f.Aciklama as FaturaAciklama
+                 SELECT o.*, 
+                     m.Unvan as MusteriUnvan,
+                     p.ProjeAdi,
+                     f.FaturaNo as FaturaNo,
+                     f.FaturaNo as FaturaNumarasi,
+                     f.Tarih as FaturaTarihi,
+                     f.Tutar as FaturaTutari,
+                     f.DovizCinsi as FaturaDovizi,
+                     f.Aciklama as FaturaAciklama
             FROM tbl_odeme o
             LEFT JOIN tbl_musteri m ON o.MusteriId = m.Id
             LEFT JOIN tbl_proje p ON o.ProjeId = p.Id
@@ -75,13 +80,15 @@ class PaymentRepository extends BaseRepository
     public function tumAktiflerPaginated(int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "
-            SELECT o.*, 
-                   m.Unvan as MusteriUnvan,
-                   p.ProjeAdi,
-                   f.Tarih as FaturaTarihi,
-                   f.Tutar as FaturaTutari,
-                   f.DovizCinsi as FaturaDovizi,
-                   f.Aciklama as FaturaAciklama
+                 SELECT o.*, 
+                     m.Unvan as MusteriUnvan,
+                     p.ProjeAdi,
+                     f.FaturaNo as FaturaNo,
+                     f.FaturaNo as FaturaNumarasi,
+                     f.Tarih as FaturaTarihi,
+                     f.Tutar as FaturaTutari,
+                     f.DovizCinsi as FaturaDovizi,
+                     f.Aciklama as FaturaAciklama
             FROM tbl_odeme o
             LEFT JOIN tbl_musteri m ON o.MusteriId = m.Id
             LEFT JOIN tbl_proje p ON o.ProjeId = p.Id
