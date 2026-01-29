@@ -1747,19 +1747,18 @@ const NbtDetailModal = {
                 { label: 'Tarih', field: 'Tarih', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'DovizCinsi' },
                 { label: 'Döviz', field: 'DovizCinsi' },
-                { label: 'Şüpheli Alacak', field: 'SupheliAlacak', render: (v) => v ? '<span class="badge bg-warning">Evet</span>' : '<span class="badge bg-secondary">Hayır</span>' },
+                { label: 'Şüpheli Alacak', field: 'SupheliAlacak', render: (v) => v === '1' ? '<span class="badge bg-warning">Evet</span>' : '<span class="badge bg-secondary">Hayır</span>' },
                 { label: 'Tevkifat', field: 'TevkifatAktif', render: (v, d) => {
                     if (!v) return '<span class="badge bg-secondary">Yok</span>';
                     return `<span class="badge bg-info">Oran1: %${d.TevkifatOran1 || 0}, Oran2: %${d.TevkifatOran2 || 0}</span>`;
                 }},
-                { label: 'Açıklama', field: 'Aciklama' }
             ],
             payment: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Tarih', field: 'Tarih', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money' },
                 { label: 'Fatura', field: 'FaturaId', render: (v) => v ? `FT${v}` : 'Bağımsız' },
-                { label: 'Açıklama', field: 'Aciklama' },
+                { label: 'Notlar', field: 'Aciklama' },
                 { label: 'Ödeme Dosyası', field: 'DosyaAdi', render: (v, d) => {
                     if (!d.DosyaYolu) return '<span class="text-muted">-</span>';
                     const name = NbtUtils.escapeHtml(v || 'odeme');
@@ -1787,7 +1786,6 @@ const NbtDetailModal = {
             ],
             contract: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
-                { label: 'Sözleşme No', field: 'SozlesmeNo' },
                 { label: 'Sözleşme Tarihi', field: 'SozlesmeTarihi', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
                 { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'sozlesme' },
@@ -1799,7 +1797,6 @@ const NbtDetailModal = {
             ],
             guarantee: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
-                { label: 'Belge No', field: 'BelgeNo' },
                 { label: 'Tür', field: 'Tur' },
                 { label: 'Banka', field: 'BankaAdi' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
@@ -1830,7 +1827,6 @@ const NbtDetailModal = {
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Tarih', field: 'Tarih', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'DovizCinsi' },
-                { label: 'Belge No', field: 'BelgeNo' },
                 { label: 'Açıklama', field: 'Aciklama' },
                 { label: 'Damga Vergisi Dosyası', field: 'DosyaAdi', render: (v, d) => {
                     if (!d.DosyaYolu) return '<span class="text-muted">-</span>';

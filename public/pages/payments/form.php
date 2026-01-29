@@ -100,13 +100,6 @@ require __DIR__ . '/../partials/header.php';
           </div>
           
           <div class="row mb-3">
-            <label class="col-4 col-form-label">Referans No</label>
-            <div class="col-8">
-              <input type="text" class="form-control" id="paymentReferans" placeholder="Dekont/Çek/Senet No">
-            </div>
-          </div>
-          
-          <div class="row mb-3">
             <label class="col-4 col-form-label">Notlar</label>
             <div class="col-8">
               <textarea class="form-control" id="paymentNotlar" rows="2"></textarea>

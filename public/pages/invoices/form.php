@@ -30,7 +30,7 @@ require __DIR__ . '/../partials/header.php';
 
 <div class="container-fluid py-4">
   <div class="row justify-content-center">
-    <div class="col-12 col-lg-10 col-xl-8">
+    <div class="col-12">
       <?php require __DIR__ . '/../partials/form-header.php'; ?>
       
       <div class="card-body">

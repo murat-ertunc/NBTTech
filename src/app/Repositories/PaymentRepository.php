@@ -36,6 +36,7 @@ class PaymentRepository extends BaseRepository
                    f.Tarih as FaturaTarihi,
                    f.Tutar as FaturaTutari,
                    f.DovizCinsi as FaturaDovizi,
+                   f.FaturaNo as FaturaNumarasi,
                    f.Aciklama as FaturaAciklama
             FROM tbl_odeme o
             LEFT JOIN tbl_proje p ON o.ProjeId = p.Id

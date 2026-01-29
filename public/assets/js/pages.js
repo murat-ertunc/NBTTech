@@ -2281,7 +2281,7 @@ const CustomerDetailModule = {
                 { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
                 { field: 'FaturaId', label: 'Fatura', render: (v, row) => {
                     if (!v) return '-';
-                    return `FT${v}/${NbtUtils.formatDate(row.FaturaTarihi)} [${NbtUtils.formatMoney(row.FaturaTutari, row.FaturaDovizi)}]`;
+                    return `${row.FaturaNumarasi}/${NbtUtils.formatDate(row.FaturaTarihi)} [${NbtUtils.formatMoney(row.FaturaTutari, row.FaturaDovizi)}]`;
                 }},
                 { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                 { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TRY' },
