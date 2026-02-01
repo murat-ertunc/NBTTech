@@ -55,7 +55,7 @@
         <div class="row mb-3">
           <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
           <div class="col-8">
-            <input type="text" class="form-control nbt-money-input" id="paymentTutar" placeholder="0,00" value="0,00">
+            <input type="text" class="form-control price__input nbt-money-input" id="paymentTutar" placeholder="0,00" value="0,00">
             <small class="form-hint">Zorunlu, Sayısal</small>
             <div class="invalid-feedback"></div>
           </div>

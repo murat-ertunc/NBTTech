@@ -123,6 +123,16 @@ class UserRepository extends BaseRepository
             $Parametreler['KullaniciAdi'] = '%' . $Filtreler['kullaniciadi'] . '%';
         }
         
+        // Filtre: RollerStr
+        if (!empty($Filtreler['roller_str'])) {
+            $WhereClause .= " AND EXISTS (
+                SELECT 1 FROM tnm_user_rol ur
+                INNER JOIN tnm_rol r ON r.Id = ur.RolId AND r.Sil = 0 AND r.Aktif = 1
+                WHERE ur.UserId = u.Id AND ur.Sil = 0 AND r.RolAdi LIKE :RollerStr
+            )";
+            $Parametreler['RollerStr'] = '%' . $Filtreler['roller_str'] . '%';
+        }
+        
         // Filtre: Rol
         if (!empty($Filtreler['rol'])) {
             $WhereClause .= " AND Rol = :Rol";

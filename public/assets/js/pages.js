@@ -2879,18 +2879,10 @@ const CustomerDetailModule = {
             teklifler: {
                 columns: [
                     { field: 'ProjeAdi', label: 'Proje' },
+                    { field: 'TeklifTarihi', label: 'Teklif Tarihi', render: v => NbtUtils.formatDate(v), isDate: true },
                     { field: 'Konu', label: 'Konu' },
                     { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
-                    { field: 'ParaBirimi', label: 'Döviz', render: v => v || 'TL' },
-                    { field: 'TeklifTarihi', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
-                    { field: 'DosyaAdi', label: 'Dosya', render: (v, row) => {
-                        if (!v || !row.DosyaYolu) return '-';
-                        const ext = v.split('.').pop().toLowerCase();
-                        let icon = 'bi-file-earmark';
-                        if (ext === 'pdf') icon = 'bi-file-pdf text-danger';
-                        else if (ext === 'doc' || ext === 'docx') icon = 'bi-file-word text-primary';
-                        return `<a href="/src/${row.DosyaYolu}" target="_blank" title="${NbtUtils.escapeHtml(v)}"><i class="bi ${icon}"></i></a>`;
-                    }},
+                    { field: 'ParaBirimi', label: 'Döviz Cinsi', render: v => v || 'TL' },
                     { field: 'Durum', label: 'Durum', render: v => this.getStatusBadge(v, 'offer'), statusType: 'teklif' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
@@ -2952,13 +2944,10 @@ const CustomerDetailModule = {
             damgavergisi: {
                 columns: [
                     { field: 'ProjeAdi', label: 'Proje' },
-                    { field: 'BelgeNo', label: 'Belge No' },
                     { field: 'Tarih', label: 'Tarih', render: v => NbtUtils.formatDate(v), isDate: true },
                     { field: 'Tutar', label: 'Tutar', render: v => NbtUtils.formatNumber(v) },
                     { field: 'DovizCinsi', label: 'Döviz', render: v => v || 'TL' },
-                    { field: 'OdemeDurumu', label: 'Ödeme Durumu' },
-                    { field: 'Notlar', label: 'Notlar' },
-                    { field: 'Aciklama', label: 'Açıklama' }
+                    { field: 'Notlar', label: 'Notlar' }
                 ],
                 emptyMsg: 'Kayıt bulunamadı'
             },
@@ -7933,28 +7922,30 @@ const UserModule = {
     filteredPaginationInfo: null,
     // RBAC: Atanabilir roller cache
     assignableRoles: null,
+    // Tum roller (filtre icin)
+    allRoles: null,
 
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
+        await this.loadAllRoles();
         await this.loadList();
         this.initToolbar();
         this.bindEvents();
     },
 
     /**
-     * Atanabilir rolleri API'den yukler
-     * Subset constraint'e gore sadece kullanicinin atayabilecegi roller doner
+     * Tum rolleri API'den yukler (filtre icin)
      */
-    async loadAssignableRoles() {
-        if (this.assignableRoles !== null) return this.assignableRoles;
+    async loadAllRoles() {
+        if (this.allRoles !== null) return this.allRoles;
         
         try {
-            const response = await NbtApi.get('/api/roles/assignable');
-            this.assignableRoles = response.data || [];
-            return this.assignableRoles;
+            const response = await NbtApi.get('/api/roles');
+            this.allRoles = response.data || [];
+            return this.allRoles;
         } catch (err) {
-            NbtLogger.error('UserModule: Atanabilir roller yuklenemedi', err);
-            this.assignableRoles = [];
+            NbtLogger.error('UserModule: Tum roller yuklenemedi', err);
+            this.allRoles = [];
             return [];
         }
     },
@@ -8129,9 +8120,21 @@ const UserModule = {
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             
-            // Roller alani icin text arama (multi-role destegi)
+            // Roller alani icin select (dinamik roller)
             if (c.field === 'Roller') {
-                return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Rol ara..." data-column-filter="RollerStr" data-table-id="users" value="${NbtUtils.escapeHtml(this.columnFilters['RollerStr'] || '')}"></th>`;
+                const currentValue = this.columnFilters['RollerStr'] || '';
+                let optionsHtml = '<option value="">Tümü</option>';
+                if (this.allRoles) {
+                    this.allRoles.forEach(role => {
+                        const selected = currentValue === role.RolAdi ? 'selected' : '';
+                        optionsHtml += `<option value="${NbtUtils.escapeHtml(role.RolAdi)}" ${selected}>${NbtUtils.escapeHtml(role.RolAdi)}</option>`;
+                    });
+                }
+                return `<th class="p-1">
+                    <select class="form-select form-select-sm" data-column-filter="RollerStr" data-table-id="users">
+                        ${optionsHtml}
+                    </select>
+                </th>`;
             }
             
             // Aktif alani icin select
@@ -11375,6 +11378,9 @@ const NbtRolePageForm = {
                 await NbtApi.post('/api/roles', data);
                 NbtToast.success('Rol oluşturuldu');
             }
+            const flashKey = 'roles_flash_success';
+            const flashMsg = this.rolId > 0 ? 'Rol güncellendi' : 'Rol oluşturuldu';
+            sessionStorage.setItem(flashKey, flashMsg);
             window.location.href = '/roles';
         } catch (err) {
             if (err?.fields) {
@@ -11404,6 +11410,7 @@ const NbtUserPageForm = {
     _eventsBound: false,
     userId: null,
     assignableRoles: null,
+    rolesEditable: true,
 
     async init(userId = null) {
         const form = document.getElementById('userPageForm');
@@ -11469,6 +11476,24 @@ const NbtUserPageForm = {
         }).join('');
     },
 
+    renderRoleCheckboxesReadOnly(userRoles) {
+        if (!userRoles || userRoles.length === 0) {
+            return '<div class="text-muted small py-2">Kullanıcıya atanmış rol bulunmuyor.</div>';
+        }
+
+        return userRoles.map(rol => {
+            return `
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" checked disabled>
+                    <label class="form-check-label">
+                        ${rol.RolAdi || ''}
+                        ${rol.RolKodu ? `<small class="text-muted">(${rol.RolKodu})</small>` : ''}
+                    </label>
+                </div>
+            `;
+        }).join('');
+    },
+
     async loadFormData() {
         const rolesContainer = document.getElementById('userRolesContainer');
         if (rolesContainer) {
@@ -11488,8 +11513,24 @@ const NbtUserPageForm = {
                 document.getElementById('userKullaniciAdi').value = user.KullaniciAdi || '';
 
                 const selectedIds = (userRoles || []).map(r => r.Id);
+                const assignableIdSet = new Set((assignableRoles || []).map(r => parseInt(r.Id, 10)).filter(Number.isInteger));
+                const nonAssignableRoles = (userRoles || []).filter(r => !assignableIdSet.has(parseInt(r.Id, 10)));
+                this.rolesEditable = nonAssignableRoles.length === 0;
+
+                const warningEl = document.getElementById('userRolesWarning');
+                if (!this.rolesEditable && warningEl) {
+                    const roleNames = nonAssignableRoles.map(r => r.RolAdi || r.RolKodu || `ID:${r.Id}`);
+                    warningEl.textContent = `Bu kullanıcının mevcut rolleri (${roleNames.join(', ')}) sizin yetkilerinizin dışında. Rol düzenleme devre dışı.`;
+                    warningEl.classList.remove('d-none');
+                } else if (warningEl) {
+                    warningEl.classList.add('d-none');
+                    warningEl.textContent = '';
+                }
+
                 if (rolesContainer) {
-                    rolesContainer.innerHTML = this.renderRoleCheckboxes(assignableRoles, selectedIds);
+                    rolesContainer.innerHTML = this.rolesEditable
+                        ? this.renderRoleCheckboxes(assignableRoles, selectedIds)
+                        : this.renderRoleCheckboxesReadOnly(userRoles);
                 }
             } catch (err) {
                 this.showError('Kullanıcı bilgileri yüklenemedi: ' + err.message);
@@ -11501,6 +11542,11 @@ const NbtUserPageForm = {
             const assignableRoles = await this.loadAssignableRoles();
             if (rolesContainer) {
                 rolesContainer.innerHTML = this.renderRoleCheckboxes(assignableRoles, []);
+            }
+            const warningEl = document.getElementById('userRolesWarning');
+            if (warningEl) {
+                warningEl.classList.add('d-none');
+                warningEl.textContent = '';
             }
         }
     },
@@ -11591,7 +11637,9 @@ const NbtUserPageForm = {
         try {
             if (this.userId > 0) {
                 await NbtApi.put(`/api/users/${this.userId}`, data);
-                await NbtApi.post(`/api/users/${this.userId}/roles`, { RolIdler: normalizedRoleIds });
+                if (this.rolesEditable) {
+                    await NbtApi.post(`/api/users/${this.userId}/roles`, { RolIdler: normalizedRoleIds });
+                }
                 NbtToast.success('Kullanıcı güncellendi');
             } else {
                 await NbtApi.post('/api/users', data);

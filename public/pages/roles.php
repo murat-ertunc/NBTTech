@@ -111,6 +111,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // UI'a permission kurallarini uygula
     NbtPermission.applyToElements();
+
+    const flashKey = 'roles_flash_success';
+    const flashMsg = sessionStorage.getItem(flashKey);
+    if (flashMsg) {
+        sessionStorage.removeItem(flashKey);
+        NbtToast.success(flashMsg);
+    }
     
     const permissionModal = new bootstrap.Modal(document.getElementById('permissionModal'));
     
@@ -130,13 +137,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             // API yaniti {data: [...]} veya dogrudan [...] formatinda olabilir
             const data = resp?.data ?? resp;
             tumRoller = normalizeArray(data);
+            sessionStorage.setItem('roles_cache', JSON.stringify(tumRoller));
             if (!Array.isArray(data) && resp?.error) {
                 NbtToast.error(resp.error);
             }
             tabloGuncelle();
         } catch (err) {
             NbtToast.error(err?.message || 'Roller yuklenemedi');
-            tumRoller = [];
+            const cached = sessionStorage.getItem('roles_cache');
+            tumRoller = cached ? normalizeArray(JSON.parse(cached)) : [];
             tabloGuncelle();
         }
     }
@@ -150,7 +159,16 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        tbody.innerHTML = tumRoller.map(rol => `
+        tbody.innerHTML = tumRoller.map(rol => {
+            const duzenlenebilir = rol.Duzenlenebilir == 1;
+            const editDisabled = rol.SistemRolu == 1 || !duzenlenebilir;
+            const editTitle = editDisabled
+                ? 'Bu rolü düzenleme yetkiniz yok'
+                : 'Düzenle';
+            const permTitle = editDisabled
+                ? 'Bu rolün yetkilerini düzenleme yetkiniz yok'
+                : 'Yetkiler';
+            return `
             <tr>
                 <td>
                     <div class="fw-medium">${NbtUtils.escapeHtml(rol.RolAdi)}</div>
@@ -170,13 +188,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-primary" onclick="yetkiAta(${rol.Id})" title="Yetkiler" 
-                            ${rol.SistemRolu == 1 ? 'disabled' : ''}>
+                        <button type="button" class="btn btn-outline-primary" onclick="yetkiAta(${rol.Id})" title="${permTitle}" 
+                            ${editDisabled ? 'disabled' : ''}>
                             <i class="bi bi-key"></i>
                         </button>
-                        <a class="btn btn-outline-secondary ${rol.SistemRolu == 1 ? 'disabled' : ''}"
-                            href="${rol.SistemRolu == 1 ? 'javascript:void(0)' : `/roles/${rol.Id}/edit`}" title="Düzenle"
-                            data-can="roles.update" ${rol.SistemRolu == 1 ? 'tabindex="-1" aria-disabled="true"' : ''}>
+                        <a class="btn btn-outline-secondary ${editDisabled ? 'disabled' : ''}"
+                            href="${editDisabled ? 'javascript:void(0)' : `/roles/${rol.Id}/edit`}" title="${editTitle}"
+                            data-can="roles.update" ${editDisabled ? 'tabindex="-1" aria-disabled="true"' : ''}>
                             <i class="bi bi-pencil-square"></i>
                         </a>
                         <button type="button" class="btn btn-outline-danger" onclick="rolSil(${rol.Id})" title="Sil"
@@ -186,7 +204,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                     </div>
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
         
         // Permission kontrollerini uygula
         NbtPermission.applyToElements();

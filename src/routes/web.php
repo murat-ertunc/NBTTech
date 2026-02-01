@@ -27,6 +27,7 @@
  */
 
 use App\Middleware\Page;
+use App\Services\Authorization\AuthorizationService;
 
 // Path sabiti (PUBLIC_PATH bootstrap'ta tanımlı)
 $PagesPath = PUBLIC_PATH . 'pages' . DIRECTORY_SEPARATOR;
@@ -344,6 +345,14 @@ $Router->add('GET', '/roles/{id}/edit', function ($Parametreler) use ($PagesPath
 	if (!Page::can('roles.update')) return;
 	$RolId = (int)($Parametreler['id'] ?? 0);
 	if (!Page::requireRecord('RoleRepository', $RolId, 'Rol')) return;
+	$UserId = $GLOBALS['AuthUserId'] ?? null;
+	if ($UserId) {
+		$AuthService = AuthorizationService::getInstance();
+		if (!$AuthService->rolDuzenleyebilirMi($UserId, $RolId)) {
+			Page::forbid('roles.update');
+			return;
+		}
+	}
 	require $PagesPath . 'roles' . DIRECTORY_SEPARATOR . 'form.php';
 });
 

@@ -70,6 +70,7 @@ require __DIR__ . '/../partials/header.php';
             <div class="row mb-3">
               <label class="col-4 col-form-label">Roller <span class="text-muted">(Atayabileceğiniz roller)</span></label>
               <div class="col-8">
+                <div class="alert alert-warning d-none py-2" id="userRolesWarning"></div>
                 <div id="userRolesContainer" class="border rounded p-2" style="max-height: 240px; overflow-y: auto;">
                   <div class="text-center text-muted py-2">
                     <div class="spinner-border spinner-border-sm"></div> Roller yükleniyor...

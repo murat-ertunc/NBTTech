@@ -36,6 +36,18 @@ class RoleController
         try {
             $Repo = new RoleRepository();
             $Roller = $Repo->tumRoller();
+
+            $KullaniciId = Context::kullaniciId();
+            $AuthService = AuthorizationService::getInstance();
+            foreach ($Roller as &$Rol) {
+                $RolId = (int) ($Rol['Id'] ?? 0);
+                $Duzenlenebilir = $RolId > 0 && $AuthService->rolDuzenleyebilirMi($KullaniciId, $RolId) ? 1 : 0;
+                if (!empty($Rol['SistemRolu'])) {
+                    $Duzenlenebilir = 0;
+                }
+                $Rol['Duzenlenebilir'] = $Duzenlenebilir;
+            }
+            unset($Rol);
             
             Response::json(['data' => $Roller]);
         } catch (\Throwable $E) {
@@ -65,6 +77,13 @@ class RoleController
         
         if (!$Rol) {
             Response::error('Rol bulunamadi.', 404);
+            return;
+        }
+
+        $KullaniciId = Context::kullaniciId();
+        $AuthService = AuthorizationService::getInstance();
+        if (!$AuthService->rolDuzenleyebilirMi($KullaniciId, $Id)) {
+            Response::forbidden('Bu rolu duzenleme yetkiniz yok.');
             return;
         }
         
@@ -161,6 +180,13 @@ class RoleController
             Response::error('Gecersiz rol ID.', 400);
             return;
         }
+
+        $KullaniciId = Context::kullaniciId();
+        $AuthService = AuthorizationService::getInstance();
+        if (!$AuthService->rolDuzenleyebilirMi($KullaniciId, $Id)) {
+            Response::forbidden('Bu rolu duzenleme yetkiniz yok.');
+            return;
+        }
         
         $Girdi = json_decode(file_get_contents('php://input'), true);
         
@@ -190,8 +216,6 @@ class RoleController
         }
         
         try {
-            $KullaniciId = Context::kullaniciId();
-            
             $Repo = new RoleRepository();
             $Repo->rolGuncelle($Id, $Girdi, $KullaniciId);
             
@@ -272,6 +296,13 @@ class RoleController
             Response::error('Gecersiz rol ID.', 400);
             return;
         }
+
+        $KullaniciId = Context::kullaniciId();
+        $AuthService = AuthorizationService::getInstance();
+        if (!$AuthService->rolDuzenleyebilirMi($KullaniciId, $RolId)) {
+            Response::forbidden('Bu rolu duzenleme yetkiniz yok.');
+            return;
+        }
         
         $Girdi = json_decode(file_get_contents('php://input'), true);
         
@@ -281,7 +312,6 @@ class RoleController
         }
         
         try {
-            $KullaniciId = Context::kullaniciId();
             $AuthService = AuthorizationService::getInstance();
             
             // Subset constraint kontrolu: sadece kendi sahip oldugu permissionlari atayabilir

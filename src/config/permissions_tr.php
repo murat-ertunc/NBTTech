@@ -73,18 +73,21 @@ return [
         // Faturalar
         'invoices.create' => 'Fatura Oluşturma',
         'invoices.read' => 'Fatura Görüntüleme',
+        'invoices.read_all' => 'Tüm Faturaları Görüntüleme',
         'invoices.update' => 'Fatura Düzenleme',
         'invoices.delete' => 'Fatura Silme',
         
         // Odemeler
         'payments.create' => 'Ödeme Oluşturma',
         'payments.read' => 'Ödeme Görüntüleme',
+        'payments.read_all' => 'Tüm Ödemeleri Görüntüleme',
         'payments.update' => 'Ödeme Düzenleme',
         'payments.delete' => 'Ödeme Silme',
         
         // Projeler
         'projects.create' => 'Proje Oluşturma',
         'projects.read' => 'Proje Görüntüleme',
+        'projects.read_all' => 'Tüm Projeleri Görüntüleme',
         'projects.update' => 'Proje Düzenleme',
         'projects.delete' => 'Proje Silme',
         
