@@ -1,4 +1,8 @@
 <?php
+/**
+ * Project Repository için veri erişim işlemlerini yürütür.
+ * Sorgu ve kalıcılık katmanını soyutlar.
+ */
 
 namespace App\Repositories;
 
@@ -9,15 +13,12 @@ class ProjectRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_proje';
 
-    /**
-     * Tum aktif projeleri musteri adi ile birlikte getir
-     */
     public function tumAktifler(): array
     {
-        $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan 
-                FROM {$this->Tablo} p 
-                LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id 
-                WHERE p.Sil = 0 
+        $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan
+                FROM {$this->Tablo} p
+                LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id
+                WHERE p.Sil = 0
                 ORDER BY p.Id DESC";
         $Stmt = $this->Db->query($Sql);
         $Sonuclar = $Stmt->fetchAll();
@@ -42,39 +43,27 @@ class ProjectRepository extends BaseRepository
         return $Sonuc;
     }
 
-    /**
-     * Tum aktif projeleri sayfali olarak getiriyoruz
-     */
     public function tumAktiflerPaginated(int $Sayfa = 1, int $Limit = 10): array
     {
-        $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan 
-                FROM {$this->Tablo} p 
-                LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id 
-                WHERE p.Sil = 0 
+        $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan
+                FROM {$this->Tablo} p
+                LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id
+                WHERE p.Sil = 0
                 ORDER BY p.Id DESC";
         $Sonuc = $this->paginatedQuery($Sql, [], $Sayfa, $Limit);
         $this->logSelect(['Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
         return $Sonuc;
     }
 
-    /**
-     * Proje silme ile birlikte iliskili kayitlari da soft delete yapiyoruz
-     * kurallar.txt: Bagli kayitlar da Sil=1 yapilir
-     * Birden fazla UPDATE islemi yaptigimiz icin Transaction::wrap() kullaniyoruz
-     * 
-     * Iliskili tablolar: tbl_fatura, tbl_odeme, tbl_teklif, tbl_sozlesme, 
-     * tbl_teminat, tbl_gorusme, tbl_kisi, tbl_damgavergisi, tbl_dosya
-     */
     public function cascadeSoftSil(int $Id, int $KullaniciId): void
     {
         Transaction::wrap(function() use ($Id, $KullaniciId) {
-            // Once projeyi soft delete yapiyoruz
+
             $this->softSil($Id, $KullaniciId);
 
-            // Iliskili tablolari soft delete yapiyoruz (ProjeId foreign key ile bagli)
             $IliskiliTablolar = [
                 'tbl_fatura',
-                'tbl_odeme', 
+                'tbl_odeme',
                 'tbl_teklif',
                 'tbl_sozlesme',
                 'tbl_teminat',
@@ -85,15 +74,14 @@ class ProjectRepository extends BaseRepository
             ];
 
             foreach ($IliskiliTablolar as $Tablo) {
-                $Sql = "UPDATE {$Tablo} SET 
-                        Sil = 1, 
-                        DegisiklikZamani = GETDATE(), 
-                        DegistirenUserId = :UserId 
+                $Sql = "UPDATE {$Tablo} SET
+                        Sil = 1,
+                        DegisiklikZamani = GETDATE(),
+                        DegistirenUserId = :UserId
                         WHERE ProjeId = :ProjeId AND Sil = 0";
                 $Stmt = $this->Db->prepare($Sql);
                 $Stmt->execute(['ProjeId' => $Id, 'UserId' => $KullaniciId]);
-                
-                // Silinen kayit sayisini logluyoruz
+
                 $SilinenSayisi = $Stmt->rowCount();
                 if ($SilinenSayisi > 0) {
                     ActionLogger::logla('CASCADE_DELETE', $Tablo, null, [

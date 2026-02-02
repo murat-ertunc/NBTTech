@@ -14,7 +14,7 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId INT NULL,
         Sil BIT NOT NULL DEFAULT 0,
-        
+
         -- Parametre Bilgileri
         Grup NVARCHAR(50) NOT NULL,           -- doviz, durum, genel
         Kod NVARCHAR(50) NOT NULL,            -- TRY, USD, bekliyor, aktif, pagination_default
@@ -43,7 +43,7 @@ BEGIN
         KaynakId INT NOT NULL,
         BackupZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         BackupUserId INT NULL,
-        
+
         -- Orijinal tablo verileri
         Guid UNIQUEIDENTIFIER NULL,
         EklemeZamani DATETIME2(0) NULL,
@@ -51,7 +51,7 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NULL,
         DegistirenUserId INT NULL,
         Sil BIT NULL,
-        
+
         -- Parametre Bilgileri
         Grup NVARCHAR(50) NULL,
         Kod NVARCHAR(50) NULL,

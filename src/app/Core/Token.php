@@ -2,17 +2,9 @@
 
 namespace App\Core;
 
-/**
- * Token Yoneticisi
- * 
- * JWT benzeri token olusturma ve dogrulama islemlerini yonetir.
- * HMAC-SHA256 ile imzalama yapar.
- */
 class Token
 {
-    /**
-     * APP_KEY degerini guvenli sekilde al
-     */
+
     private static function getKey(): string
     {
         $Anahtar = env('APP_KEY');

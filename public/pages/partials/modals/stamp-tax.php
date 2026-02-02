@@ -1,7 +1,5 @@
 <?php
-/**
- * Damga Vergisi Modal - Ekle/Düzenle
- */
+
 ?>
 <!-- Damga Vergisi Modal -->
 <div class="modal fade" id="stampTaxModal" tabindex="-1">

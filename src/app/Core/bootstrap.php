@@ -1,18 +1,11 @@
 <?php
-/**
- * Core Bootstrap - Autoloader ve Temel Fonksiyonlar
- * 
- * Bu dosya bootstrap/app.php tarafından yüklenir.
- * Path sabitleri zaten tanımlı olmalıdır.
- */
 
 use App\Core\Config;
 use App\Core\Env;
 use App\Services\Logger\LoggerFactory;
 
-// Path sabitleri tanımlı değilse (doğrudan çağrılmış), eski yapı için uyumluluk
 if (!defined('ROOT_PATH')) {
-    // Eski yapı desteği (deprecated) - bootstrap/app.php kullanın
+
     define('DS', DIRECTORY_SEPARATOR);
     define('ROOT_PATH', dirname(__DIR__, 3) . DS);
     define('SRC_PATH', dirname(__DIR__, 2) . DS);
@@ -25,7 +18,6 @@ if (!defined('ROOT_PATH')) {
     define('BASE_PATH', APP_PATH);
 }
 
-// PSR-4 Autoloader
 spl_autoload_register(function ($Sinif) {
     $Prefix = 'App\\';
     $TemelDizin = APP_PATH;
@@ -42,7 +34,6 @@ spl_autoload_register(function ($Sinif) {
 require_once __DIR__ . DS . 'Env.php';
 require_once __DIR__ . DS . 'Config.php';
 
-// .env dosyasını yükle
 $EnvYolu = ENV_PATH;
 if (!file_exists($EnvYolu)) {
     $EnvYolu = ROOT_PATH . '.env.example';
@@ -76,15 +67,10 @@ if (!function_exists('logger')) {
 
 date_default_timezone_set('UTC');
 
-// =========================================================================
-// GLOBAL EXCEPTION HANDLER
-// API istekleri için tutarlı JSON hata yanıtları
-// =========================================================================
 set_exception_handler(function (\Throwable $Exception) {
     $RequestUri = $_SERVER['REQUEST_URI'] ?? '';
     $IsApiRequest = strpos($RequestUri, '/api/') !== false;
-    
-    // Hata logla
+
     $LogMessage = sprintf(
         "[UNCAUGHT EXCEPTION] %s: %s in %s:%d\nStack trace:\n%s",
         get_class($Exception),
@@ -94,21 +80,20 @@ set_exception_handler(function (\Throwable $Exception) {
         $Exception->getTraceAsString()
     );
     error_log($LogMessage);
-    
-    // Logger varsa onu da kullan
+
     if (function_exists('logger')) {
         try {
             logger()->error($LogMessage);
         } catch (\Throwable $LogError) {
-            // Logger hatası olursa sessizce devam et
+
         }
     }
-    
+
     if ($IsApiRequest) {
-        // API isteği - JSON yanıt
+
         http_response_code(500);
         header('Content-Type: application/json');
-        
+
         $Response = [
             'ok' => false,
             'error' => [
@@ -116,8 +101,7 @@ set_exception_handler(function (\Throwable $Exception) {
                 'message' => 'Sunucu hatası oluştu.'
             ]
         ];
-        
-        // Development modunda detay göster
+
         if (env('APP_DEBUG', false) === true || env('APP_DEBUG', 'false') === 'true') {
             $Response['error']['debug'] = [
                 'exception' => get_class($Exception),
@@ -126,12 +110,12 @@ set_exception_handler(function (\Throwable $Exception) {
                 'line' => $Exception->getLine()
             ];
         }
-        
+
         echo json_encode($Response, JSON_UNESCAPED_UNICODE);
     } else {
-        // Web isteği - HTML hata sayfası
+
         http_response_code(500);
-        
+
         if (defined('PUBLIC_PATH') && file_exists(PUBLIC_PATH . '500.php')) {
             require PUBLIC_PATH . '500.php';
         } else {
@@ -141,13 +125,12 @@ set_exception_handler(function (\Throwable $Exception) {
             }
         }
     }
-    
+
     exit(1);
 });
 
-// PHP hatalarını exception'a çevir (E_WARNING, E_NOTICE vb.)
 set_error_handler(function ($Severity, $Message, $File, $Line) {
-    // Error reporting seviyesinde değilse atla
+
     if (!(error_reporting() & $Severity)) {
         return false;
     }

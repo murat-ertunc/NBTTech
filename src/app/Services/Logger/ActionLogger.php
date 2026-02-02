@@ -1,24 +1,16 @@
 <?php
+/**
+ * Action Logger iş kurallarını uygular.
+ * Servis seviyesinde işlem akışlarını sağlar.
+ */
 
 namespace App\Services\Logger;
 
 use App\Core\Context;
 
-/**
- * Islem Loglayici
- * 
- * Tum CRUD islemlerini log_action tablosuna kaydeder.
- * Her islem mutlaka loglanmalidir.
- */
 class ActionLogger
 {
-    /**
-     * INSERT islemi logla
-     * 
-     * @param string $Tablo Tablo adi
-     * @param array $Kimlik Kayit kimligi (Id, Guid vb.)
-     * @param array $Veri Eklenen veri
-     */
+
     public static function insert(string $Tablo, array $Kimlik, array $Veri): void
     {
         self::logla('CREATE', $Tablo, [
@@ -27,13 +19,6 @@ class ActionLogger
         ]);
     }
 
-    /**
-     * UPDATE islemi logla
-     * 
-     * @param string $Tablo Tablo adi
-     * @param array $Filtreler Guncellenen kayit filtreleri
-     * @param array $Degisiklikler Degisen alanlar
-     */
     public static function update(string $Tablo, array $Filtreler, array $Degisiklikler): void
     {
         self::logla('UPDATE', $Tablo, [
@@ -42,13 +27,6 @@ class ActionLogger
         ]);
     }
 
-    /**
-     * DELETE (soft delete) islemi logla
-     * 
-     * @param string $Tablo Tablo adi
-     * @param array $Filtreler Silinen kayit filtreleri
-     * @param string $Aciklama Ek aciklama
-     */
     public static function delete(string $Tablo, array $Filtreler, string $Aciklama = ''): void
     {
         self::logla('DELETE', $Tablo, [
@@ -57,14 +35,6 @@ class ActionLogger
         ]);
     }
 
-    /**
-     * SELECT islemi logla
-     * 
-     * @param string $Tablo Tablo adi
-     * @param array $Filtreler Sorgu filtreleri
-     * @param int $Adet Donen kayit sayisi
-     * @param array $VeriSeti Donen veriler (opsiyonel)
-     */
     public static function select(string $Tablo, array $Filtreler, int $Adet, array $VeriSeti = []): void
     {
         self::logla('SELECT', $Tablo, [
@@ -73,27 +43,12 @@ class ActionLogger
         ]);
     }
 
-    /**
-     * Genel loglama metodu
-     * 
-     * @param string $Islem Islem tipi (CREATE, UPDATE, DELETE, SELECT)
-     * @param string $Tablo Tablo adi
-     * @param array $Yukleme Log verisi
-     * @param string $Sonuc Islem sonucu
-     */
     public static function logla(string $Islem, string $Tablo, array $Yukleme = [], string $Sonuc = 'ok'): void
     {
         $Logger = logger();
         $Logger->log(self::veriHazirla($Islem, $Tablo, $Yukleme, $Sonuc));
     }
 
-    /**
-     * Hata logla
-     *
-     * @param string $Kaynak Hata kaynagi (sinif/metod)
-     * @param string $Mesaj Hata mesaji
-     * @param array $Ek Ek bilgiler
-     */
     public static function error(string $Kaynak, string $Mesaj, array $Ek = []): void
     {
         self::logla('ERROR', 'system', [
@@ -103,9 +58,6 @@ class ActionLogger
         ], 'fail');
     }
 
-    /**
-     * Log verisini hazirla
-     */
     private static function veriHazirla(string $Islem, string $Tablo, array $Yukleme, string $Sonuc): array
     {
         return [

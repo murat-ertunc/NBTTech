@@ -1,7 +1,5 @@
 <?php
-/**
- * Fatura Modal - Ekle/Düzenle (XL Modal)
- */
+
 ?>
 <!-- Fatura Modal -->
 <div class="modal fade" id="invoiceModal" tabindex="-1">
@@ -234,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const oran1 = parseFloat(this.value) || 0;
             const oran2 = Math.max(0, 100 - oran1);
             tevkifatOran2.value = oran2.toFixed(2);
-            
+
             // KDV hesaplamalarını güncelle
             calculateInvoiceItemsTotals();
         });
@@ -246,16 +244,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Önceki event listener'ları temizle
         const newBtn = btnAddItem.cloneNode(true);
         btnAddItem.parentNode.replaceChild(newBtn, btnAddItem);
-        
+
         newBtn.addEventListener('click', function() {
             const tbody = document.getElementById('invoiceItemsBody');
             const currentItemCount = tbody ? tbody.querySelectorAll('tr').length : 0;
-            
+
             if (currentItemCount >= 10) {
                 alert('Maksimum 10 kalem ekleyebilirsiniz.');
                 return;
             }
-            
+
             addInvoiceItemRow();
         });
     }
@@ -264,8 +262,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const itemsBody = document.getElementById('invoiceItemsBody');
     if (itemsBody) {
         itemsBody.addEventListener('input', function(e) {
-            if (e.target.classList.contains('item-miktar') || 
-                e.target.classList.contains('item-kdv') || 
+            if (e.target.classList.contains('item-miktar') ||
+                e.target.classList.contains('item-kdv') ||
                 e.target.classList.contains('item-birimfiyat')) {
                 calculateInvoiceItemRow(e.target.closest('tr'));
                 calculateInvoiceItemsTotals();
@@ -297,18 +295,18 @@ function addInvoiceItemRow(data = null) {
 
     window.invoiceItemCounter++;
     const rowNum = tbody.querySelectorAll('tr').length + 1;
-    
+
     // Ondalık değerleri formatla (başındaki 0'ı koru)
     const formatNum = (val, decimals = 2) => {
         if (val === null || val === undefined || val === '') return '0';
         const num = parseFloat(val);
         return isNaN(num) ? '0' : num.toFixed(decimals);
     };
-    
+
     const tr = document.createElement('tr');
     tr.className = 'invoice-item-row';
     tr.dataset.row = window.invoiceItemCounter;
-    
+
     tr.innerHTML = `
         <td class="text-center align-middle row-number">
           ${rowNum}
@@ -339,25 +337,25 @@ function addInvoiceItemRow(data = null) {
             </button>
         </td>
     `;
-    
+
     tbody.appendChild(tr);
-    
+
     // Hesaplamaları güncelle
     calculateInvoiceItemRow(tr);
     calculateInvoiceItemsTotals();
     checkEmptyItems();
-    
+
     // Yeni eklenen satıra focus
     tr.querySelector('.item-miktar').focus();
 }
 
 function calculateInvoiceItemRow(row) {
     if (!row) return;
-    
+
     const miktar = parseFloat(row.querySelector('.item-miktar').value) || 0;
     const birimFiyat = parseFloat(row.querySelector('.item-birimfiyat').value) || 0;
     const tutar = miktar * birimFiyat;
-    
+
     row.querySelector('.item-tutar').value = tutar.toFixed(2);
 }
 
@@ -370,7 +368,7 @@ function calculateInvoiceItemsTotals() {
         const tutar = parseFloat(row.querySelector('.item-tutar').value) || 0;
         const kdvOran = parseFloat(row.querySelector('.item-kdv').value) || 0;
         const satirKdv = tutar * (kdvOran / 100);
-        
+
         toplam += tutar;
         toplamKdv += satirKdv;
     });
@@ -378,14 +376,14 @@ function calculateInvoiceItemsTotals() {
     // Tevkifat oranını al ve KDV'ye uygula
     const tevkifatAktif = document.getElementById('invoiceTevkifatAktif')?.checked || false;
     const tevkifatOran1 = tevkifatAktif ? (parseFloat(document.getElementById('invoiceTevkifatOran1')?.value) || 0) : 0;
-    
+
     // Tevkifat oranı varsa KDV'yi ona göre düşür
     const kdvSonrasi = tevkifatOran1 > 0 ? toplamKdv * (tevkifatOran1 / 100) : toplamKdv;
 
     const toplamEl = document.getElementById('invoiceItemsToplam');
     const kdvEl = document.getElementById('invoiceItemsKdv');
     const genelToplamEl = document.getElementById('invoiceItemsGenelToplam');
-    
+
     if (toplamEl) toplamEl.value = toplam.toFixed(2);
     if (kdvEl) kdvEl.value = kdvSonrasi.toFixed(2);
     if (genelToplamEl) genelToplamEl.value = (toplam + kdvSonrasi).toFixed(2);
@@ -403,9 +401,9 @@ function checkEmptyItems() {
     const tbody = document.getElementById('invoiceItemsBody');
     const emptyDiv = document.getElementById('invoiceItemsEmpty');
     const table = document.getElementById('invoiceItemsTable');
-    
+
     if (!tbody || !emptyDiv || !table) return;
-    
+
     const hasItems = tbody.querySelectorAll('tr').length > 0;
     emptyDiv.style.display = hasItems ? 'none' : 'block';
     table.style.display = hasItems ? 'table' : 'none';

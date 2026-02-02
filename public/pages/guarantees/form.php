@@ -1,8 +1,4 @@
 <?php
-/**
- * Teminat Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/guarantees/new veya /customer/{id}/guarantees/{guaranteeId}/edit
- */
 
 $MusteriId = $MusteriId ?? 0;
 $TeminatId = $TeminatId ?? 0;
@@ -12,7 +8,6 @@ $pageTitle = $IsEdit ? 'Teminat Düzenle' : 'Yeni Teminat';
 $activeNav = 'customers';
 $currentPage = 'guarantee-form';
 
-// Form partial değişkenleri
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'teminatlar';
 $FormTitle = $pageTitle;
@@ -29,14 +24,14 @@ require __DIR__ . '/../partials/header.php';
   <div class="row justify-content-center">
     <div class="col-12">
       <?php require __DIR__ . '/../partials/form-header.php'; ?>
-      
+
       <div class="card-body">
         <form id="guaranteePageForm">
           <div class="alert alert-danger d-none" id="guaranteeFormError"></div>
-          
+
           <input type="hidden" id="guaranteeId" value="<?= (int)$TeminatId ?>">
           <input type="hidden" id="guaranteeMusteriId" value="<?= (int)$MusteriId ?>">
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
             <div class="col-8">
@@ -45,7 +40,7 @@ require __DIR__ . '/../partials/header.php';
               </select>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Teminat Türü <span class="text-danger">*</span></label>
             <div class="col-8">
@@ -54,7 +49,7 @@ require __DIR__ . '/../partials/header.php';
               </select>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
             <div class="col-8">
@@ -68,21 +63,21 @@ require __DIR__ . '/../partials/header.php';
               </div>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Termin Tarihi <span class="text-danger">*</span></label>
             <div class="col-8">
               <input type="date" class="form-control" id="guaranteeTerminTarihi" required>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Banka/Kurum</label>
             <div class="col-8">
               <input type="text" class="form-control" id="guaranteeBanka">
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Durum</label>
             <div class="col-8">
@@ -94,7 +89,7 @@ require __DIR__ . '/../partials/header.php';
               </select>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Notlar</label>
             <div class="col-8">
@@ -117,7 +112,7 @@ require __DIR__ . '/../partials/header.php';
           </div>
         </form>
       </div>
-      
+
       <?php require __DIR__ . '/../partials/form-footer.php'; ?>
     </div>
   </div>

@@ -1,8 +1,4 @@
 <?php
-/**
- * Teminatlar Listesi Sayfası - Server-Rendered
- * URL: /guarantees
- */
 
 $pageTitle = 'Teminatlar';
 $activeNav = 'islemler';

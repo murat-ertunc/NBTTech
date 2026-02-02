@@ -1,4 +1,8 @@
 <?php
+/**
+ * Db Logger iş kurallarını uygular.
+ * Servis seviyesinde işlem akışlarını sağlar.
+ */
 
 namespace App\Services\Logger;
 
@@ -6,12 +10,6 @@ use App\Core\Context;
 use App\Core\Database;
 use PDO;
 
-/**
- * Veritabani Loglayici
- * 
- * Log kayitlarini log_action tablosuna yazar.
- * Tum CRUD islemleri bu sinif araciligiyla loglanir.
- */
 class DbLogger implements LoggerInterface
 {
     private function db(): PDO
@@ -24,21 +22,12 @@ class DbLogger implements LoggerInterface
         return config('log.table', 'log_action');
     }
 
-    /**
-     * Log kaydi olustur
-     * 
-     * @param array $Yukleme Log verisi
-     *   - Islem: CREATE, UPDATE, DELETE, SELECT
-     *   - Tablo: Islem yapilan tablo adi
-     *   - IpAdresi: Istek IP adresi
-     *   - Veri: JSON formatinda islem detaylari
-     */
     public function log(array $Yukleme): void
     {
         try {
             $Simdi = date('Y-m-d H:i:s');
             $KullaniciId = Context::kullaniciId();
-            
+
             $Veri = isset($Yukleme['Veri']) ? json_decode($Yukleme['Veri'], true) : [];
             $KayitId = null;
             if (isset($Veri['Yukleme']['Kimlik']['Id'])) {
@@ -46,7 +35,7 @@ class DbLogger implements LoggerInterface
             } elseif (isset($Veri['Yukleme']['Filtreler']['Id'])) {
                 $KayitId = (int) $Veri['Yukleme']['Filtreler']['Id'];
             }
-            
+
             $Guid = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
                 mt_rand(0, 0xffff), mt_rand(0, 0xffff),
                 mt_rand(0, 0xffff),
@@ -54,14 +43,14 @@ class DbLogger implements LoggerInterface
                 mt_rand(0, 0x3fff) | 0x8000,
                 mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
             );
-            
-            $Sql = "INSERT INTO {$this->tablo()} 
-                    (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, 
-                     Islem, Tablo, KayitId, IpAdresi, YeniDeger) 
-                    VALUES 
+
+            $Sql = "INSERT INTO {$this->tablo()}
+                    (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil,
+                     Islem, Tablo, KayitId, IpAdresi, YeniDeger)
+                    VALUES
                     (:Guid, :EklemeZamani, :EkleyenUserId, :DegisiklikZamani, :DegistirenUserId, 0,
                      :Islem, :Tablo, :KayitId, :IpAdresi, :YeniDeger)";
-            
+
             $Stmt = $this->db()->prepare($Sql);
             $Stmt->execute([
                 'Guid' => $Guid,

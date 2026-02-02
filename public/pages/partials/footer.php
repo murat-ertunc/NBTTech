@@ -3,8 +3,8 @@
   </main>
 
   <!-- ===== MODALS ===== -->
-  <?php 
-  // Sayfa bazlı modal yükleme
+  <?php
+
   $currentPageForModals = $currentPage ?? '';
   $modalFiles = [
     'customer' => ['customer.php', 'invoice.php', 'payment.php', 'project.php', 'meeting.php', 'contact.php', 'offer.php', 'contract.php', 'guarantee.php', 'stamp-tax.php', 'file.php'],
@@ -18,16 +18,15 @@
     'parameters' => ['currency.php', 'status.php'],
     'dashboard' => ['customer.php', 'calendar-day.php']
   ];
-  
-  // Her sayfa için customer.php modal'ı eklenmeli (sidebar'dan erişim için)
+
   $modalPath = __DIR__ . '/modals/customer.php';
   if (file_exists($modalPath)) {
     require $modalPath;
   }
-  
+
   if (isset($modalFiles[$currentPageForModals])) {
     foreach ($modalFiles[$currentPageForModals] as $modalFile) {
-      if ($modalFile === 'customer.php') continue; // Zaten yukarıda yüklendi
+      if ($modalFile === 'customer.php') continue;
       $modalPath = __DIR__ . '/modals/' . $modalFile;
       if (file_exists($modalPath)) {
         require $modalPath;

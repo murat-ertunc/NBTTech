@@ -1,8 +1,4 @@
 <?php
-/**
- * Loglar Listesi Sayfası - Server-Rendered
- * URL: /logs
- */
 
 $pageTitle = 'İşlem Logları';
 $activeNav = 'sistem';

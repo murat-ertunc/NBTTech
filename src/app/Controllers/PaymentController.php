@@ -1,4 +1,8 @@
 <?php
+/**
+ * Payment Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -35,7 +39,7 @@ class PaymentController
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            // Standalone sayfalarda pagination varsa paginated sonuc dondur
+
             if (isset($_GET['page']) || isset($_GET['limit'])) {
                 $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
                 Response::json($Sonuc);
@@ -46,9 +50,6 @@ class PaymentController
         }
     }
 
-    /**
-     * Tek Odeme Detayi Getir
-     */
     public static function show(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
@@ -89,12 +90,12 @@ class PaymentController
                 return;
             }
         }
-        
+
         $MusteriId = (int)$Girdi['MusteriId'];
         $ProjeId = (int)$Girdi['ProjeId'];
         $FaturaId = (int)$Girdi['FaturaId'];
         $Tutar = (float)$Girdi['Tutar'];
-        $Tarih = trim((string)$Girdi['Tarih']); 
+        $Tarih = trim((string)$Girdi['Tarih']);
         $Aciklama = isset($Girdi['Aciklama']) ? trim((string)$Girdi['Aciklama']) : null;
         $OdemeTuru = isset($Girdi['OdemeTuru']) ? trim((string)$Girdi['OdemeTuru']) : null;
         $BankaHesap = isset($Girdi['BankaHesap']) ? trim((string)$Girdi['BankaHesap']) : null;
@@ -106,7 +107,6 @@ class PaymentController
             return;
         }
 
-        // Dosya yukleme islemi (opsiyonel)
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
@@ -149,7 +149,6 @@ class PaymentController
             ], $KullaniciId);
         });
 
-        // Takvim hatirlatmasi olustur - tarih varsa
         if (!empty($Tarih)) {
             $OdemeAciklama = !empty($Aciklama) ? $Aciklama : 'Ödeme';
             CalendarService::createOrUpdateReminder(
@@ -258,7 +257,6 @@ class PaymentController
             }
         });
 
-        // Takvim hatirlatmasi guncelle - tarih varsa
         if (isset($Girdi['Tarih'])) {
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut) {
@@ -304,7 +302,6 @@ class PaymentController
             ActionLogger::delete('tbl_odeme', ['Id' => $Id]);
         });
 
-        // Takvim hatirlatmasini sil
         CalendarService::deleteReminder('odeme', $Id);
 
         Response::json(['status' => 'success']);

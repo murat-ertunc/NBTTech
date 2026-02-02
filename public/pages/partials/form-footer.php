@@ -1,15 +1,4 @@
 <?php
-/**
- * Ortak Form Footer Partial
- * Modal -> Sayfa dönüşümü için standart footer
- * 
- * Gerekli değişkenler:
- *   $FormMusteriId - Müşteri ID
- *   $FormTabKey - Tab key
- *   $FormSaveButtonId - Kaydet butonunun ID'si
- *   $FormPermission - Permission (örn: contacts.create,contacts.update)
- *   $FormButtonColor - Buton rengi (primary, success vb)
- */
 
 $FormMusteriId = $FormMusteriId ?? 0;
 $FormTabKey = $FormTabKey ?? 'bilgi';

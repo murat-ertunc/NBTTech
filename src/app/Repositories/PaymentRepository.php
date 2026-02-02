@@ -1,4 +1,8 @@
 <?php
+/**
+ * Payment Repository için veri erişim işlemlerini yürütür.
+ * Sorgu ve kalıcılık katmanını soyutlar.
+ */
 
 namespace App\Repositories;
 
@@ -9,7 +13,7 @@ class PaymentRepository extends BaseRepository
     public function musteriyeGore(int $MusteriId): array
     {
         $Sql = "
-                 SELECT o.*, 
+                 SELECT o.*,
                      p.ProjeAdi,
                      f.FaturaNo as FaturaNo,
                      f.FaturaNo as FaturaNumarasi,
@@ -20,7 +24,7 @@ class PaymentRepository extends BaseRepository
             FROM tbl_odeme o
             LEFT JOIN tbl_proje p ON o.ProjeId = p.Id
             LEFT JOIN tbl_fatura f ON o.FaturaId = f.Id
-            WHERE o.Sil = 0 AND o.MusteriId = :MId 
+            WHERE o.Sil = 0 AND o.MusteriId = :MId
             ORDER BY o.Tarih DESC, o.Id DESC
         ";
         $Stmt = $this->Db->prepare($Sql);
@@ -33,7 +37,7 @@ class PaymentRepository extends BaseRepository
     public function musteriyeGorePaginated(int $MusteriId, int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "
-                 SELECT o.*, 
+                 SELECT o.*,
                      p.ProjeAdi,
                      f.FaturaNo as FaturaNo,
                      f.FaturaNo as FaturaNumarasi,
@@ -44,7 +48,7 @@ class PaymentRepository extends BaseRepository
             FROM tbl_odeme o
             LEFT JOIN tbl_proje p ON o.ProjeId = p.Id
             LEFT JOIN tbl_fatura f ON o.FaturaId = f.Id
-            WHERE o.Sil = 0 AND o.MusteriId = :MId 
+            WHERE o.Sil = 0 AND o.MusteriId = :MId
             ORDER BY o.Tarih DESC, o.Id DESC
         ";
         $Sonuc = $this->paginatedQuery($Sql, ['MId' => $MusteriId], $Sayfa, $Limit);
@@ -55,7 +59,7 @@ class PaymentRepository extends BaseRepository
     public function tumAktifler(): array
     {
         $Sql = "
-                 SELECT o.*, 
+                 SELECT o.*,
                      m.Unvan as MusteriUnvan,
                      p.ProjeAdi,
                      f.FaturaNo as FaturaNo,
@@ -80,7 +84,7 @@ class PaymentRepository extends BaseRepository
     public function tumAktiflerPaginated(int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "
-                 SELECT o.*, 
+                 SELECT o.*,
                      m.Unvan as MusteriUnvan,
                      p.ProjeAdi,
                      f.FaturaNo as FaturaNo,

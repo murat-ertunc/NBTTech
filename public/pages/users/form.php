@@ -1,8 +1,4 @@
 <?php
-/**
- * Kullanıcı Form Sayfası - Ekle/Düzenle
- * URL: /users/new veya /users/{id}/edit
- */
 
 $KullaniciId = $KullaniciId ?? 0;
 $IsEdit = $KullaniciId > 0;

@@ -1,8 +1,4 @@
 <?php
-/**
- * Dosya Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/files/new veya /customer/{id}/files/{fileId}/edit
- */
 
 $MusteriId = $MusteriId ?? 0;
 $DosyaId = $DosyaId ?? 0;
@@ -12,7 +8,6 @@ $pageTitle = $IsEdit ? 'Dosya Düzenle' : 'Yeni Dosya Yükle';
 $activeNav = 'customers';
 $currentPage = 'file-form';
 
-// Form partial değişkenleri
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'dosyalar';
 $FormTitle = $pageTitle;
@@ -29,14 +24,14 @@ require __DIR__ . '/../partials/header.php';
   <div class="row justify-content-center">
     <div class="col-12">
       <?php require __DIR__ . '/../partials/form-header.php'; ?>
-      
+
       <div class="card-body">
         <form id="filePageForm" enctype="multipart/form-data">
           <div class="alert alert-danger d-none" id="fileFormError"></div>
-          
+
           <input type="hidden" id="fileId" value="<?= (int)$DosyaId ?>">
           <input type="hidden" id="fileMusteriId" value="<?= (int)$MusteriId ?>">
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Proje</label>
             <div class="col-8">
@@ -45,7 +40,7 @@ require __DIR__ . '/../partials/header.php';
               </select>
             </div>
           </div>
-          
+
           <?php if (!$IsEdit): ?>
           <div class="row mb-3">
             <label class="col-4 col-form-label">Dosya <span class="text-danger">*</span></label>
@@ -71,7 +66,7 @@ require __DIR__ . '/../partials/header.php';
             </div>
           </div>
           <?php endif; ?>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Açıklama</label>
             <div class="col-8">
@@ -80,7 +75,7 @@ require __DIR__ . '/../partials/header.php';
           </div>
         </form>
       </div>
-      
+
       <?php require __DIR__ . '/../partials/form-footer.php'; ?>
     </div>
   </div>

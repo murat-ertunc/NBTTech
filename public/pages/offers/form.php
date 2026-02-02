@@ -1,11 +1,4 @@
 <?php
-/**
- * Teklif Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/offers/new veya /customer/{id}/offers/{offerId}/edit
- * 
- * Modal yerine tam sayfa form.
- * Kaydetme sonrası müşteri detay sayfasındaki teklifler tabına yönlendirme.
- */
 
 $MusteriId = $MusteriId ?? 0;
 $TeklifId = $TeklifId ?? 0;
@@ -44,10 +37,10 @@ require __DIR__ . '/../partials/header.php';
         <div class="card-body">
           <form id="offerPageForm" enctype="multipart/form-data">
             <div class="alert alert-danger d-none" id="offerFormError"></div>
-            
+
             <input type="hidden" id="offerId" value="<?= (int)$TeklifId ?>">
             <input type="hidden" id="offerMusteriId" value="<?= (int)$MusteriId ?>">
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
               <div class="col-8">
@@ -57,14 +50,14 @@ require __DIR__ . '/../partials/header.php';
                 <div class="invalid-feedback"></div>
               </div>
             </div>
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Konu</label>
               <div class="col-8">
                 <input type="text" class="form-control" id="offerSubject" placeholder="Teklif konusu">
               </div>
             </div>
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
               <div class="col-8">
@@ -77,7 +70,7 @@ require __DIR__ . '/../partials/header.php';
                 <div class="invalid-feedback"></div>
               </div>
             </div>
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Teklif Tarihi <span class="text-danger">*</span></label>
               <div class="col-8">
@@ -85,7 +78,7 @@ require __DIR__ . '/../partials/header.php';
                 <div class="invalid-feedback"></div>
               </div>
             </div>
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Geçerlilik Tarihi <span class="text-danger">*</span></label>
               <div class="col-8">
@@ -93,7 +86,7 @@ require __DIR__ . '/../partials/header.php';
                 <div class="invalid-feedback"></div>
               </div>
             </div>
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Durum</label>
               <div class="col-8">
@@ -102,7 +95,7 @@ require __DIR__ . '/../partials/header.php';
                 </select>
               </div>
             </div>
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Dosya</label>
               <div class="col-8">
@@ -140,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const MusteriId = <?= (int)$MusteriId ?>;
   const TeklifId = <?= (int)$TeklifId ?>;
   const IsEdit = TeklifId > 0;
-  
+
   // Form initialization
   NbtOfferPageForm.init(MusteriId, TeklifId);
 });

@@ -1,4 +1,8 @@
 <?php
+/**
+ * Takvim Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -7,11 +11,6 @@ use App\Core\Response;
 use App\Repositories\CalendarRepository;
 use App\Services\CalendarService;
 
-/**
- * TakvimController
- * 
- * Musteri detay sayfasindaki takvim kayitlari icin endpoint'ler
- */
 class TakvimController
 {
     public static function index(): void
@@ -22,7 +21,7 @@ class TakvimController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
+
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
         $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
@@ -41,9 +40,6 @@ class TakvimController
         }
     }
 
-    /**
-     * Tek Takvim Kaydi Detayi Getir
-     */
     public static function show(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
@@ -80,7 +76,6 @@ class TakvimController
             }
         }
 
-        // Ozet 255 karakteri gecemez
         if (strlen($Girdi['Ozet']) > 255) {
             Response::error('Ozet 255 karakteri gecemez.', 422);
             return;

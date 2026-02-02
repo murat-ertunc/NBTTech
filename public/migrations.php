@@ -76,18 +76,14 @@ function logException(string $Context, Throwable $Error): void
     error_log($Message . "\n" . $Error->getTraceAsString());
 }
 
-/**
- * Seeder'ı çalıştır (idempotent - duplicate üretmez)
- * @return array ['ok' => bool, 'message' => string, 'output' => string]
- */
 function runSeeder(): array
 {
     $SeederPath = SRC_PATH . 'database' . DIRECTORY_SEPARATOR . 'seeder.php';
-    
+
     if (!file_exists($SeederPath)) {
         return ['ok' => false, 'message' => 'Seeder dosyası bulunamadı: ' . $SeederPath, 'output' => ''];
     }
-    
+
     $DisabledFunctions = array_map('trim', explode(',', (string)ini_get('disable_functions')));
     if (!function_exists('exec') || in_array('exec', $DisabledFunctions, true)) {
         return ['ok' => false, 'message' => 'Seeder calistirilamadi: exec fonksiyonu devre disi.', 'output' => ''];
@@ -98,26 +94,25 @@ function runSeeder(): array
         return ['ok' => false, 'message' => 'Seeder calistirilamadi: PHP CLI binary bulunamadi.', 'output' => ''];
     }
 
-    // Seeder'ı shell'de çalıştır (izole çalışması için)
     $Command = escapeshellcmd($PhpBinary) . ' ' . escapeshellarg($SeederPath) . ' 2>&1';
-    
+
     $Output = [];
     $ReturnCode = 0;
     exec($Command, $Output, $ReturnCode);
-    
+
     $OutputStr = implode("\n", $Output);
-    
+
     if ($ReturnCode !== 0) {
         return [
-            'ok' => false, 
-            'message' => 'Seeder hata ile sonuçlandı (exit code: ' . $ReturnCode . ')', 
+            'ok' => false,
+            'message' => 'Seeder hata ile sonuçlandı (exit code: ' . $ReturnCode . ')',
             'output' => $OutputStr
         ];
     }
-    
+
     return [
-        'ok' => true, 
-        'message' => 'Seeder başarıyla çalıştırıldı.', 
+        'ok' => true,
+        'message' => 'Seeder başarıyla çalıştırıldı.',
         'output' => $OutputStr
     ];
 }
@@ -501,7 +496,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ensureSchemaMigrations($Db);
             $Pending = array_filter($Statuses, fn ($S) => $S['status'] !== 'applied');
             if (empty($Pending)) {
-                // Migration bekleyen yok - sadece seeder çalıştır
+
                 $SeederResult = runSeeder();
                 if ($SeederResult['ok']) {
                     $Message = 'Bekleyen migration yok. Seeder başarıyla çalıştırıldı.';
@@ -524,7 +519,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $Message = implode(' | ', $Errors);
                     $MessageType = 'error';
                 } else {
-                    // Migration başarılı - seeder çalıştır
+
                     $SeederResult = runSeeder();
                     if ($SeederResult['ok']) {
                         $Message = 'Tüm migrationlar ve seeder başarıyla çalıştırıldı.';

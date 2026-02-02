@@ -1,8 +1,4 @@
 <?php
-/**
- * Faturalar Listesi Sayfası - Server-Rendered
- * URL: /invoices
- */
 
 $pageTitle = 'Faturalar';
 $activeNav = 'islemler';

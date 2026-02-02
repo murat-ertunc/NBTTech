@@ -1,10 +1,5 @@
 <?php
-/**
- * Rol Yonetimi Sayfasi
- * 
- * RBAC sisteminin UI'i - Rol listesi, ekleme, duzenleme, permission atama
- * URL: /roles
- */
+
 $pageTitle = 'Rol Yönetimi';
 $activeNav = 'sistem';
 $currentPage = 'roles';
@@ -13,7 +8,7 @@ require __DIR__ . '/partials/header.php';
 ?>
 
     <div class="container-fluid py-4" data-can="roles.read">
-    
+
     <!-- Rol Listesi -->
     <div class="card shadow-sm">
         <div class="card-header bg-primary text-white py-2">
@@ -66,12 +61,12 @@ require __DIR__ . '/partials/header.php';
             </div>
             <div class="modal-body">
                 <input type="hidden" id="permissionRolId">
-                
+
                 <div class="alert alert-info mb-3">
                     <i class="bi bi-info-circle me-1"></i>
                     Sadece sahip olduğunuz yetkileri atayabilirsiniz.
                 </div>
-                
+
                 <div id="permissionContainer" style="max-height: 500px; overflow-y: auto;">
                     <div class="text-center py-5">
                         <div class="spinner-border text-primary"></div>
@@ -96,19 +91,19 @@ require __DIR__ . '/partials/header.php';
 document.addEventListener('DOMContentLoaded', async function() {
     // Permission sisteminin hazir olmasini bekle (pages.js yukleyecek)
     const ready = await NbtPermission.waitForReady(3000);
-    
+
     if (!ready) {
         // Timeout olduysa manuel yukle
         await NbtPermission.load();
     }
-    
+
     // Permission kontrolu
     if (!NbtPermission.can('roles.read')) {
         NbtToast.error('Bu sayfaya erişim yetkiniz yok.');
         window.location.href = '/dashboard';
         return;
     }
-    
+
     // UI'a permission kurallarini uygula
     NbtPermission.applyToElements();
 
@@ -118,19 +113,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         sessionStorage.removeItem(flashKey);
         NbtToast.success(flashMsg);
     }
-    
+
     const permissionModal = new bootstrap.Modal(document.getElementById('permissionModal'));
-    
+
     // State
     let tumRoller = [];
     let tumPermissionlar = [];
     let modulBazindaPermissionlar = {};
-    
+
     // Rolleri yukle
     function normalizeArray(maybeArray) {
         return Array.isArray(maybeArray) ? maybeArray : [];
     }
-    
+
     async function rolleriYukle() {
         try {
             const resp = await NbtApi.get('/api/roles');
@@ -149,16 +144,16 @@ document.addEventListener('DOMContentLoaded', async function() {
             tabloGuncelle();
         }
     }
-    
+
     // Tabloyu guncelle
     function tabloGuncelle() {
         const tbody = document.getElementById('rolListesi');
-        
+
         if (!Array.isArray(tumRoller) || tumRoller.length === 0) {
             tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Kayıt bulunamadı</td></tr>`;
             return;
         }
-        
+
         tbody.innerHTML = tumRoller.map(rol => {
             const duzenlenebilir = rol.Duzenlenebilir == 1;
             const editDisabled = rol.SistemRolu == 1 || !duzenlenebilir;
@@ -182,13 +177,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                     <span class="badge bg-success">${rol.PermissionSayisi || 0}</span>
                 </td>
                 <td>
-                    ${rol.Aktif == 1 
-                        ? '<span class="badge bg-success">Aktif</span>' 
+                    ${rol.Aktif == 1
+                        ? '<span class="badge bg-success">Aktif</span>'
                         : '<span class="badge bg-secondary">Pasif</span>'}
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-primary" onclick="yetkiAta(${rol.Id})" title="${permTitle}" 
+                        <button type="button" class="btn btn-outline-primary" onclick="yetkiAta(${rol.Id})" title="${permTitle}"
                             ${editDisabled ? 'disabled' : ''}>
                             <i class="bi bi-key"></i>
                         </button>
@@ -206,17 +201,16 @@ document.addEventListener('DOMContentLoaded', async function() {
             </tr>
         `;
         }).join('');
-        
+
         // Permission kontrollerini uygula
         NbtPermission.applyToElements();
     }
-    
-    
+
     // Rol silme - SweetAlert2 ile onay
     window.rolSil = async function(id) {
         const rol = tumRoller.find(r => r.Id == id);
         if (!rol) return;
-        
+
         // SweetAlert2 onay dialogu
         const result = await Swal.fire({
             title: 'Rol Silme',
@@ -237,9 +231,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             cancelButtonText: 'İptal',
             reverseButtons: true
         });
-        
+
         if (!result.isConfirmed) return;
-        
+
         try {
             const resp = await NbtApi.delete('/api/roles/' + id);
             if (resp && (resp.success !== false)) {
@@ -252,15 +246,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             NbtToast.error(err?.message || 'Silme işlemi başarısız');
         }
     };
-    
+
     // Yetki atama
     window.yetkiAta = async function(rolId) {
         const rol = tumRoller.find(r => r.Id == rolId);
         if (!rol) return;
-        
+
         document.getElementById('permissionRolId').value = rolId;
         document.getElementById('permissionRolAdi').textContent = rol.RolAdi;
-        
+
         // Permissionlari ve mevcut kullanicinin yetkilerini yukle
         try {
             const [permResp, rolPermResp, myPermResp] = await Promise.all([
@@ -268,30 +262,30 @@ document.addEventListener('DOMContentLoaded', async function() {
                 NbtApi.get('/api/roles/' + rolId + '/permissions'),
                 NbtApi.get('/api/auth/permissions')
             ]);
-            
+
             const permData = permResp.data || permResp || {};
             if (permData) {
                 tumPermissionlar = permData.tumPermissionlar || [];
                 modulBazindaPermissionlar = permData.modulBazinda || {};
             }
-            
+
             const rolPermissionKodlari = (rolPermResp.data || []).map(p => p.PermissionKodu);
-            
+
             // Mevcut kullanicinin yetkileri (subset constraint icin)
             // API {roller, permissionlar, moduller} formatinda dondurur
             const myPermData = myPermResp.data || myPermResp || {};
-            const benimYetkilerim = Array.isArray(myPermData) 
-                ? myPermData 
+            const benimYetkilerim = Array.isArray(myPermData)
+                ? myPermData
                 : (Array.isArray(myPermData.permissionlar) ? myPermData.permissionlar : []);
-            
+
             // UI olustur - Turkce ceviri destegi
             const container = document.getElementById('permissionContainer');
             let html = '';
-            
+
             for (const [modul, modulData] of Object.entries(modulBazindaPermissionlar)) {
                 const modulAdiTr = modulData.modulAdiTr || modul.charAt(0).toUpperCase() + modul.slice(1);
                 const permler = modulData.permissionlar || modulData;
-                
+
                 html += `
                     <div class="card mb-2 permission-modul" data-modul="${modul}" data-modul-tr="${modulAdiTr}">
                         <div class="card-header bg-light py-2">
@@ -314,9 +308,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     return `
                                     <div class="col-md-3 col-sm-6 permission-item ${disabledClass}" data-label="${(p.PermissionAdiTr || p.PermissionKodu).toLowerCase()}">
                                         <div class="form-check">
-                                            <input class="form-check-input permission-checkbox" type="checkbox" 
-                                                id="perm_${p.Id}" 
-                                                data-id="${p.Id}" 
+                                            <input class="form-check-input permission-checkbox" type="checkbox"
+                                                id="perm_${p.Id}"
+                                                data-id="${p.Id}"
                                                 data-kod="${p.PermissionKodu}"
                                                 data-modul="${modul}"
                                                 ${rolPermissionKodlari.includes(p.PermissionKodu) ? 'checked' : ''}
@@ -333,9 +327,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                     </div>
                 `;
             }
-            
+
             container.innerHTML = html;
-            
+
             // Modul checkbox'lari - sadece enabled olanlari toggle et
             document.querySelectorAll('.modul-checkbox').forEach(cb => {
                 cb.addEventListener('change', function() {
@@ -347,28 +341,28 @@ document.addEventListener('DOMContentLoaded', async function() {
                     });
                 });
             });
-            
+
             // Modul checkbox durumlarini guncelle
             updateModulCheckboxes();
-            
+
             document.querySelectorAll('.permission-checkbox').forEach(cb => {
                 cb.addEventListener('change', updateModulCheckboxes);
             });
-            
+
             permissionModal.show();
-            
+
         } catch (err) {
             NbtToast.error(err?.message || 'Yetkiler yüklenemedi');
         }
     };
-    
+
     function updateModulCheckboxes() {
         document.querySelectorAll('.modul-checkbox').forEach(mcb => {
             const modul = mcb.dataset.modul;
             // Sadece enabled checkbox'lari say
             const permCheckboxes = document.querySelectorAll(`.permission-checkbox[data-modul="${modul}"]:not(:disabled)`);
             const checkedCount = document.querySelectorAll(`.permission-checkbox[data-modul="${modul}"]:not(:disabled):checked`).length;
-            
+
             if (checkedCount === 0) {
                 mcb.checked = false;
                 mcb.indeterminate = false;
@@ -381,32 +375,32 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
     }
-    
+
     // Tumunu sec/kaldir
     document.getElementById('btnTumunuSec').addEventListener('click', function() {
         document.querySelectorAll('.permission-checkbox').forEach(cb => cb.checked = true);
         document.querySelectorAll('.modul-checkbox').forEach(cb => { cb.checked = true; cb.indeterminate = false; });
     });
-    
+
     document.getElementById('btnTumunuKaldir').addEventListener('click', function() {
         document.querySelectorAll('.permission-checkbox').forEach(cb => cb.checked = false);
         document.querySelectorAll('.modul-checkbox').forEach(cb => { cb.checked = false; cb.indeterminate = false; });
     });
-    
+
     // Permission kaydet
     document.getElementById('btnPermissionKaydet').addEventListener('click', async function() {
         const rolId = document.getElementById('permissionRolId').value;
         const seciliPermissionIdler = [];
-        
+
         document.querySelectorAll('.permission-checkbox:checked').forEach(cb => {
             seciliPermissionIdler.push(parseInt(cb.dataset.id));
         });
-        
+
         try {
             const resp = await NbtApi.post('/api/roles/' + rolId + '/permissions', {
                 permissions: seciliPermissionIdler
             });
-            
+
             if (resp && (resp.success !== false)) {
                 NbtToast.success('Yetkiler kaydedildi');
                 permissionModal.hide();
@@ -428,7 +422,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             NbtToast.error(err?.message || 'Kayıt başarısız');
         }
     });
-    
+
     // Sayfa yuklendiginde rolleri getir
     rolleriYukle();
 });

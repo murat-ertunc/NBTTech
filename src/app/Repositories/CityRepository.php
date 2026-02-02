@@ -1,21 +1,18 @@
 <?php
+/**
+ * City Repository için veri erişim işlemlerini yürütür.
+ * Sorgu ve kalıcılık katmanını soyutlar.
+ */
 
 namespace App\Repositories;
 
 use App\Core\Transaction;
 use App\Services\Logger\ActionLogger;
 
-/**
- * Şehir (İl) Repository
- * tnm_sehir tablosu işlemleri
- */
 class CityRepository extends BaseRepository
 {
     protected string $Tablo = 'tnm_sehir';
 
-    /**
-     * Tüm aktif şehirleri getir
-     */
     public function tumAktifler(): array
     {
         $Sql = "SELECT Id, Guid, PlakaKodu, Ad, Bolge, EklemeZamani, DegisiklikZamani
@@ -28,9 +25,6 @@ class CityRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    /**
-     * ID ile şehir bul
-     */
     public function bul(int $Id): ?array
     {
         $Sql = "SELECT Id, Guid, PlakaKodu, Ad, Bolge, EklemeZamani, DegisiklikZamani
@@ -42,9 +36,6 @@ class CityRepository extends BaseRepository
         return $Sonuc ?: null;
     }
 
-    /**
-     * Yeni şehir ekle
-     */
     public function ekle(array $Veri, ?int $KullaniciId = null): int
     {
         return Transaction::wrap(function () use ($Veri, $KullaniciId) {
@@ -66,9 +57,6 @@ class CityRepository extends BaseRepository
         });
     }
 
-    /**
-     * Şehir güncelle
-     */
     public function guncelle(int $Id, array $Veri, ?int $KullaniciId = null, array $EkKosul = []): void
     {
         Transaction::wrap(function () use ($Id, $Veri, $KullaniciId) {
@@ -88,9 +76,6 @@ class CityRepository extends BaseRepository
         });
     }
 
-    /**
-     * Soft delete
-     */
     public function softSil(int $Id, ?int $KullaniciId = null, array $EkKosul = []): void
     {
         Transaction::wrap(function () use ($Id, $KullaniciId) {
@@ -101,9 +86,6 @@ class CityRepository extends BaseRepository
         });
     }
 
-    /**
-     * Ad ile şehir ara (duplicate kontrolü için)
-     */
     public function adIleBul(string $Ad): ?array
     {
         $Sql = "SELECT Id, Ad FROM {$this->Tablo} WHERE Ad = :Ad AND Sil = 0";

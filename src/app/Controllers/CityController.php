@@ -1,4 +1,8 @@
 <?php
+/**
+ * City Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -7,9 +11,6 @@ use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\CityRepository;
 
-/**
- * Şehir (İl) Controller
- */
 class CityController
 {
     public static function index(): void
@@ -52,7 +53,7 @@ class CityController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        
+
         if (empty($Girdi['Ad'])) {
             Response::error('Ad alani zorunludur.', 422);
             return;
@@ -65,8 +66,7 @@ class CityController
         }
 
         $Repo = new CityRepository();
-        
-        // Duplicate kontrolü
+
         $Mevcut = $Repo->adIleBul(trim($Girdi['Ad']));
         if ($Mevcut) {
             Response::error('Bu isimde bir sehir zaten mevcut.', 422);
@@ -93,7 +93,7 @@ class CityController
         }
 
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        
+
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);

@@ -1,7 +1,5 @@
 <?php
-/**
- * Ödeme Modal - Ekle/Düzenle
- */
+
 ?>
 <!-- Ödeme Modal -->
 <div class="modal fade" id="paymentModal" tabindex="-1">

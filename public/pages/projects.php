@@ -1,8 +1,4 @@
 <?php
-/**
- * Projeler Listesi Sayfası - Server-Rendered
- * URL: /projects
- */
 
 $pageTitle = 'Projeler';
 $activeNav = 'islemler';

@@ -1,9 +1,4 @@
 <?php
-/**
- * Alarmlar Sayfası - Server-Rendered
- * URL: /alarms
- * Müşteri detay sayfasındaki tab tasarımı uygulandı
- */
 
 $pageTitle = 'Alarmlar';
 $activeNav = 'dashboard';

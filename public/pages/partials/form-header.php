@@ -1,16 +1,4 @@
 <?php
-/**
- * Ortak Form Header Partial
- * Modal -> Sayfa dönüşümü için standart header
- * 
- * Gerekli değişkenler:
- *   $FormMusteriId - Müşteri ID
- *   $FormTabKey - Tab key (kisiler, gorusme, projeler, teklifler, sozlesmeler, takvim, damgavergisi, teminatlar, faturalar, odemeler, dosyalar)
- *   $FormTitle - Form başlığı (Yeni Kişi, Görüşme Düzenle vb)
- *   $FormIcon - Bootstrap icon class (bi-people, bi-chat-dots vb)
- *   $FormColor - Header rengi (primary, success, info, warning, danger)
- *   $FormBreadcrumb - Breadcrumb text
- */
 
 $FormMusteriId = $FormMusteriId ?? 0;
 $FormTabKey = $FormTabKey ?? 'bilgi';

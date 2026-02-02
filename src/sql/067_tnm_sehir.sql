@@ -12,7 +12,7 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId INT NULL,
         Sil BIT NOT NULL DEFAULT 0,
-        
+
         -- Şehir Bilgileri
         PlakaKodu NVARCHAR(2) NOT NULL,
         Ad NVARCHAR(50) NOT NULL,

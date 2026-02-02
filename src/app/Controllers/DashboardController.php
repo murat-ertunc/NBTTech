@@ -1,4 +1,8 @@
 <?php
+/**
+ * Dashboard Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -26,7 +30,6 @@ class DashboardController
         try {
             $Db = Database::connection();
 
-            // Müşteri sayısı
             $CustomerWhere = 'Sil = 0';
             $CustomerParams = [];
             if (!$TumMusteriler) {
@@ -37,7 +40,6 @@ class DashboardController
             $Stmt->execute($CustomerParams);
             $CustomerCount = (int) $Stmt->fetchColumn();
 
-            // Aktif proje sayısı
             $ProjectWhere = 'Sil = 0 AND Durum = 1';
             $ProjectParams = [];
             if (!$TumProjeler) {
@@ -48,7 +50,6 @@ class DashboardController
             $Stmt->execute($ProjectParams);
             $ProjectCount = (int) $Stmt->fetchColumn();
 
-            // Bekleyen tahsilat (ödenmemiş fatura bakiyesi)
             $PendingSql = "
                 SELECT SUM(f.Tutar - ISNULL(paid.Toplam, 0)) AS PendingAmount
                 FROM tbl_fatura f
@@ -69,7 +70,6 @@ class DashboardController
             $Stmt->execute($PendingParams);
             $PendingAmount = (float) $Stmt->fetchColumn();
 
-            // Bu ay tahsilat (ödeme toplamı)
             $Month = (int) date('n');
             $Year = (int) date('Y');
             $CollectedSql = "

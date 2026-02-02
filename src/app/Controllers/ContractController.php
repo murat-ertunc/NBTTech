@@ -1,4 +1,8 @@
 <?php
+/**
+ * Contract Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -20,7 +24,7 @@ class ContractController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
+
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
         $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
@@ -34,7 +38,7 @@ class ContractController
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            // Standalone sayfa - pagination ile tum sozlesmeler
+
             if (isset($_GET['page']) || isset($_GET['limit'])) {
                 $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
                 Response::json($Sonuc);
@@ -45,9 +49,6 @@ class ContractController
         }
     }
 
-    /**
-     * Tek Sozlesme Detayi Getir
-     */
     public static function show(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
@@ -75,15 +76,15 @@ class ContractController
 
     public static function store(): void
     {
-        // Hem JSON hem FormData gelen istekleri destekliyoruz
+
         $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         } else {
-            // multipart/form-data
+
             $Girdi = $_POST;
         }
-        
+
         $Zorunlu = ['MusteriId'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
@@ -98,8 +99,7 @@ class ContractController
             return;
         }
 
-        // Dosya yukleme islemi - PDF veya Word tek alanda saklanir
-        $MaksimumBoyut = 10 * 1024 * 1024; // 10MB
+        $MaksimumBoyut = 10 * 1024 * 1024;
         $DosyaAdi = null;
         $DosyaYolu = null;
 
@@ -147,7 +147,6 @@ class ContractController
             return $Repo->ekle($YuklenecekVeri, $KullaniciId);
         });
 
-        // Takvim hatirlatmasi olustur - sozlesme tarihi varsa
         if (!empty($YuklenecekVeri['SozlesmeTarihi'])) {
             CalendarService::createOrUpdateReminder(
                 (int)$YuklenecekVeri['MusteriId'],
@@ -170,7 +169,6 @@ class ContractController
             return;
         }
 
-        // Hem JSON hem FormData gelen istekleri destekliyoruz
         $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -181,7 +179,7 @@ class ContractController
         } else {
             $Girdi = $_POST;
         }
-        
+
         $Repo = new ContractRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -197,9 +195,8 @@ class ContractController
         if (isset($Girdi['TeklifId'])) $Guncellenecek['TeklifId'] = (int)$Girdi['TeklifId'];
         if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
 
-        // PDF dosya silme veya guncelleme islemi
         if (!empty($Girdi['removeFile'])) {
-            // Mevcut dosyayi sil
+
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
@@ -211,7 +208,6 @@ class ContractController
             $Guncellenecek['DosyaYolu'] = null;
         }
 
-        // Yeni dosya yuklendiyse eskisini silip yenisini kaydediyoruz
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
             $Hata = UploadValidator::validateDocument(
                 $_FILES['dosya'],
@@ -222,7 +218,6 @@ class ContractController
                 return;
             }
 
-            // Eski dosyayi fiziksel olarak sil
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
@@ -247,14 +242,12 @@ class ContractController
             }
         }
 
-
         if (!empty($Guncellenecek)) {
             Transaction::wrap(function () use ($Repo, $Id, $Guncellenecek, $KullaniciId) {
                 $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
             });
         }
 
-        // Takvim hatirlatmasi guncelle - sozlesme tarihi varsa
         if (isset($Girdi['SozlesmeTarihi'])) {
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut) {
@@ -291,7 +284,6 @@ class ContractController
             $Repo->softSil($Id, $KullaniciId);
         });
 
-        // Takvim hatirlatmasini sil
         CalendarService::deleteReminder('sozlesme', $Id);
 
         Response::json(['status' => 'success']);
@@ -307,7 +299,7 @@ class ContractController
 
         $Repo = new ContractRepository();
         $Kayit = $Repo->bul($Id);
-        
+
         if (!$Kayit) {
             Response::error('Kayit bulunamadi.', 404);
             return;
@@ -320,7 +312,7 @@ class ContractController
 
         $FilePath = SRC_PATH . $Kayit['DosyaYolu'];
         $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
-        
+
         if (!file_exists($FilePath)) {
             Response::error('Dosya bulunamadi.', 404);
             return;

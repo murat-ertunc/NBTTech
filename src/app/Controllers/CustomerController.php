@@ -1,4 +1,8 @@
 <?php
+/**
+ * Customer Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -21,21 +25,18 @@ class CustomerController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
-        // Permission bazli scope kontrolu
+
         $AuthService = AuthorizationService::getInstance();
         $TumunuGorebilir = $AuthService->tumunuGorebilirMi($KullaniciId, 'customers');
-        
-        // Pagination parametreleri
+
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
         $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
         $SayfalamaAktif = isset($_GET['page']) || isset($_GET['limit']);
-        
-        // Arama parametresi
+
         $Arama = isset($_GET['search']) ? trim((string)$_GET['search']) : '';
-        
+
         if ($TumunuGorebilir) {
-            // customers.read_all yetkisi var - tum musterileri gorsun
+
             if ($SayfalamaAktif) {
                 $Sonuc = $Repo->tumAktiflerSiraliPaginated($Sayfa, $Limit, $Arama);
                 Response::json($Sonuc);
@@ -44,7 +45,7 @@ class CustomerController
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            // Sadece kendi olusturdugu musterileri gorsun
+
             if ($SayfalamaAktif) {
                 $Sonuc = $Repo->kullaniciyaGoreAktiflerPaginated($KullaniciId, $Sayfa, $Limit, $Arama);
                 Response::json($Sonuc);
@@ -55,9 +56,6 @@ class CustomerController
         }
     }
 
-    /**
-     * Tek Musteri Detayi Getir
-     */
     public static function show(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
@@ -73,8 +71,7 @@ class CustomerController
         }
 
         $Repo = new CustomerRepository();
-        
-        // Permission bazli scope kontrolu
+
         $AuthService = AuthorizationService::getInstance();
         $TumunuGorebilir = $AuthService->tumunuGorebilirMi($KullaniciId, 'customers');
 
@@ -90,7 +87,6 @@ class CustomerController
         Response::json(['data' => $Musteri]);
     }
 
-    // Karakter limitleri
     private const LIMITLER = [
         'MusteriKodu' => 10,
         'Unvan' => 150,
@@ -104,8 +100,8 @@ class CustomerController
         'Ilce' => 50,
         'Adres' => 300,
         'Aciklama' => 500,
-        'SehirId' => null, // INT alan, karakter limiti yok
-        'IlceId' => null,  // INT alan, karakter limiti yok
+        'SehirId' => null,
+        'IlceId' => null,
     ];
 
     private static function alanDogrula(string $Alan, ?string $Deger): ?string
@@ -178,14 +174,13 @@ class CustomerController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        
-        // Zorunlu alanlar ve hata mesajlari
+
         $ZorunluAlanlar = [
             'Unvan' => 'Ünvan zorunludur.',
             'VergiDairesi' => 'Vergi Dairesi zorunludur.',
             'VergiNo' => 'Vergi No zorunludur.'
         ];
-        
+
         $Hatalar = [];
         foreach ($ZorunluAlanlar as $Alan => $Mesaj) {
             $Deger = isset($Girdi[$Alan]) ? trim((string) $Girdi[$Alan]) : '';
@@ -193,13 +188,12 @@ class CustomerController
                 $Hatalar[$Alan] = $Mesaj;
             }
         }
-        
-        // Hatalar varsa 422 ile geri don
+
         if (!empty($Hatalar)) {
             Response::json(['errors' => $Hatalar, 'message' => 'Lütfen zorunlu alanları doldurun.'], 422);
             return;
         }
-        
+
         $Unvan = trim((string) $Girdi['Unvan']);
         if (mb_strlen($Unvan) < 2) {
             Response::json(['errors' => ['Unvan' => 'Ünvan en az 2 karakter olmalıdır.'], 'message' => 'Ünvan en az 2 karakter olmalıdır.'], 422);
@@ -209,15 +203,13 @@ class CustomerController
             Response::json(['errors' => ['Unvan' => 'Ünvan en fazla ' . self::LIMITLER['Unvan'] . ' karakter olabilir.'], 'message' => 'Ünvan çok uzun.'], 422);
             return;
         }
-        
-        // Vergi No format kontrolu (10 veya 11 hane, sadece rakam)
+
         $VergiNo = trim((string) $Girdi['VergiNo']);
         if (!preg_match('/^\d{10,11}$/', $VergiNo)) {
             Response::json(['errors' => ['VergiNo' => 'Vergi No 10 veya 11 haneli sayısal olmalıdır.'], 'message' => 'Vergi No formatı geçersiz.'], 422);
             return;
         }
 
-        // Alan validasyonlari
         $Alanlar = ['MusteriKodu', 'VergiDairesi', 'VergiNo', 'MersisNo', 'Telefon', 'Faks', 'Web', 'Il', 'Ilce', 'Adres', 'Aciklama'];
         foreach ($Alanlar as $Alan) {
             $Deger = isset($Girdi[$Alan]) ? trim((string) $Girdi[$Alan]) : null;
@@ -270,11 +262,10 @@ class CustomerController
             return;
         }
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        
-        // Zorunlu alanlar kontrolu (gonderilmisse bos olamaz)
+
         $ZorunluAlanlar = ['Unvan', 'VergiDairesi', 'VergiNo'];
         $Hatalar = [];
-        
+
         foreach ($ZorunluAlanlar as $Alan) {
             if (array_key_exists($Alan, $Girdi)) {
                 $Deger = trim((string) $Girdi[$Alan]);
@@ -283,13 +274,12 @@ class CustomerController
                 }
             }
         }
-        
+
         if (!empty($Hatalar)) {
             Response::json(['errors' => $Hatalar, 'message' => 'Lütfen zorunlu alanları doldurun.'], 422);
             return;
         }
-        
-        // Unvan validasyonu
+
         if (isset($Girdi['Unvan'])) {
             $Girdi['Unvan'] = trim((string) $Girdi['Unvan']);
             if (mb_strlen($Girdi['Unvan']) < 2) {
@@ -301,8 +291,7 @@ class CustomerController
                 return;
             }
         }
-        
-        // Vergi No format kontrolu (gonderilmisse)
+
         if (isset($Girdi['VergiNo']) && trim($Girdi['VergiNo']) !== '') {
             $VergiNo = trim((string) $Girdi['VergiNo']);
             if (!preg_match('/^\d{10,11}$/', $VergiNo)) {
@@ -311,7 +300,6 @@ class CustomerController
             }
         }
 
-        // Alan validasyonlari
         $Alanlar = ['MusteriKodu', 'VergiDairesi', 'VergiNo', 'MersisNo', 'Telefon', 'Faks', 'Web', 'Il', 'Ilce', 'Adres', 'Aciklama'];
         foreach ($Alanlar as $Alan) {
             if (array_key_exists($Alan, $Girdi)) {
@@ -330,11 +318,10 @@ class CustomerController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
-        // Permission bazli scope kontrolu
+
         $AuthService = AuthorizationService::getInstance();
         $TumunuDuzenleyebilir = $AuthService->tumunuDuzenleyebilirMi($KullaniciId, 'customers');
-        
+
         $Mevcut = $TumunuDuzenleyebilir
             ? $Repo->bul($Id)
             : $Repo->sahipliKayitBul($Id, $KullaniciId);
@@ -403,9 +390,6 @@ class CustomerController
         Response::json(['status' => 'ok']);
     }
 
-    /**
-     * Musteri cari ozeti - yil ve doviz bazli fatura toplamlari
-     */
     public static function cariOzet(array $Parametreler): void
     {
         $MusteriId = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
@@ -413,16 +397,16 @@ class CustomerController
             Response::error('Gecersiz musteri ID.', 422);
             return;
         }
-        
+
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
+
         $InvoiceRepo = new \App\Repositories\InvoiceRepository();
         $Ozet = $InvoiceRepo->cariOzet($MusteriId);
-        
+
         Response::json(['data' => $Ozet]);
     }
 
@@ -439,11 +423,10 @@ class CustomerController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
-        // Permission bazli scope kontrolu
+
         $AuthService = AuthorizationService::getInstance();
         $TumunuDuzenleyebilir = $AuthService->tumunuDuzenleyebilirMi($KullaniciId, 'customers');
-        
+
         $Mevcut = $TumunuDuzenleyebilir
             ? $Repo->bul($Id)
             : $Repo->sahipliKayitBul($Id, $KullaniciId);

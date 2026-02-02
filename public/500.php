@@ -1,10 +1,5 @@
 <?php
-/**
- * 500 Internal Server Error Page
- * Bu sayfa beklenmeyen sunucu hataları için gösterilir.
- */
 
-// HTTP status code zaten set edilmiş olabilir
 if (http_response_code() === 200) {
     http_response_code(500);
 }

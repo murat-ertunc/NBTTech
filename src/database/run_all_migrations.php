@@ -1,19 +1,7 @@
 <?php
-/**
- * Tüm Migration'ları Sıralı ve Güvenli Çalıştır
- * 
- * Bu script CLI veya Web üzerinden çalıştırılabilir.
- * Her migration dosyasını sırayla çalıştırır ve sonuçları raporlar.
- * 
- * Kullanım:
- *   CLI: php src/database/run_all_migrations.php
- *   Web: Doğrudan erişim önerilmez, InstallController kullanın
- */
 
-// CLI kontrolü
 $IsCli = php_sapi_name() === 'cli';
 
-// Bootstrap yükle
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
 use App\Core\Database;
@@ -43,7 +31,6 @@ function getBasicAuthCredentials(): array
     return ['', ''];
 }
 
-// Web erişiminde Basic Auth kontrolü
 if (!$IsCli) {
     $AuthUser = env('MIG_USER', env('MIGRATION_BASIC_USER', 'migrate'));
     $AuthPass = env('MIG_PASS', env('MIGRATION_BASIC_PASS', 'change-me'));
@@ -130,7 +117,6 @@ output("  Tarih: " . date('Y-m-d H:i:s'), $IsCli);
 output("===========================================", $IsCli);
 output("", $IsCli);
 
-// SQL dosyalarını bul
 $SqlDir = SRC_PATH . 'sql';
 $Files = glob($SqlDir . '/*.sql') ?: [];
 sort($Files);

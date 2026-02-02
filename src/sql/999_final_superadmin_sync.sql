@@ -3,7 +3,7 @@
 -- =============================================
 -- Bu script TUM migration'lardan SONRA calisir ve
 -- superadmin rolune TUM permission'lari atar.
--- 
+--
 -- ONEMLI: Bu dosya 999_ ile baslar, bu nedenle
 -- her zaman en son calisir.
 -- =============================================
@@ -38,28 +38,28 @@ BEGIN
     -- Toplam permission sayisi
     DECLARE @TotalPerms INT;
     SELECT @TotalPerms = COUNT(*) FROM tnm_permission WHERE Sil = 0 AND Aktif = 1;
-    
+
     -- Superadmin mevcut permission sayisi
     DECLARE @CurrentPerms INT;
     SELECT @CurrentPerms = COUNT(*) FROM tnm_rol_permission WHERE RolId = @SuperAdminRolId AND Sil = 0;
-    
+
     PRINT '  Toplam Permission: ' + CAST(@TotalPerms AS NVARCHAR);
     PRINT '  Superadmin Mevcut: ' + CAST(@CurrentPerms AS NVARCHAR);
-    
+
     -- Eksik permission var mi?
     IF @CurrentPerms < @TotalPerms
     BEGIN
         PRINT '  ! Eksik permission tespit edildi, sync yapiliyor...';
-        
+
         -- Mevcut atamalari temizle
         DELETE FROM tnm_rol_permission WHERE RolId = @SuperAdminRolId;
-        
+
         -- TUM permission'lari ekle
         INSERT INTO tnm_rol_permission (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, RolId, PermissionId)
         SELECT NEWID(), @Simdi, @SeedUserId, @Simdi, @SeedUserId, 0, @SuperAdminRolId, p.Id
         FROM tnm_permission p
         WHERE p.Sil = 0 AND p.Aktif = 1;
-        
+
         -- Yeni sayi
         SELECT @CurrentPerms = COUNT(*) FROM tnm_rol_permission WHERE RolId = @SuperAdminRolId AND Sil = 0;
         PRINT '  ✓ Superadmin rolune ' + CAST(@CurrentPerms AS NVARCHAR) + ' permission atandi';
@@ -78,19 +78,19 @@ IF @AdminRolId IS NOT NULL
 BEGIN
     DECLARE @AdminCurrentPerms INT;
     SELECT @AdminCurrentPerms = COUNT(*) FROM tnm_rol_permission WHERE RolId = @AdminRolId AND Sil = 0;
-    
+
     DECLARE @AdminTotalPerms INT;
     SELECT @AdminTotalPerms = COUNT(*) FROM tnm_permission WHERE Sil = 0 AND Aktif = 1;
-    
+
     IF @AdminCurrentPerms < @AdminTotalPerms
     BEGIN
         DELETE FROM tnm_rol_permission WHERE RolId = @AdminRolId;
-        
+
         INSERT INTO tnm_rol_permission (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, RolId, PermissionId)
         SELECT NEWID(), @Simdi, @SeedUserId, @Simdi, @SeedUserId, 0, @AdminRolId, p.Id
         FROM tnm_permission p
         WHERE p.Sil = 0 AND p.Aktif = 1;
-        
+
         SELECT @AdminCurrentPerms = COUNT(*) FROM tnm_rol_permission WHERE RolId = @AdminRolId AND Sil = 0;
         PRINT '  ✓ Admin rolune ' + CAST(@AdminCurrentPerms AS NVARCHAR) + ' permission atandi';
     END
@@ -127,8 +127,8 @@ PRINT '━━━ FINAL DOGRULAMA ━━━';
 
 DECLARE @FinalTotal INT, @FinalSuperAdmin INT, @FinalMissing INT;
 SELECT @FinalTotal = COUNT(*) FROM tnm_permission WHERE Sil = 0 AND Aktif = 1;
-SELECT @FinalSuperAdmin = COUNT(*) FROM tnm_rol_permission rp 
-    INNER JOIN tnm_rol r ON rp.RolId = r.Id 
+SELECT @FinalSuperAdmin = COUNT(*) FROM tnm_rol_permission rp
+    INNER JOIN tnm_rol r ON rp.RolId = r.Id
     WHERE r.RolKodu = 'superadmin' AND r.Sil = 0 AND rp.Sil = 0;
 SET @FinalMissing = @FinalTotal - @FinalSuperAdmin;
 

@@ -1,8 +1,4 @@
 <?php
-/**
- * Dashboard Sayfası - Server-Rendered
- * URL: /dashboard veya /
- */
 
 $pageTitle = 'Ana Sayfa';
 $activeNav = 'dashboard';
@@ -12,10 +8,10 @@ require __DIR__ . '/partials/header.php';
 
     <!-- ===== VIEW: DASHBOARD ===== -->
     <div id="view-dashboard" data-can="dashboard.read">
-      
+
       <!-- ROW 1: Alarmlar ve Takvim yan yana (Kalan alanı kaplasın) -->
       <div class="row g-3 mb-3 flex-grow-1">
-        
+
         <!-- PANEL 1: ALARMLAR (Sol - Dar) -->
         <div class="col-lg-3 col-md-4 col-sm-12 d-flex">
           <div class="card flex-grow-1 d-flex flex-column" id="panelAlarms" data-can="alarms.read">

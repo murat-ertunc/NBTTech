@@ -14,26 +14,26 @@ BEGIN
         DegisiklikZamani    DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId    INT NULL,
         Sil                 BIT NOT NULL DEFAULT 0,
-        
+
         -- Iliski Alanlari
         RolId               INT NOT NULL,
         PermissionId        INT NOT NULL,
-        
+
         -- Foreign Keys
-        CONSTRAINT FK_tnm_rol_permission_Rol FOREIGN KEY (RolId) 
+        CONSTRAINT FK_tnm_rol_permission_Rol FOREIGN KEY (RolId)
             REFERENCES tnm_rol(Id),
-        CONSTRAINT FK_tnm_rol_permission_Permission FOREIGN KEY (PermissionId) 
+        CONSTRAINT FK_tnm_rol_permission_Permission FOREIGN KEY (PermissionId)
             REFERENCES tnm_permission(Id)
     );
-    
+
     -- Unique constraint: Ayni rol-permission kombinasyonu tekrar edemez
-    CREATE UNIQUE NONCLUSTERED INDEX IX_tnm_rol_permission_Unique 
+    CREATE UNIQUE NONCLUSTERED INDEX IX_tnm_rol_permission_Unique
         ON tnm_rol_permission(RolId, PermissionId) WHERE Sil = 0;
-    
+
     CREATE NONCLUSTERED INDEX IX_tnm_rol_permission_RolId ON tnm_rol_permission(RolId);
     CREATE NONCLUSTERED INDEX IX_tnm_rol_permission_PermissionId ON tnm_rol_permission(PermissionId);
     CREATE NONCLUSTERED INDEX IX_tnm_rol_permission_Sil ON tnm_rol_permission(Sil);
-    
+
     PRINT 'tnm_rol_permission tablosu olusturuldu.';
 END
 ELSE

@@ -1,12 +1,4 @@
 <?php
-/**
- * Kapsamlı Permission Doğrulama Scripti
- * 
- * Bu script:
- * 1. Seeder'daki expected permissions ile DB'deki permissions'ları karşılaştırır
- * 2. Superadmin'in tüm permission'lara sahip olduğunu doğrular
- * 3. Modül bazlı detaylı rapor çıkarır
- */
 
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
@@ -19,10 +11,6 @@ echo "║     KAPSAMLI PERMISSION DOĞRULAMA RAPORU                         ║\
 echo "╠══════════════════════════════════════════════════════════════════╣\n";
 echo "║ Tarih: " . date('Y-m-d H:i:s') . "                                   ║\n";
 echo "╚══════════════════════════════════════════════════════════════════╝\n\n";
-
-// =============================================
-// 1. EXPECTED PERMISSIONS (Seeder'dan)
-// =============================================
 
 $ModulTanimlari = [
     'users' => ['create', 'read', 'read_all', 'update', 'delete'],
@@ -63,10 +51,6 @@ foreach ($ModulTanimlari as $Modul => $Aksiyonlar) {
     echo "   - {$Modul}: " . implode(', ', $Aksiyonlar) . "\n";
 }
 
-// =============================================
-// 2. DATABASE'DEKİ PERMISSIONS
-// =============================================
-
 echo "\n═══════════════════════════════════════════════════════════════════\n";
 echo "2. DATABASE MEVCUT PERMISSIONS\n";
 echo "═══════════════════════════════════════════════════════════════════\n";
@@ -76,7 +60,6 @@ $DbPermissions = $Stmt->fetchAll(\PDO::FETCH_ASSOC);
 
 echo "   DB'de Toplam Permission: " . count($DbPermissions) . "\n\n";
 
-// Modül bazlı grupla
 $DbModulGrup = [];
 foreach ($DbPermissions as $P) {
     $DbModulGrup[$P['ModulAdi']][] = $P['Aksiyon'];
@@ -87,20 +70,14 @@ foreach ($DbModulGrup as $Modul => $Aksiyonlar) {
     echo "   - {$Modul}: " . implode(', ', $Aksiyonlar) . "\n";
 }
 
-// =============================================
-// 3. KARŞILAŞTIRMA: EXPECTED vs DB
-// =============================================
-
 echo "\n═══════════════════════════════════════════════════════════════════\n";
 echo "3. KARŞILAŞTIRMA: EXPECTED vs DATABASE\n";
 echo "═══════════════════════════════════════════════════════════════════\n";
 
 $DbKodlar = array_column($DbPermissions, 'PermissionKodu');
 
-// Expected'da olup DB'de olmayan
 $EksikDbde = array_diff($ExpectedPermissions, $DbKodlar);
 
-// DB'de olup Expected'da olmayan
 $FazlaDbde = array_diff($DbKodlar, $ExpectedPermissions);
 
 if (empty($EksikDbde)) {
@@ -121,15 +98,10 @@ if (empty($FazlaDbde)) {
     }
 }
 
-// =============================================
-// 4. SUPERADMIN PERMISSION KONTROLÜ
-// =============================================
-
 echo "\n═══════════════════════════════════════════════════════════════════\n";
 echo "4. SUPERADMIN PERMISSION DURUMU\n";
 echo "═══════════════════════════════════════════════════════════════════\n";
 
-// Superadmin rol ID
 $Stmt = $Db->query("SELECT Id FROM tnm_rol WHERE RolKodu = 'superadmin' AND Sil = 0");
 $SuperadminRol = $Stmt->fetch();
 
@@ -141,9 +113,8 @@ if (!$SuperadminRol) {
 $SuperadminRolId = $SuperadminRol['Id'];
 echo "   Superadmin Rol ID: {$SuperadminRolId}\n";
 
-// Superadmin'in permission'ları
 $Stmt = $Db->prepare("
-    SELECT p.PermissionKodu 
+    SELECT p.PermissionKodu
     FROM tnm_rol_permission rp
     INNER JOIN tnm_permission p ON rp.PermissionId = p.Id
     WHERE rp.RolId = :RolId AND rp.Sil = 0 AND p.Sil = 0 AND p.Aktif = 1
@@ -154,7 +125,6 @@ $SuperadminPerms = $Stmt->fetchAll(\PDO::FETCH_COLUMN);
 echo "   Superadmin Permission Sayısı: " . count($SuperadminPerms) . "\n";
 echo "   DB Toplam Permission Sayısı: " . count($DbPermissions) . "\n";
 
-// Superadmin'de eksik olanlar
 $SuperadminEksik = array_diff($DbKodlar, $SuperadminPerms);
 
 if (empty($SuperadminEksik)) {
@@ -165,10 +135,6 @@ if (empty($SuperadminEksik)) {
         echo "      - {$Eksik}\n";
     }
 }
-
-// =============================================
-// 5. TAB PERMISSIONS KONTROLÜ (Customer Detail)
-// =============================================
 
 echo "\n═══════════════════════════════════════════════════════════════════\n";
 echo "5. CUSTOMER-DETAIL TAB PERMISSIONS KONTROLÜ\n";
@@ -207,10 +173,6 @@ if (empty($TabHatalar)) {
         echo "      ✗ {$Tab} → {$Perm} (DB'de yok!)\n";
     }
 }
-
-// =============================================
-// 6. ÖZET RAPOR
-// =============================================
 
 echo "\n╔══════════════════════════════════════════════════════════════════╗\n";
 echo "║                        ÖZET RAPOR                                ║\n";

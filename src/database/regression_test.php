@@ -1,12 +1,4 @@
 <?php
-/**
- * Regression Test - Permission Access Simülasyonu
- * 
- * Bu script 3 kullanıcı tipini simüle eder:
- * 1. superadmin - TÜM permission'lara erişmeli
- * 2. limited_user - Sadece belirli modüllere erişmeli (yoksa oluşturur)
- * 3. no_role_user - Hiçbir permission'a erişmemeli
- */
 
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
@@ -20,7 +12,6 @@ echo "╠═══════════════════════�
 echo "║ Tarih: " . date('Y-m-d H:i:s') . "                                   ║\n";
 echo "╚══════════════════════════════════════════════════════════════════╝\n\n";
 
-// GUID Generator
 function generateGuid(): string {
     return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
         mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff),
@@ -29,9 +20,6 @@ function generateGuid(): string {
     );
 }
 
-// =============================================
-// HELPER: User'ın effective permissions'larını al
-// =============================================
 function getUserEffectivePermissions(PDO $Db, int $UserId): array
 {
     $Stmt = $Db->prepare("
@@ -45,17 +33,10 @@ function getUserEffectivePermissions(PDO $Db, int $UserId): array
     return $Stmt->fetchAll(\PDO::FETCH_COLUMN);
 }
 
-// =============================================
-// HELPER: Permission check simülasyonu
-// =============================================
 function canAccess(array $UserPerms, string $PermissionKodu): bool
 {
     return in_array($PermissionKodu, $UserPerms);
 }
-
-// =============================================
-// TEST DATA SETUP
-// =============================================
 
 echo "═══════════════════════════════════════════════════════════════════\n";
 echo "1. TEST KULLANICILARI HAZIRLANIYOR\n";
@@ -63,39 +44,35 @@ echo "════════════════════════�
 
 $Simdi = date('Y-m-d H:i:s');
 
-// 1. Superadmin zaten var, ID'sini al
 $Stmt = $Db->prepare("SELECT Id FROM tnm_user WHERE KullaniciAdi = 'superadmin' AND Sil = 0");
 $Stmt->execute();
 $SuperadminUser = $Stmt->fetch();
 $SuperadminUserId = $SuperadminUser ? (int)$SuperadminUser['Id'] : 0;
 echo "   ✓ superadmin User ID: {$SuperadminUserId}\n";
 
-// 2. limited_user - sadece customers ve invoices erişimi
 $Stmt = $Db->prepare("SELECT Id FROM tnm_user WHERE KullaniciAdi = 'limited_user' AND Sil = 0");
 $Stmt->execute();
 $LimitedUser = $Stmt->fetch();
 
 if (!$LimitedUser) {
-    // Kullanıcı oluştur
+
     $Guid = generateGuid();
     $Stmt = $Db->prepare("INSERT INTO tnm_user (Guid, EklemeZamani, DegisiklikZamani, KullaniciAdi, Parola, AdSoyad, Aktif, Sil)
                           VALUES (:Guid, :Simdi, :Simdi2, 'limited_user', :Parola, 'Limited User', 1, 0)");
     $Stmt->execute(['Guid' => $Guid, 'Simdi' => $Simdi, 'Simdi2' => $Simdi, 'Parola' => password_hash('Limited123!', PASSWORD_BCRYPT)]);
     $LimitedUserId = (int)$Db->lastInsertId();
-    
-    // limited_role oluştur (yoksa)
+
     $Stmt = $Db->prepare("SELECT Id FROM tnm_rol WHERE RolKodu = 'limited_role' AND Sil = 0");
     $Stmt->execute();
     $LimitedRol = $Stmt->fetch();
-    
+
     if (!$LimitedRol) {
         $RolGuid = generateGuid();
         $Stmt = $Db->prepare("INSERT INTO tnm_rol (Guid, EklemeZamani, DegisiklikZamani, RolKodu, RolAdi, Aciklama, SistemRolu, Aktif, Sil)
                               VALUES (:Guid, :Simdi, :Simdi2, 'limited_role', 'Limited Role', 'Test icin sinirli yetki', 0, 1, 0)");
         $Stmt->execute(['Guid' => $RolGuid, 'Simdi' => $Simdi, 'Simdi2' => $Simdi]);
         $LimitedRolId = (int)$Db->lastInsertId();
-        
-        // customers.read, customers.create, invoices.read permission'larını ekle
+
         $PermKodlari = ['customers.read', 'customers.create', 'invoices.read', 'dashboard.read'];
         foreach ($PermKodlari as $PermKod) {
             $Stmt = $Db->prepare("SELECT Id FROM tnm_permission WHERE PermissionKodu = :Kod AND Sil = 0");
@@ -111,20 +88,18 @@ if (!$LimitedUser) {
     } else {
         $LimitedRolId = (int)$LimitedRol['Id'];
     }
-    
-    // User-role ataması
+
     $UrGuid = generateGuid();
     $Stmt = $Db->prepare("INSERT INTO tnm_user_rol (Guid, EklemeZamani, DegisiklikZamani, UserId, RolId, Sil)
                           VALUES (:Guid, :Simdi, :Simdi2, :UserId, :RolId, 0)");
     $Stmt->execute(['Guid' => $UrGuid, 'Simdi' => $Simdi, 'Simdi2' => $Simdi, 'UserId' => $LimitedUserId, 'RolId' => $LimitedRolId]);
-    
+
     echo "   ✓ limited_user oluşturuldu, ID: {$LimitedUserId}\n";
 } else {
     $LimitedUserId = (int)$LimitedUser['Id'];
     echo "   ✓ limited_user zaten var, ID: {$LimitedUserId}\n";
 }
 
-// 3. no_role_user - hiç rol atanmamış
 $Stmt = $Db->prepare("SELECT Id FROM tnm_user WHERE KullaniciAdi = 'no_role_user' AND Sil = 0");
 $Stmt->execute();
 $NoRoleUser = $Stmt->fetch();
@@ -141,10 +116,6 @@ if (!$NoRoleUser) {
     echo "   ✓ no_role_user zaten var, ID: {$NoRoleUserId}\n";
 }
 
-// =============================================
-// EFFECTIVE PERMISSIONS HESAPLAMA
-// =============================================
-
 echo "\n═══════════════════════════════════════════════════════════════════\n";
 echo "2. EFFECTIVE PERMISSIONS HESAPLANIYOR\n";
 echo "═══════════════════════════════════════════════════════════════════\n";
@@ -157,10 +128,6 @@ echo "   superadmin  : " . count($SuperadminPerms) . " permission\n";
 echo "   limited_user: " . count($LimitedPerms) . " permission\n";
 echo "   no_role_user: " . count($NoRolePerms) . " permission\n";
 
-// =============================================
-// TEST SENARYOLARI
-// =============================================
-
 echo "\n═══════════════════════════════════════════════════════════════════\n";
 echo "3. REGRESSION TEST SENARYOLARI\n";
 echo "═══════════════════════════════════════════════════════════════════\n";
@@ -168,7 +135,6 @@ echo "════════════════════════�
 $TestResults = [];
 $AllPassed = true;
 
-// Test Helper
 function runTest(string $TestName, bool $Condition, string $Expected, array &$Results, bool &$AllPassed): void
 {
     $Status = $Condition ? '✅ PASS' : '❌ FAIL';
@@ -177,7 +143,6 @@ function runTest(string $TestName, bool $Condition, string $Expected, array &$Re
     echo "   {$Status}: {$TestName} (Expected: {$Expected})\n";
 }
 
-// === SENARYO A: Superadmin TÜM modüllere erişmeli ===
 echo "\n   ─── Senaryo A: Superadmin Erişimi ───\n";
 
 runTest(
@@ -228,7 +193,6 @@ runTest(
     $AllPassed
 );
 
-// === SENARYO B: Limited User sadece atanan modüllere erişmeli ===
 echo "\n   ─── Senaryo B: Limited User Erişimi ───\n";
 
 runTest(
@@ -257,7 +221,7 @@ runTest(
 
 runTest(
     'limited_user → calendar.read',
-    !canAccess($LimitedPerms, 'calendar.read'), // DENY bekleniyor
+    !canAccess($LimitedPerms, 'calendar.read'),
     'DENY',
     $TestResults,
     $AllPassed
@@ -265,7 +229,7 @@ runTest(
 
 runTest(
     'limited_user → roles.update',
-    !canAccess($LimitedPerms, 'roles.update'), // DENY bekleniyor
+    !canAccess($LimitedPerms, 'roles.update'),
     'DENY',
     $TestResults,
     $AllPassed
@@ -273,18 +237,17 @@ runTest(
 
 runTest(
     'limited_user → stamp_taxes.delete',
-    !canAccess($LimitedPerms, 'stamp_taxes.delete'), // DENY bekleniyor
+    !canAccess($LimitedPerms, 'stamp_taxes.delete'),
     'DENY',
     $TestResults,
     $AllPassed
 );
 
-// === SENARYO C: No Role User hiçbir modüle erişmemeli ===
 echo "\n   ─── Senaryo C: No Role User Erişimi ───\n";
 
 runTest(
     'no_role_user → dashboard.read',
-    !canAccess($NoRolePerms, 'dashboard.read'), // DENY bekleniyor
+    !canAccess($NoRolePerms, 'dashboard.read'),
     'DENY',
     $TestResults,
     $AllPassed
@@ -292,7 +255,7 @@ runTest(
 
 runTest(
     'no_role_user → customers.read',
-    !canAccess($NoRolePerms, 'customers.read'), // DENY bekleniyor
+    !canAccess($NoRolePerms, 'customers.read'),
     'DENY',
     $TestResults,
     $AllPassed
@@ -300,13 +263,12 @@ runTest(
 
 runTest(
     'no_role_user → calendar.create',
-    !canAccess($NoRolePerms, 'calendar.create'), // DENY bekleniyor
+    !canAccess($NoRolePerms, 'calendar.create'),
     'DENY',
     $TestResults,
     $AllPassed
 );
 
-// === SENARYO D: Customer-Detail Tab Görünürlüğü ===
 echo "\n   ─── Senaryo D: Customer-Detail Tab Visibility ───\n";
 
 $TabPermissions = [
@@ -317,7 +279,6 @@ $TabPermissions = [
     'damgavergisi' => 'stamp_taxes.read',
 ];
 
-// Superadmin tüm tab'ları görmeli
 $SuperadminVisibleTabs = array_filter($TabPermissions, fn($p) => canAccess($SuperadminPerms, $p));
 runTest(
     'superadmin → tüm tab\'lar görünür',
@@ -327,7 +288,6 @@ runTest(
     $AllPassed
 );
 
-// Limited user sadece customers.read tab'ını görmeli
 $LimitedVisibleTabs = array_filter($TabPermissions, fn($p) => canAccess($LimitedPerms, $p));
 runTest(
     'limited_user → sadece bilgi tab\'ı görünür',
@@ -337,7 +297,6 @@ runTest(
     $AllPassed
 );
 
-// No role user hiç tab görmemeli
 $NoRoleVisibleTabs = array_filter($TabPermissions, fn($p) => canAccess($NoRolePerms, $p));
 runTest(
     'no_role_user → hiç tab görünmez',
@@ -346,10 +305,6 @@ runTest(
     $TestResults,
     $AllPassed
 );
-
-// =============================================
-// ÖZET RAPOR
-// =============================================
 
 $PassedCount = count(array_filter($TestResults, fn($r) => $r['passed']));
 $TotalCount = count($TestResults);
