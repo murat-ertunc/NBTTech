@@ -1,8 +1,8 @@
 <?php
-/**
- * Hesabım Sayfası - Server-Rendered
- * URL: /my-account
- */
+
+
+
+
 
 $pageTitle = 'Hesabım';
 $activeNav = '';

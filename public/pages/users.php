@@ -1,8 +1,8 @@
 <?php
-/**
- * Kullanıcılar Listesi Sayfası - Server-Rendered
- * URL: /users
- */
+
+
+
+
 
 $pageTitle = 'Kullanıcılar';
 $activeNav = 'sistem';

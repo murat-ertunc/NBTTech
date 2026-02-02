@@ -26,30 +26,30 @@ class UserRepository extends BaseRepository
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['Sil' => 0], $Sonuclar);
         
-        // Rolleri ekle
+        
         return $this->kullanicilaraRollerEkle($Sonuclar);
     }
     
-    /**
-     * Kullanici listesine RBAC rollerini ekler
-     * Her kullaniciya Roller dizisi ve RollerStr stringi eklenir
-     * 
-     * @param array $Kullanicilar
-     * @return array
-     */
+    
+
+
+
+
+
+
     private function kullanicilaraRollerEkle(array $Kullanicilar): array
     {
         if (empty($Kullanicilar)) {
             return $Kullanicilar;
         }
         
-        // Kullanici ID'lerini topla
+        
         $UserIds = array_column($Kullanicilar, 'Id');
         if (empty($UserIds)) {
             return $Kullanicilar;
         }
         
-        // Tum kullanicilarin rollerini tek sorguda getir
+        
         $Placeholders = implode(',', array_fill(0, count($UserIds), '?'));
         $Sql = "
             SELECT 
@@ -69,7 +69,7 @@ class UserRepository extends BaseRepository
         $Stmt->execute($UserIds);
         $TumRoller = $Stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Rolleri kullanici bazinda grupla
+        
         $RollerMap = [];
         foreach ($TumRoller as $Rol) {
             $UserId = $Rol['UserId'];
@@ -84,16 +84,16 @@ class UserRepository extends BaseRepository
             ];
         }
         
-        // Her kullaniciya rolleri ekle
+        
         foreach ($Kullanicilar as &$Kullanici) {
             $UserId = $Kullanici['Id'];
             $Roller = $RollerMap[$UserId] ?? [];
             $Kullanici['Roller'] = $Roller;
             $Kullanici['RollerStr'] = implode(', ', array_column($Roller, 'RolAdi'));
             
-            // Eski Rol alani bossa RBAC'tan al (geriye uyumluluk)
+            
             if (empty($Kullanici['Rol']) && !empty($Roller)) {
-                // En yuksek seviyeli rolu eski alana yaz
+                
                 $Kullanici['Rol'] = $Roller[0]['RolKodu'];
             }
         }
@@ -101,9 +101,9 @@ class UserRepository extends BaseRepository
         return $Kullanicilar;
     }
     
-    /**
-     * Sayfalamali kullanici listesi
-     */
+    
+
+
     public function tumKullanicilarPaginated(int $Sayfa = 1, int $Limit = 10, array $Filtreler = []): array
     {
         $Offset = ($Sayfa - 1) * $Limit;
@@ -111,19 +111,19 @@ class UserRepository extends BaseRepository
         $WhereClause = "WHERE Sil = 0";
         $Parametreler = [];
         
-        // Filtre: Ad Soyad
+        
         if (!empty($Filtreler['adsoyad'])) {
             $WhereClause .= " AND AdSoyad LIKE :AdSoyad";
             $Parametreler['AdSoyad'] = '%' . $Filtreler['adsoyad'] . '%';
         }
         
-        // Filtre: Kullanici Adi
+        
         if (!empty($Filtreler['kullaniciadi'])) {
             $WhereClause .= " AND KullaniciAdi LIKE :KullaniciAdi";
             $Parametreler['KullaniciAdi'] = '%' . $Filtreler['kullaniciadi'] . '%';
         }
         
-        // Filtre: RollerStr
+        
         if (!empty($Filtreler['roller_str'])) {
             $WhereClause .= " AND EXISTS (
                 SELECT 1 FROM tnm_user_rol ur
@@ -133,32 +133,32 @@ class UserRepository extends BaseRepository
             $Parametreler['RollerStr'] = '%' . $Filtreler['roller_str'] . '%';
         }
         
-        // Filtre: Rol
+        
         if (!empty($Filtreler['rol'])) {
             $WhereClause .= " AND Rol = :Rol";
             $Parametreler['Rol'] = $Filtreler['rol'];
         }
         
-        // Filtre: Aktif
+        
         if (isset($Filtreler['aktif']) && $Filtreler['aktif'] !== '') {
             $WhereClause .= " AND Aktif = :Aktif";
             $Parametreler['Aktif'] = (int)$Filtreler['aktif'];
         }
         
-        // Filtre: Sadece kendi olusturdugu kullanicilar (scope)
+        
         if (!empty($Filtreler['ekleyen_user_id'])) {
             $WhereClause .= " AND EkleyenUserId = :EkleyenUserId";
             $Parametreler['EkleyenUserId'] = (int)$Filtreler['ekleyen_user_id'];
         }
         
-        // Toplam kayit sayisi
+        
         $CountSql = "SELECT COUNT(*) FROM {$this->Tablo} {$WhereClause}";
         $CountStmt = $this->Db->prepare($CountSql);
         $CountStmt->execute($Parametreler);
         $ToplamKayit = (int) $CountStmt->fetchColumn();
         $ToplamSayfa = ceil($ToplamKayit / $Limit);
         
-        // Verileri cek
+        
         $Sql = "SELECT " . self::GUVENLI_KOLONLAR . " 
                 FROM {$this->Tablo} 
                 {$WhereClause}
@@ -170,7 +170,7 @@ class UserRepository extends BaseRepository
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect($Filtreler, $Sonuclar);
         
-        // Rolleri ekle
+        
         $Sonuclar = $this->kullanicilaraRollerEkle($Sonuclar);
         
         return [
@@ -186,9 +186,9 @@ class UserRepository extends BaseRepository
         ];
     }
     
-    /**
-     * Belirli kullanicinin olusturdugu kullanicilari getirir (scope)
-     */
+    
+
+
     public function kullaniciyaGoreKullanicilar(int $EkleyenUserId): array
     {
         $Sql = "SELECT " . self::GUVENLI_KOLONLAR . " FROM {$this->Tablo} WHERE Sil = 0 AND EkleyenUserId = :EkleyenUserId ORDER BY Id DESC";
@@ -197,7 +197,7 @@ class UserRepository extends BaseRepository
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect(['Sil' => 0, 'EkleyenUserId' => $EkleyenUserId], $Sonuclar);
         
-        // Rolleri ekle
+        
         return $this->kullanicilaraRollerEkle($Sonuclar);
     }
 

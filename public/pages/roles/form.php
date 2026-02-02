@@ -1,8 +1,8 @@
 <?php
-/**
- * Rol Form Sayfası - Ekle/Düzenle
- * URL: /roles/new veya /roles/{id}/edit
- */
+
+
+
+
 
 $RolId = $RolId ?? 0;
 $IsEdit = $RolId > 0;

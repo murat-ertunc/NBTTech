@@ -5,17 +5,17 @@ namespace App\Repositories;
 use App\Core\Transaction;
 use App\Services\Logger\ActionLogger;
 
-/**
- * İlçe Repository
- * tnm_ilce tablosu işlemleri
- */
+
+
+
+
 class DistrictRepository extends BaseRepository
 {
     protected string $Tablo = 'tnm_ilce';
 
-    /**
-     * Tüm aktif ilçeleri getir
-     */
+    
+
+
     public function tumAktifler(): array
     {
         $Sql = "SELECT i.Id, i.Guid, i.SehirId, i.Ad, s.Ad AS SehirAdi, s.PlakaKodu,
@@ -30,9 +30,9 @@ class DistrictRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    /**
-     * Şehre göre ilçeleri getir
-     */
+    
+
+
     public function sehireGore(int $SehirId): array
     {
         $Sql = "SELECT Id, Guid, SehirId, Ad, EklemeZamani, DegisiklikZamani
@@ -44,9 +44,9 @@ class DistrictRepository extends BaseRepository
         return $Stmt->fetchAll();
     }
 
-    /**
-     * ID ile ilçe bul
-     */
+    
+
+
     public function bul(int $Id): ?array
     {
         $Sql = "SELECT i.Id, i.Guid, i.SehirId, i.Ad, s.Ad AS SehirAdi, s.PlakaKodu,
@@ -60,9 +60,9 @@ class DistrictRepository extends BaseRepository
         return $Sonuc ?: null;
     }
 
-    /**
-     * Yeni ilçe ekle
-     */
+    
+
+
     public function ekle(array $Veri, ?int $KullaniciId = null): int
     {
         return Transaction::wrap(function () use ($Veri, $KullaniciId) {
@@ -83,9 +83,9 @@ class DistrictRepository extends BaseRepository
         });
     }
 
-    /**
-     * İlçe güncelle
-     */
+    
+
+
     public function guncelle(int $Id, array $Veri, ?int $KullaniciId = null, array $EkKosul = []): void
     {
         Transaction::wrap(function () use ($Id, $Veri, $KullaniciId) {
@@ -105,9 +105,9 @@ class DistrictRepository extends BaseRepository
         });
     }
 
-    /**
-     * Soft delete
-     */
+    
+
+
     public function softSil(int $Id, ?int $KullaniciId = null, array $EkKosul = []): void
     {
         Transaction::wrap(function () use ($Id, $KullaniciId) {
@@ -118,9 +118,9 @@ class DistrictRepository extends BaseRepository
         });
     }
 
-    /**
-     * Şehir ve ad ile ilçe ara (duplicate kontrolü için)
-     */
+    
+
+
     public function sehirVeAdIleBul(int $SehirId, string $Ad): ?array
     {
         $Sql = "SELECT Id, Ad FROM {$this->Tablo} WHERE SehirId = :SehirId AND Ad = :Ad AND Sil = 0";

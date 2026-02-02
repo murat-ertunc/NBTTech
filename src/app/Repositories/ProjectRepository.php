@@ -9,9 +9,9 @@ class ProjectRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_proje';
 
-    /**
-     * Tum aktif projeleri musteri adi ile birlikte getir
-     */
+    
+
+
     public function tumAktifler(): array
     {
         $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan 
@@ -42,9 +42,9 @@ class ProjectRepository extends BaseRepository
         return $Sonuc;
     }
 
-    /**
-     * Tum aktif projeleri sayfali olarak getiriyoruz
-     */
+    
+
+
     public function tumAktiflerPaginated(int $Sayfa = 1, int $Limit = 10): array
     {
         $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan 
@@ -57,21 +57,21 @@ class ProjectRepository extends BaseRepository
         return $Sonuc;
     }
 
-    /**
-     * Proje silme ile birlikte iliskili kayitlari da soft delete yapiyoruz
-     * kurallar.txt: Bagli kayitlar da Sil=1 yapilir
-     * Birden fazla UPDATE islemi yaptigimiz icin Transaction::wrap() kullaniyoruz
-     * 
-     * Iliskili tablolar: tbl_fatura, tbl_odeme, tbl_teklif, tbl_sozlesme, 
-     * tbl_teminat, tbl_gorusme, tbl_kisi, tbl_damgavergisi, tbl_dosya
-     */
+    
+
+
+
+
+
+
+
     public function cascadeSoftSil(int $Id, int $KullaniciId): void
     {
         Transaction::wrap(function() use ($Id, $KullaniciId) {
-            // Once projeyi soft delete yapiyoruz
+            
             $this->softSil($Id, $KullaniciId);
 
-            // Iliskili tablolari soft delete yapiyoruz (ProjeId foreign key ile bagli)
+            
             $IliskiliTablolar = [
                 'tbl_fatura',
                 'tbl_odeme', 
@@ -93,7 +93,7 @@ class ProjectRepository extends BaseRepository
                 $Stmt = $this->Db->prepare($Sql);
                 $Stmt->execute(['ProjeId' => $Id, 'UserId' => $KullaniciId]);
                 
-                // Silinen kayit sayisini logluyoruz
+                
                 $SilinenSayisi = $Stmt->rowCount();
                 if ($SilinenSayisi > 0) {
                     ActionLogger::logla('CASCADE_DELETE', $Tablo, null, [

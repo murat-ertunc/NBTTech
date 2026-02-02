@@ -6,9 +6,9 @@ class FileRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_dosya';
 
-    /**
-     * Tum aktif dosyalari musteri adi ile birlikte getir
-     */
+    
+
+
     public function tumAktifler(): array
     {
         $Sql = "SELECT f.*, 

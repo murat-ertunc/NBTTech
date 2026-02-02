@@ -5,20 +5,20 @@ namespace App\Controllers;
 use App\Core\Database;
 use App\Core\Response;
 
-/**
- * Migration ve kurulum islemlerini yoneten controller
- * 
- * TUM migration'lari sirali ve idempotent sekilde calistirir.
- * Her migration tekrar calistirildignda patlamaz.
- */
+
+
+
+
+
+
 class InstallController
 {
-    /**
-     * Tum migration'lari sirali calistir
-     */
+    
+
+
     public static function run(): void
     {
-        // Basic Auth kontrolu
+        
         $AuthUser = env('MIGRATION_BASIC_USER', 'admin');
         $AuthPass = env('MIGRATION_BASIC_PASS', 'Super123!');
         
@@ -33,7 +33,7 @@ class InstallController
         
         $SqlDir = SRC_PATH . 'sql';
         $Files = glob($SqlDir . '/*.sql') ?: [];
-        sort($Files); // Dosya adina gore sirala (001_, 002_, ...)
+        sort($Files); 
         
         $Sonuclar = [];
         $BasariliSayisi = 0;
@@ -53,7 +53,7 @@ class InstallController
                 try {
                     $Sql = file_get_contents($DosyaYolu);
                     
-                    // GO ifadelerini ayir (MSSQL batch separator)
+                    
                     $Parcalar = preg_split('/^\s*GO\s*$/mi', $Sql);
                     
                     foreach ($Parcalar as $Parca) {
@@ -94,13 +94,13 @@ class InstallController
         ]);
     }
     
-    /**
-     * Veritabani kolon bilgilerini kontrol et
-     * Debug amacli - belirli bir tablonun kolonlarini listeler
-     */
+    
+
+
+
     public static function checkColumns(): void
     {
-        // Basic Auth kontrolu
+        
         $AuthUser = env('MIGRATION_BASIC_USER', 'admin');
         $AuthPass = env('MIGRATION_BASIC_PASS', 'Super123!');
         
@@ -118,7 +118,7 @@ class InstallController
         try {
             $Db = Database::connection();
             
-            // MSSQL sys.columns ile kolon bilgilerini al
+            
             $Sql = "
                 SELECT 
                     c.name AS KolonAdi,

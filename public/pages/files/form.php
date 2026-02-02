@@ -1,8 +1,8 @@
 <?php
-/**
- * Dosya Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/files/new veya /customer/{id}/files/{fileId}/edit
- */
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $DosyaId = $DosyaId ?? 0;
@@ -12,7 +12,7 @@ $pageTitle = $IsEdit ? 'Dosya Düzenle' : 'Yeni Dosya Yükle';
 $activeNav = 'customers';
 $currentPage = 'file-form';
 
-// Form partial değişkenleri
+
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'dosyalar';
 $FormTitle = $pageTitle;

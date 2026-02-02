@@ -1,8 +1,8 @@
 <?php
-/**
- * Proje Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/projects/new veya /customer/{id}/projects/{projectId}/edit
- */
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $ProjeId = $ProjeId ?? 0;
@@ -12,7 +12,7 @@ $pageTitle = $IsEdit ? 'Proje Düzenle' : 'Yeni Proje';
 $activeNav = 'customers';
 $currentPage = 'project-form';
 
-// Form partial değişkenleri
+
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'projeler';
 $FormTitle = $pageTitle;

@@ -1,25 +1,25 @@
 <?php
-/**
- * Header Partial - Navbar ve Head içerir
- * Server-Rendered Sayfa Mimarisi
- * 
- * RBAC: Navbar menüleri server-side permission kontrolü ile render edilir.
- * Permission yoksa element DOM'a hiç eklenmez.
- * 
- * Kullanım:
- *   $pageTitle = 'Sayfa Adı';
- *   $activeNav = 'dashboard'; // dashboard, customers, islemler, sistem
- *   require __DIR__ . '/partials/header.php';
- */
 
-// Proje kökünü güvenli şekilde bul (public/pages/partials → 3 seviye yukarı = root)
+
+
+
+
+
+
+
+
+
+
+
+
+
 $projectRoot = dirname(__DIR__, 3);
 require_once $projectRoot . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
 use App\Core\Token;
 use App\Services\Authorization\AuthorizationService;
 
-// Cache önleme header'ları
+
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
 header('Pragma: no-cache');
@@ -30,13 +30,13 @@ $UygulamaAdi = config('app.name', 'NbtProject');
 $Logo = config('app.logo', '/assets/logo.png');
 $PaginationDefault = env('PAGINATION_DEFAULT', 10);
 
-// Sayfa değişkenleri (çağıran sayfa tarafından set edilebilir)
-// $pageTitle  - Sayfa başlığı (browser tab)
-// $activeNav  - Navbar'da aktif menü grubu (dashboard, customers, islemler, sistem)
-// $currentPage - Hangi modülün init edileceği (dashboard, customers, customer, invoices, payments, vb.)
+
+
+
+
 $pageTitle = $pageTitle ?? 'Ana Sayfa';
 $activeNav = $activeNav ?? 'dashboard';
-$currentPage = $currentPage ?? $activeNav; // Varsayılan: activeNav ile aynı
+$currentPage = $currentPage ?? $activeNav; 
 
 $FrontendPermissions = [
   'roller' => [],
@@ -44,7 +44,7 @@ $FrontendPermissions = [
   'moduller' => []
 ];
 
-// Kullanici yetkileri yukle
+
 $AuthUserId = null;
 try {
   $TokenStr = $_COOKIE['nbt_token'] ?? null;
@@ -63,24 +63,24 @@ try {
   ];
 }
 
-// ===== SERVER-SIDE PERMISSION HELPER FONKSIYONLARI =====
+
 $PermissionList = $FrontendPermissions['permissionlar'] ?? [];
 $PermissionSet = array_flip($PermissionList);
 
-/**
- * Tek permission kontrolü
- * @param string $permission
- * @return bool
- */
+
+
+
+
+
 $can = function(string $permission) use ($PermissionSet): bool {
   return isset($PermissionSet[$permission]);
 };
 
-/**
- * Herhangi birine sahip mi?
- * @param array $permissions
- * @return bool
- */
+
+
+
+
+
 $canAny = function(array $permissions) use ($PermissionSet): bool {
   foreach ($permissions as $p) {
     if (isset($PermissionSet[$p])) return true;
@@ -88,11 +88,11 @@ $canAny = function(array $permissions) use ($PermissionSet): bool {
   return false;
 };
 
-/**
- * Tümüne sahip mi?
- * @param array $permissions
- * @return bool
- */
+
+
+
+
+
 $canAll = function(array $permissions) use ($PermissionSet): bool {
   foreach ($permissions as $p) {
     if (!isset($PermissionSet[$p])) return false;

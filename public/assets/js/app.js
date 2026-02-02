@@ -1,14 +1,8 @@
-/**
- * NbtProject - Ana JavaScript Modulu
- * ===================================
- * Bu modul, uygulama genelinde kullanilan ortak fonksiyonlari,
- * API yardimcilarini, Toast bildirimlerini ve Fullscreen islemlerini icerir.
- * Tum sayfalarda yuklenecek sekilde tasarlanmistir.
- */
 
-// =============================================
-// GLOBAL SABITLER - Uygulama genelinde kullanilan sabit degerler
-// =============================================
+
+
+
+
 const NBT = {
     TOKEN_KEY: 'nbt_token',
     ROLE_KEY: 'nbt_role',
@@ -18,14 +12,14 @@ const NBT = {
     DEBUG: false
 };
 
-// Sunucu tarafindan saglanan ayarlar (Rewrite olmayan hosting icin)
+
 if (window.APP_CONFIG && typeof window.APP_CONFIG.API_BASE === 'string') {
     NBT.API_BASE = window.APP_CONFIG.API_BASE;
 }
 
-// =============================================
-// LOGLAMA ARACI - Hata ve debug mesajlarini yonetir
-// =============================================
+
+
+
 const NbtLogger = {
     log(...args) {
         if (NBT.DEBUG) console.log('[NBT]', ...args);
@@ -34,28 +28,26 @@ const NbtLogger = {
         if (NBT.DEBUG) console.warn('[NBT]', ...args);
     },
     error(...args) {
-        // Error'lar her zaman loglanir
+        
         console.error('[NBT]', ...args);
     }
 };
 
-// =============================================
-// UTILITY FUNCTIONS
-// =============================================
+
+
+
 const NbtUtils = {
-    /**
-     * UUID olustur - SSL gerektirmez (crypto.randomUUID alternatifi)
-     */
+    
     generateUUID() {
-        // crypto.randomUUID varsa kullan (guvenli baglam)
+        
         if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
             try {
                 return crypto.randomUUID();
             } catch (e) {
-                // Guvenli olmayan baglamda hata verebilir, fallback kullan
+                
             }
         }
-        // Fallback: Math.random tabanli UUID v4
+        
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
             const r = Math.random() * 16 | 0;
             const v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -63,9 +55,7 @@ const NbtUtils = {
         });
     },
 
-    /**
-     * Sekme ID'si al/olustur
-     */
+    
     getTabId() {
         let id = sessionStorage.getItem(NBT.TAB_KEY);
         if (!id) {
@@ -75,16 +65,12 @@ const NbtUtils = {
         return id;
     },
 
-    /**
-     * Token al
-     */
+    
     getToken() {
         return localStorage.getItem(NBT.TOKEN_KEY);
     },
 
-    /**
-     * Cookie oku
-     */
+    
     getCookie(name) {
         const value = `; ${document.cookie || ''}`;
         const parts = value.split(`; ${name}=`);
@@ -92,16 +78,12 @@ const NbtUtils = {
         return null;
     },
 
-    /**
-     * Rol al
-     */
+    
     getRole() {
         return localStorage.getItem(NBT.ROLE_KEY) || 'user';
     },
 
-    /**
-     * Kullanici bilgisi al
-     */
+    
     getUser() {
         try {
             return JSON.parse(localStorage.getItem(NBT.USER_KEY));
@@ -110,9 +92,7 @@ const NbtUtils = {
         }
     },
 
-    /**
-     * Oturum ac
-     */
+    
     setSession(token, user, permissions = null) {
         localStorage.setItem(NBT.TOKEN_KEY, token);
         if (user) {
@@ -121,15 +101,13 @@ const NbtUtils = {
                 localStorage.setItem(NBT.ROLE_KEY, user.role);
             }
         }
-        // Permission bilgilerini kaydet
+        
         if (permissions) {
             localStorage.setItem('nbt_permissions', JSON.stringify(permissions));
         }
     },
 
-    /**
-     * Oturumu kapat
-     */
+    
     clearSession() {
         localStorage.removeItem(NBT.TOKEN_KEY);
         localStorage.removeItem(NBT.ROLE_KEY);
@@ -138,9 +116,7 @@ const NbtUtils = {
         document.cookie = 'nbt_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     },
 
-    /**
-     * XSS korumasi - HTML escape
-     */
+    
     escapeHtml(text) {
         if (text == null) return '';
         const div = document.createElement('div');
@@ -148,9 +124,7 @@ const NbtUtils = {
         return div.innerHTML;
     },
 
-    /**
-     * Tarih formatlama
-     */
+    
     formatDate(dateStr, format = 'short') {
         if (!dateStr) return '-';
         const date = new Date(dateStr);
@@ -164,19 +138,15 @@ const NbtUtils = {
         });
     },
 
-    /**
-     * Para formatlama
-     */
+    
     formatMoney(amount, currency = 'TRY') {
         const num = parseFloat(amount) || 0;
-        // NbtParams cache'den sembol al, yoksa default
+        
         const symbols = NbtParams.getCurrencySymbols();
         return num.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ' + (symbols[currency] || currency);
     },
 
-    /**
-     * Debounce
-     */
+    
     debounce(fn, delay = 300) {
         let timer;
         return (...args) => {
@@ -185,11 +155,7 @@ const NbtUtils = {
         };
     },
 
-    /**
-     * Ondalik sayi formatlama - basindaki 0'i korur (0.34, 0.65 vb.)
-     * Input'lara deger yuklerken kullanilir
-     * NULL/undefined/empty -> '0.00' olarak gosterilir
-     */
+    
     formatDecimal(value, decimals = 2) {
         if (value === null || value === undefined || value === '') return (0).toFixed(decimals);
         const num = parseFloat(value);
@@ -197,9 +163,7 @@ const NbtUtils = {
         return num.toFixed(decimals);
     },
 
-    /**
-     * Turkce karakter normalizasyonu - buyuk/kucuk harf ve Turkce karakter duyarsiz arama icin
-     */
+    
     normalizeText(str) {
         return (str || '').toString()
             .toLocaleLowerCase('tr-TR')
@@ -217,9 +181,7 @@ const NbtUtils = {
             .replace(/Ç/g, 'c');
     },
 
-    /**
-     * Tarih karsilastirma icin YYYY-MM-DD formatina cevir
-     */
+    
     formatDateForCompare(dateStr) {
         if (!dateStr) return '';
         const date = new Date(dateStr);
@@ -230,120 +192,103 @@ const NbtUtils = {
         return `${year}-${month}-${day}`;
     },
 
-    /**
-     * Sayi formatlama (para birimi olmadan)
-     */
+    
     formatNumber(amount) {
         const num = parseFloat(amount) || 0;
         return num.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     },
 
-    /**
-     * Para degerini normalize et - 0, 0.00, 0,00, '' degerleri null olarak doner
-     * Diger degerler parseFloat olarak doner
-     * @param {string|number} value - Normalize edilecek para degeri
-     * @returns {number|null} - Normalize edilmis deger veya null
-     */
+    
     normalizeMoneyValue(value) {
         if (value === null || value === undefined || value === '') return null;
         
-        // String ise virgulu noktaya cevir
+        
         const strVal = String(value).replace(',', '.').trim();
         
-        // Bos veya sadece 0 mu kontrol et
+        
         if (strVal === '' || strVal === '0' || strVal === '0.00' || strVal === '0.0') {
             return null;
         }
         
         const num = parseFloat(strVal);
         
-        // NaN veya 0 ise null dondur
+        
         if (isNaN(num) || num === 0) return null;
         
         return num;
     },
 
-    /**
-     * Para input'undan deger al - 0 veya bos ise null dondurur
-     * Form validasyonlarinda ve API gonderimlerinde kullanilir
-     * @param {HTMLInputElement|string} input - Input elementi veya degeri
-     * @returns {number|null} - Normalize edilmis deger
-     */
+    
     getMoneyInputValue(input) {
         const value = typeof input === 'string' ? input : (input?.value || '');
         return this.normalizeMoneyValue(value);
     },
 
-    /**
-     * Turkce formatli decimal string'i float sayiya cevir
-     * Virgul ve noktayi handle eder (1.234,56 veya 1,234.56 formatlarini destekler)
-     * @param {string|number} value - Parse edilecek deger
-     * @returns {number} - Parse edilmis sayi (gecersizse 0)
-     */
+    
     parseDecimal(value) {
         if (value === null || value === undefined || value === '') return 0;
         
-        // Zaten sayi ise direkt dondur
+        
         if (typeof value === 'number') return isNaN(value) ? 0 : value;
         
-        // String'e cevir ve temizle
+        
         let strVal = String(value).trim();
         
-        // Bos ise 0 dondur
+        
         if (strVal === '') return 0;
         
-        // Turkce format: 1.234,56 -> 1234.56
-        // Amerikan format: 1,234.56 -> 1234.56
-        // Her iki formati da destekle
+        
+        
+        
         
         const lastComma = strVal.lastIndexOf(',');
         const lastDot = strVal.lastIndexOf('.');
         
         if (lastComma > lastDot) {
-            // Turkce format: virgul ondalik ayirici
+            
             strVal = strVal.replace(/\./g, '').replace(',', '.');
         } else if (lastDot > lastComma) {
-            // Amerikan format: nokta ondalik ayirici
+            
             strVal = strVal.replace(/,/g, '');
         } else if (lastComma === -1 && lastDot === -1) {
-            // Sadece rakam
-            // Aynen birak
+            
+            
         } else if (lastComma !== -1 && lastDot === -1) {
-            // Sadece virgul var - ondalik olarak kabul et
+            
             strVal = strVal.replace(',', '.');
         }
-        // lastDot !== -1 && lastComma === -1 durumu zaten dogru formatta
+        
         
         const num = parseFloat(strVal);
         return isNaN(num) ? 0 : num;
     }
 };
 
-// =============================================
-// GLOBAL NUMBER INPUT HANDLER
-// Sadece rakam girisine izin veren input'lar icin
-// =============================================
+
+
+
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Global number input handler - sadece 0-9 rakamlarına izin ver (event delegation)
+    
     document.addEventListener('input', function(e) {
         if (e.target && e.target.classList.contains('number__input')) {
             e.target.value = e.target.value.replace(/[^0-9]/g, '');
         }
         
-        // Price input handler - sadece rakamlar ve tek nokta, noktadan sonra max 2 basamak
+        
         if (e.target && e.target.classList.contains('price__input')) {
             let value = e.target.value;
             
-            // Sadece rakamlar ve tek nokta
+            
             value = value.replace(/[^0-9.]/g, '');
             
-            // Birden fazla nokta varsa sadece ilkini tut
+            
             const parts = value.split('.');
             if (parts.length > 2) {
                 value = parts[0] + '.' + parts.slice(1).join('');
             }
             
-            // Noktadan sonra maksimum 2 basamak
+            
             if (parts.length === 2 && parts[1].length > 2) {
                 value = parts[0] + '.' + parts[1].substring(0, 2);
             }
@@ -352,13 +297,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Price input için blur event - boşsa 0.00 yap
+    
     document.addEventListener('blur', function(e) {
         if (e.target && e.target.classList.contains('price__input')) {
             if (e.target.value === '' || e.target.value === '.') {
                 e.target.value = '0.00';
             } else {
-                // Değer varsa formatla (örn: "5" -> "5.00", "5.5" -> "5.50")
+                
                 const num = parseFloat(e.target.value);
                 if (!isNaN(num)) {
                     e.target.value = num.toFixed(2);
@@ -367,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, true);
     
-    // Price input için focus event - 0.00 ise temizle
+    
     document.addEventListener('focus', function(e) {
         if (e.target && e.target.classList.contains('price__input')) {
             if (e.target.value === '0.00') {
@@ -377,9 +322,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }, true);
 });
 
-// =============================================
-// PARAMETRE YONETICISI
-// =============================================
+
+
+
 const NbtParams = {
     _cache: {
         currencies: null,
@@ -390,9 +335,7 @@ const NbtParams = {
     
     CACHE_TTL: 5 * 60 * 1000,
 
-    /**
-     * Aktif doviz turlerini getir
-     */
+    
     async getCurrencies(forceRefresh = false) {
         if (!forceRefresh && this._cache.currencies && Date.now() - this._cache.lastFetch < this.CACHE_TTL) {
             return this._cache.currencies;
@@ -404,7 +347,7 @@ const NbtParams = {
             return this._cache.currencies;
         } catch (err) {
             NbtLogger.error('Doviz parametreleri alinamadi:', err);
-            // Fallback - varsayilan dovizler
+            
             return [
                 { Kod: 'TRY', Etiket: 'Türk Lirası', Deger: '₺', Varsayilan: true },
                 { Kod: 'USD', Etiket: 'Amerikan Doları', Deger: '$', Varsayilan: false },
@@ -413,9 +356,7 @@ const NbtParams = {
         }
     },
 
-    /**
-     * Varsayilan doviz turlerini getir
-     */
+    
     async getDefaultCurrency() {
         try {
             const response = await NbtApi.get('/api/parameters/default-currency');
@@ -426,11 +367,9 @@ const NbtParams = {
         }
     },
 
-    /**
-     * Doviz sembollerini obje olarak getir (hizli erisim icin)
-     */
+    
     getCurrencySymbols() {
-        // Senkron erisim icin cache'den al, yoksa default
+        
         if (this._cache.currencies) {
             const symbols = {};
             this._cache.currencies.forEach(c => symbols[c.Kod] = c.Deger);
@@ -439,9 +378,7 @@ const NbtParams = {
         return { TRY: '₺', USD: '$', EUR: '€', GBP: '£', TL: '₺' };
     },
 
-    /**
-     * Varsayilan doviz kodunu getir
-     */
+    
     getDefaultCurrency() {
         if (this._cache.currencies) {
             const def = this._cache.currencies.find(c => c.Varsayilan);
@@ -450,10 +387,7 @@ const NbtParams = {
         return 'TRY';
     },
 
-    /**
-     * Durum parametrelerini getir
-     * @param entity proje|teklif|sozlesme|teminat
-     */
+    
     async getStatuses(entity, forceRefresh = false) {
         const cacheKey = `durum_${entity}`;
         if (!forceRefresh && this._cache.statuses[cacheKey]) {
@@ -469,22 +403,13 @@ const NbtParams = {
         }
     },
 
-    /**
-     * Pasif olarak isaretlenmis durum kodlarini getir
-     * Bu durumlara sahip kayitlar select listelerinde gorünmez
-     * @param entity proje|teklif|sozlesme|teminat
-     * @param forceRefresh Cache'i yenileyerek guncel veri al
-     */
+    
     async getPasifDurumKodlari(entity, forceRefresh = false) {
         const statuses = await this.getStatuses(entity, forceRefresh);
         return statuses.filter(s => s.Pasif === true).map(s => String(s.Kod));
     },
 
-    /**
-     * Durum badge HTML'i olustur
-     * @param entity proje|teklif|sozlesme|teminat
-     * @param kod Durum kodu (1, 2, 3 vb.)
-     */
+    
     getStatusBadge(entity, kod) {
         const cacheKey = `durum_${entity}`;
         const statuses = this._cache.statuses[cacheKey] || [];
@@ -495,16 +420,14 @@ const NbtParams = {
         return '<span class="badge bg-secondary">Bilinmiyor</span>';
     },
 
-    /**
-     * Genel ayarlari getir
-     */
+    
     async getSettings(forceRefresh = false) {
         if (!forceRefresh && this._cache.settings && Date.now() - this._cache.lastFetch < this.CACHE_TTL) {
             return this._cache.settings;
         }
         try {
             const response = await NbtApi.get('/api/parameters/settings');
-            // Backend response root'da paginationDefault olarak gonderiyor
+            
             this._cache.settings = {
                 pagination_default: response.paginationDefault || 25,
                 default_currency: response.defaultCurrency || 'TRY',
@@ -517,9 +440,7 @@ const NbtParams = {
         }
     },
 
-    /**
-     * Sayfalama varsayilan degerini getir
-     */
+    
     getPaginationDefault() {
         if (this._cache.settings && this._cache.settings.pagination_default) {
             return parseInt(this._cache.settings.pagination_default);
@@ -527,9 +448,7 @@ const NbtParams = {
         return window.APP_CONFIG?.PAGINATION_DEFAULT || 25;
     },
 
-    /**
-     * Select element'ine doviz seceneklerini doldur
-     */
+    
     async populateCurrencySelect(selectElement, selectedValue = null) {
         if (!selectElement) return;
         const currencies = await this.getCurrencies();
@@ -546,12 +465,10 @@ const NbtParams = {
         });
     },
 
-    /**
-     * Select element'ine durum seceneklerini doldur
-     */
+    
     async populateStatusSelect(selectElement, entity, selectedValue = null) {
         if (!selectElement) return;
-        // Her zaman cache'i yenile (forceRefresh=true)
+        
         const statuses = await this.getStatuses(entity, true);
         selectElement.innerHTML = '';
         if (!statuses || statuses.length === 0) {
@@ -569,16 +486,12 @@ const NbtParams = {
         });
     },
 
-    /**
-     * Tum cache'i sifirla
-     */
+    
     clearCache() {
         this._cache = { currencies: null, statuses: {}, settings: null, lastFetch: 0 };
     },
 
-    /**
-     * Baslangicta parametreleri onyukle
-     */
+    
     async preload() {
         try {
             await Promise.all([
@@ -597,15 +510,15 @@ const NbtParams = {
     }
 };
 
-// =============================================
-// PERMISSION YARDIMCISI (RBAC)
-// =============================================
+
+
+
 const NbtPermission = {
     _cache: null,
     _permissions: [],
     _permSet: null,
     _cacheTime: 0,
-    _cacheTtl: 5 * 60 * 1000, // 5 dakika
+    _cacheTtl: 5 * 60 * 1000, 
     _observer: null,
     _setPermissions(permData) {
         this._cache = permData || null;
@@ -617,9 +530,7 @@ const NbtPermission = {
         return list;
     },
     
-    /**
-     * LocalStorage'dan permission bilgilerini al
-     */
+    
     _getFromStorage() {
         try {
             const data = localStorage.getItem('nbt_permissions');
@@ -629,18 +540,16 @@ const NbtPermission = {
         }
     },
     
-    /**
-     * Permission bilgilerini API'den yukle
-     */
+    
     async load() {
         try {
             const resp = await NbtApi.get('/api/auth/permissions');
-            // API yaniti {data: {...}} formatinda donuyor
+            
             const permData = resp.data || resp;
             if (permData && (permData.permissionlar || permData.roller)) {
                 this._setPermissions(permData);
                 localStorage.setItem('nbt_permissions', JSON.stringify(permData));
-                // Global event dispatch et - diger scriptler bunu bekleyebilir
+                
                 window.dispatchEvent(new CustomEvent('nbt:permissions:ready', { detail: permData }));
                 return permData;
             }
@@ -655,9 +564,7 @@ const NbtPermission = {
         return stored;
     },
     
-    /**
-     * Permission verilerini dondur (cached)
-     */
+    
     async getData() {
         const token = NbtUtils?.getToken ? NbtUtils.getToken() : null;
         if (token) {
@@ -672,11 +579,7 @@ const NbtPermission = {
         return null;
     },
     
-    /**
-     * Belirtilen permission'a sahip mi? (sync - cached data kullanir)
-     * @param {string} permission - Ornek: 'users.create', 'invoices.read'
-     * @returns {boolean}
-     */
+    
     can(permission) {
         if (this._permSet && this._permSet.size > 0) {
             return this._permSet.has(permission);
@@ -685,32 +588,20 @@ const NbtPermission = {
         return list.includes(permission);
     },
     
-    /**
-     * Birden fazla permission'dan herhangi birine sahip mi?
-     * @param {string[]} permissions 
-     * @returns {boolean}
-     */
+    
     canAny(permissions) {
         return permissions.some(p => this.can(p));
     },
     
-    /**
-     * Tum belirtilen permission'lara sahip mi?
-     * @param {string[]} permissions 
-     * @returns {boolean}
-     */
+    
     canAll(permissions) {
         return permissions.every(p => this.can(p));
     },
     
-    /**
-     * Permission cache hazir olana kadar bekle
-     * @param {number} timeout - Maksimum bekleme suresi (ms)
-     * @returns {Promise<boolean>}
-     */
+    
     waitForReady(timeout = 5000) {
         return new Promise((resolve) => {
-            // Zaten hazir mi?
+            
             if (this._cache || this._getFromStorage()) {
                 resolve(true);
                 return;
@@ -726,7 +617,7 @@ const NbtPermission = {
             
             window.addEventListener('nbt:permissions:ready', handler, { once: true });
             
-            // Timeout
+            
             setTimeout(() => {
                 if (!resolved) {
                     resolved = true;
@@ -737,11 +628,7 @@ const NbtPermission = {
         });
     },
     
-    /**
-     * Belirtilen moduldeki herhangi bir aksiyona yetkili mi?
-     * @param {string} modul - Ornek: 'users', 'invoices'
-     * @returns {boolean}
-     */
+    
     canAccessModule(modul) {
         const data = this._cache || this._getFromStorage();
         if (!data) return false;
@@ -749,9 +636,7 @@ const NbtPermission = {
     },
     
     
-    /**
-     * Cache'i temizle (logout veya rol degisikligi sonrasi)
-     */
+    
     clearCache() {
         this._cache = null;
         this._cacheTime = 0;
@@ -761,10 +646,7 @@ const NbtPermission = {
         localStorage.removeItem('nbt_permissions');
     },
     
-    /**
-     * HTML elementi permission'a gore gizle/goster
-     * data-can="users.create" attribute'u ile kullanilir
-     */
+    
     applyToElements(root = document) {
         const elements = [];
 
@@ -834,7 +716,7 @@ const NbtPermission = {
         if (!NbtUtils?.getToken) return;
         const token = NbtUtils.getToken();
         if (!token) return;
-        // Cookie 7 gün geçerli olsun (token TTL ile uyumlu)
+        
         const ExpireDate = new Date();
         ExpireDate.setDate(ExpireDate.getDate() + 7);
         document.cookie = `nbt_token=${encodeURIComponent(token)}; path=/; expires=${ExpireDate.toUTCString()}; samesite=lax`;
@@ -845,13 +727,11 @@ const NbtPermission = {
     }
 };
 
-// =============================================
-// API ISTEK YARDIMCISI
-// =============================================
+
+
+
 const NbtApi = {
-    /**
-     * API istegi yap
-     */
+    
     async request(path, options = {}) {
         const headers = options.headers || {};
         
@@ -900,7 +780,7 @@ const NbtApi = {
                 if (data?.error?.fields) {
                     err.fields = data.error.fields;
                 }
-                // API'den gelen errors objesini error'a ekle
+                
                 if (data?.errors) {
                     err.response = { errors: data.errors, message: data.message || err.message };
                 }
@@ -911,7 +791,7 @@ const NbtApi = {
                 const errMsg = typeof data.error === 'object' ? (data.error?.message || JSON.stringify(data.error)) : (data.error || 'Sunucu hatasi');
                 throw new Error(errMsg);
             }
-            // Diger durum kodlari icin genel hata
+            
             const fallbackMsg = typeof data.error === 'object' ? (data.error?.message || JSON.stringify(data.error)) : (data.error || 'Bir hata olustu');
             throw new Error(fallbackMsg);
         }
@@ -922,27 +802,21 @@ const NbtApi = {
     get: (path) => NbtApi.request(path),
     post: (path, data) => NbtApi.request(path, { method: 'POST', body: JSON.stringify(data) }),
     
-    /**
-     * UPDATE islemi - POST /resource/{id}/update kullanir
-     * IIS'te PUT metodu izin gerektirdigi icin POST tercih edilir
-     */
+    
     put: (path, data) => {
         const updatePath = path.endsWith('/update') ? path : `${path}/update`;
         return NbtApi.request(updatePath, { method: 'POST', body: JSON.stringify(data) });
     },
     
-    /**
-     * DELETE islemi - POST /resource/{id}/delete kullanir
-     * IIS'te DELETE metodu izin gerektirdigi icin POST tercih edilir
-     */
+    
     delete: (path) => {
         const deletePath = path.endsWith('/delete') ? path : `${path}/delete`;
         return NbtApi.request(deletePath, { method: 'POST' });
     },
     
-    // FormData ile dosya yukleme - update icin /update path'i kullanir
+    
     postFormData: async (path, formData, method = 'POST') => {
-        // Eger update islemi ise path'i guncelle
+        
         let finalPath = path;
         if (method === 'PUT') {
             finalPath = path.endsWith('/update') ? path : `${path}/update`;
@@ -950,14 +824,14 @@ const NbtApi = {
         return NbtApi.request(finalPath, { 
             method: 'POST', 
             body: formData 
-            // Content-Type otomatik olarak boundary ile set edilir, manuel set etme
+            
         });
     }
 };
 
-// =============================================
-// TOAST BILDIRIMLERI (Bootstrap Toast)
-// =============================================
+
+
+
 const NbtToast = {
     container: null,
 
@@ -1021,9 +895,9 @@ const NbtToast = {
     info: (msg, dur) => NbtToast.show(msg, 'info', dur)
 };
 
-// =============================================
-// FULLSCREEN TOGGLE (Bootstrap classes)
-// =============================================
+
+
+
 const NbtFullscreen = {
     activeElement: null,
 
@@ -1070,9 +944,9 @@ const NbtFullscreen = {
     }
 };
 
-// =============================================
-// LIST TOOLBAR KOMPONENTI (Bootstrap)
-// =============================================
+
+
+
 const NbtListToolbar = {
     create(options = {}) {
         const searchHtml = options.onSearch !== false ? `
@@ -1696,7 +1570,7 @@ const NbtDetailModal = {
                 pageBtn.classList.remove('d-none');
                 pageBtn.onclick = () => {
                     NbtModal.close('entityDetailModal');
-                    // Server-rendered navigation: gercek sayfa yuklemesi
+                    
                     window.location.href = `/customer/${this._currentId}`;
                 };
             } else {
@@ -1719,9 +1593,7 @@ const NbtDetailModal = {
         NbtModal.open('entityDetailModal');
     },
 
-    /**
-     * Entity tipine gore icerik olustur
-     */
+    
     _buildContent(entityType, data) {
         const formatters = {
             date: (v) => NbtUtils.formatDate(v),
@@ -1892,7 +1764,7 @@ const NbtDetailModal = {
         });
         html += '</div>';
         
-        // Fatura kalemleri tablosu (invoice icin)
+        
         if (entityType === 'invoice' && data.Kalemler && Array.isArray(data.Kalemler) && data.Kalemler.length > 0) {
             html += `
                 <div class="mt-3">
@@ -1961,7 +1833,7 @@ const NbtDetailModal = {
                 </div>
             `;
             
-            // Dosya indirme event'lerini bind et
+            
             setTimeout(() => {
                 document.querySelectorAll('.btn-download-file').forEach(btn => {
                     btn.onclick = async () => {
@@ -2007,52 +1879,45 @@ const NbtDetailModal = {
     }
 };
 
-// =============================================
-// NAVIGATION HELPER - Server-Rendered Sayfa Mimarisi
-// =============================================
-// Sayfa baslatma ve navigasyon yardimcilari.
-// Tum navigasyonlar gercek sayfa yuklemesi yapar (SPA degil).
+
+
+
+
+
 
 const NbtRouter = {
     routes: {},
     defaultRoute: 'dashboard',
 
-    /**
-     * Sayfa modulu kaydet - Sayfa yuklendiginde init icin kullanilir
-     */
+    
     register(path, handler) {
         this.routes[path] = handler;
     },
 
-    /**
-     * Sayfaya git - Server-Rendered Navigation
-     * NOT: Artik pushState kullanilmiyor, gercek sayfa yuklemesi yapilir.
-     */
+    
     navigate(path, params = {}) {
-        // /customer/9 gibi full path'leri parse et
+        
         let targetUrl = path;
         
         if (!path.startsWith('/')) {
             targetUrl = '/' + path;
         }
         
-        // customer/123 formatini handle et
+        
         if (path.includes('customer') && params.id) {
             targetUrl = `/customer/${params.id}`;
         } else if (params.id) {
             targetUrl = `/${path}/${params.id}`;
         }
         
-        // Tab parametresi KALDIRILDI - tab state artik URL'de degil
-        // (params.tab artik URL'ye eklenmez)
         
-        // Gercek sayfa yuklemesi yapilmasi (SPA degil)
+        
+        
+        
         window.location.href = targetUrl;
     },
 
-    /**
-     * Sayfa baslatma - CURRENT_PAGE'e gore ilgili modulu init eder
-     */
+    
     init() {
         const currentPage = window.APP_CONFIG?.CURRENT_PAGE || 'dashboard';
         
@@ -2062,9 +1927,7 @@ const NbtRouter = {
         }
     },
 
-    /**
-     * URL parametrelerini al
-     */
+    
     _getUrlParams() {
         const params = {};
         const searchParams = new URLSearchParams(window.location.search);
@@ -2072,7 +1935,7 @@ const NbtRouter = {
             params[key] = value;
         });
         
-        // /customer/{id} formatindan ID al
+        
         const pathParts = window.location.pathname.split('/').filter(Boolean);
         if (pathParts[0] === 'customer' && pathParts[1]) {
             params.id = pathParts[1];
@@ -2082,17 +1945,17 @@ const NbtRouter = {
     }
 };
 
-// =============================================
-// TAKVIM KOMPONENTI (Profesyonel Haftalik/Aylik)
-// =============================================
+
+
+
 const NbtCalendar = {
     currentDate: new Date(),
-    viewMode: 'month', // 'month' veya 'week'
+    viewMode: 'month', 
     events: [],
     onEventClick: null,
     onDayClick: null,
     container: null,
-    _eventsBound: false, // Event listener'in zaten bagli olup olmadigini takip et
+    _eventsBound: false, 
 
     render(container, options = {}) {
         this.container = container;
@@ -2149,10 +2012,10 @@ const NbtCalendar = {
         html += '</div>';
         container.innerHTML = html;
         
-        // Tooltip'leri initialize et
+        
         this._initTooltips(container);
         
-        // Event listener'i sadece bir kez bagla
+        
         if (!this._eventsBound) {
             this._bindEvents(container);
             this._eventsBound = true;
@@ -2170,7 +2033,7 @@ const NbtCalendar = {
             html += `<div class="text-center small text-muted py-1 border-bottom fw-semibold">${d}</div>`;
         });
 
-        // Onceki ayin gunleri
+        
         const prevMonthDays = new Date(year, month, 0).getDate();
         for (let i = startDay - 2; i >= 0; i--) {
             html += `<div class="text-center text-muted p-1 border-bottom border-end opacity-50" style="min-height:60px;"><small>${prevMonthDays - i}</small></div>`;
@@ -2179,10 +2042,10 @@ const NbtCalendar = {
         for (let day = 1; day <= lastDay.getDate(); day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
-            // Tarih karsilastirmasini normalize et (T ve saat bilgisini kaldir)
+            
             const dayEvents = this.events.filter(e => {
                 if (!e.date) return false;
-                const eventDate = e.date.split('T')[0].split(' ')[0]; // "2026-01-19T00:00:00" veya "2026-01-19 00:00:00" -> "2026-01-19"
+                const eventDate = e.date.split('T')[0].split(' ')[0]; 
                 return eventDate === dateStr && !e.completed;
             });
             
@@ -2196,9 +2059,9 @@ const NbtCalendar = {
             
             dayEvents.slice(0, 2).forEach(event => {
                 const typeColor = this._getEventColor(event.type);
-                // Takvimde musteri kodu goster, title detay modalda gosterilecek
+                
                 const displayText = event.customerCode || event.customer || event.title;
-                // Tooltip icerigi olustur
+                
                 const tooltipContent = this._buildTooltipContent(event);
                 html += `<div class="text-truncate small px-1 mb-1 rounded ${typeColor} calendar-event-tooltip" style="font-size:10px;cursor:pointer;" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="top" title="${NbtUtils.escapeHtml(tooltipContent)}" data-event-id="${event.id}">${NbtUtils.escapeHtml(displayText)}</div>`;
             });
@@ -2265,7 +2128,7 @@ const NbtCalendar = {
     },
 
     _buildTooltipContent(event) {
-        // Tooltip icin zengin icerik olustur
+        
         const typeLabels = {
             'fatura': 'Fatura',
             'odeme': 'Ödeme',
@@ -2279,27 +2142,27 @@ const NbtCalendar = {
         
         let content = '';
         
-        // Tur bilgisi
+        
         const typeLabel = typeLabels[event.type] || 'Etkinlik';
         content += `<strong>${typeLabel}</strong><br>`;
         
-        // Baslik
+        
         if (event.title) {
             content += `${event.title}<br>`;
         }
         
-        // Musteri
+        
         if (event.customer) {
             content += `<small>Müşteri: ${event.customer}</small><br>`;
         }
         
-        // Tutar
+        
         if (event.amount) {
             const currency = event.currency || 'TRY';
             content += `<small>Tutar: ${NbtUtils.formatMoney(event.amount, currency)}</small><br>`;
         }
         
-        // Aciklama
+        
         if (event.description) {
             content += `<small>${event.description}</small>`;
         }
@@ -2308,16 +2171,16 @@ const NbtCalendar = {
     },
 
     _initTooltips(container) {
-        // Bootstrap tooltip'leri initialize et
+        
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             const tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
             tooltipElements.forEach(el => {
-                // Mevcut tooltip varsa dispose et
+                
                 const existingTooltip = bootstrap.Tooltip.getInstance(el);
                 if (existingTooltip) {
                     existingTooltip.dispose();
                 }
-                // Yeni tooltip olustur
+                
                 new bootstrap.Tooltip(el, {
                     container: 'body',
                     trigger: 'hover'
@@ -2363,22 +2226,22 @@ const NbtCalendar = {
                 if (this.viewMode === 'week') {
                     this.currentDate.setDate(this.currentDate.getDate() - 7);
                 } else {
-                    // Ay navigasyonunda gun sifirla - ay sonlarinda atlama sorununu onle
+                    
                     const newDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
                     this.currentDate = newDate;
                 }
-                // Yeni ayin verilerini yukle
+                
                 await this.loadEvents(null, this.currentDate.getMonth() + 1, this.currentDate.getFullYear());
                 this.render(container, { events: this.events });
             } else if (nextBtn) {
                 if (this.viewMode === 'week') {
                     this.currentDate.setDate(this.currentDate.getDate() + 7);
                 } else {
-                    // Ay navigasyonunda gun sifirla - ay sonlarinda atlama sorununu onle
+                    
                     const newDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
                     this.currentDate = newDate;
                 }
-                // Yeni ayin verilerini yukle
+                
                 await this.loadEvents(null, this.currentDate.getMonth() + 1, this.currentDate.getFullYear());
                 this.render(container, { events: this.events });
             } else if (todayBtn) {
@@ -2433,7 +2296,7 @@ const NbtCalendar = {
     },
 
     async refresh() {
-        // Mevcut tarih ve container varsa takvimi yeniden yukle ve render et
+        
         if (this.container && document.contains(this.container)) {
             const month = this.currentDate.getMonth() + 1;
             const year = this.currentDate.getFullYear();
@@ -2442,10 +2305,7 @@ const NbtCalendar = {
         }
     },
     
-    /**
-     * Belirli bir tarih icin takvimi yenile
-     * @param {Date} targetDate - Hedef tarih
-     */
+    
     async refreshForDate(targetDate) {
         if (targetDate) {
             this.currentDate = new Date(targetDate);
@@ -2454,16 +2314,16 @@ const NbtCalendar = {
     }
 };
 
-// =============================================
-// GLOBAL INIT
-// =============================================
+
+
+
 document.addEventListener('DOMContentLoaded', () => {
-    // URL'den flash error message kontrolü
+    
     const urlParams = new URLSearchParams(window.location.search);
     const flashError = urlParams.get('_error');
     if (flashError) {
         NbtToast.error(decodeURIComponent(flashError), 5000);
-        // URL'den parametre temizle (history'yi bozmadan)
+        
         urlParams.delete('_error');
         const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
         window.history.replaceState({}, '', newUrl);
@@ -2508,7 +2368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         footerUser.textContent = 'Kullanıcı: ' + user.name;
     }
 
-    // Global fullscreen button handler
+    
     document.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-panel-fullscreen]');
         if (!btn) return;
@@ -2524,20 +2384,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Ondalik sayi formatini koru (0.34 → .34 sorununu onle)
-    // Number input'larda blur oldugunda basindaki 0'i koru
+    
+    
     document.addEventListener('blur', (e) => {
         if (e.target.type === 'number' && e.target.step && parseFloat(e.target.step) < 1) {
             const val = parseFloat(e.target.value);
             if (!isNaN(val) && val > 0 && val < 1) {
-                // Deger 0 ile 1 arasindaysa, formatla (0.34 gibi goster)
+                
                 e.target.value = val.toFixed(2);
             }
         }
     }, true);
 });
 
-// Export for global access
+
 window.NBT = NBT;
 window.NbtUtils = NbtUtils;
 window.NbtApi = NbtApi;

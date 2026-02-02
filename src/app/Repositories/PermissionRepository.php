@@ -5,23 +5,23 @@ namespace App\Repositories;
 use App\Core\Transaction;
 use App\Services\Authorization\AuthorizationService;
 
-/**
- * Permission Repository
- * 
- * Permission tanimlarinin CRUD islemleri.
- * Genelde sadece okuma yapilir, permission tanimlari seed ile olusturulur.
- * 
- * @package App\Repositories
- */
+
+
+
+
+
+
+
+
 class PermissionRepository extends BaseRepository
 {
     protected string $Tablo = 'tnm_permission';
     
-    /**
-     * Tum aktif permissionlari getirir
-     * 
-     * @return array
-     */
+    
+
+
+
+
     public function tumPermissionlar(): array
     {
         $Sql = "
@@ -48,11 +48,11 @@ class PermissionRepository extends BaseRepository
         return $Sonuc;
     }
     
-    /**
-     * Modul bazinda gruplu permission listesi
-     * 
-     * @return array ['users' => [...], 'invoices' => [...]]
-     */
+    
+
+
+
+
     public function modulBazindaGetir(): array
     {
         $Permissionlar = $this->tumPermissionlar();
@@ -69,12 +69,12 @@ class PermissionRepository extends BaseRepository
         return $Gruplanmis;
     }
     
-    /**
-     * Permission kodu ile bul
-     * 
-     * @param string $PermissionKodu
-     * @return array|null
-     */
+    
+
+
+
+
+
     public function koduIleBul(string $PermissionKodu): ?array
     {
         $Sql = "SELECT * FROM tnm_permission WHERE PermissionKodu = :Kod AND Sil = 0";
@@ -83,12 +83,12 @@ class PermissionRepository extends BaseRepository
         return $Stmt->fetch() ?: null;
     }
     
-    /**
-     * Belirtilen moduldeki permissionlari getirir
-     * 
-     * @param string $ModulAdi
-     * @return array
-     */
+    
+
+
+
+
+
     public function moduldekiPermissionlar(string $ModulAdi): array
     {
         $Sql = "
@@ -103,20 +103,20 @@ class PermissionRepository extends BaseRepository
         return $Stmt->fetchAll();
     }
     
-    /**
-     * Permission ekler (genelde seed ile yapilir)
-     * 
-     * @param array $Veri
-     * @param int|null $KullaniciId
-     * @return int
-     */
+    
+
+
+
+
+
+
     public function permissionEkle(array $Veri, ?int $KullaniciId = null): int
     {
         if (empty($Veri['PermissionKodu']) || empty($Veri['ModulAdi']) || empty($Veri['Aksiyon'])) {
             throw new \InvalidArgumentException('PermissionKodu, ModulAdi ve Aksiyon zorunludur.');
         }
         
-        // Ayni kod var mi kontrol
+        
         $Mevcut = $this->koduIleBul($Veri['PermissionKodu']);
         if ($Mevcut) {
             throw new \InvalidArgumentException('Bu permission kodu zaten kullaniliyor.');
@@ -130,7 +130,7 @@ class PermissionRepository extends BaseRepository
             'Aktif'          => 1
         ], $KullaniciId);
         
-        // Superadmin rolune otomatik ata
+        
         $SuperadminRol = $this->Db->query("SELECT Id FROM tnm_rol WHERE RolKodu = 'superadmin' AND Sil = 0")
             ->fetch(\PDO::FETCH_ASSOC);
         if ($SuperadminRol && isset($SuperadminRol['Id'])) {
@@ -156,20 +156,20 @@ class PermissionRepository extends BaseRepository
             }
         }
         
-        // Cache temizle
+        
         AuthorizationService::getInstance()->tumCacheTemizle();
         
         return $EklenenId;
     }
     
-    /**
-     * Permission gunceller
-     * 
-     * @param int $Id
-     * @param array $Veri
-     * @param int|null $KullaniciId
-     * @return void
-     */
+    
+
+
+
+
+
+
+
     public function permissionGuncelle(int $Id, array $Veri, ?int $KullaniciId = null): void
     {
         $GuncellenecekAlanlar = [];
@@ -185,15 +185,15 @@ class PermissionRepository extends BaseRepository
             $this->guncelle($Id, $GuncellenecekAlanlar, $KullaniciId);
         }
         
-        // Cache temizle
+        
         AuthorizationService::getInstance()->tumCacheTemizle();
     }
     
-    /**
-     * Modul listesi
-     * 
-     * @return array ['users', 'invoices', ...]
-     */
+    
+
+
+
+
     public function modulListesi(): array
     {
         $Sql = "
@@ -207,12 +207,12 @@ class PermissionRepository extends BaseRepository
         return $Stmt->fetchAll(\PDO::FETCH_COLUMN);
     }
     
-    /**
-     * Permission ID listesinden kodlari getirir
-     * 
-     * @param array $PermissionIdler
-     * @return array [1 => 'users.create', 2 => 'users.read', ...]
-     */
+    
+
+
+
+
+
     public function idlerdenKodlariGetir(array $PermissionIdler): array
     {
         if (empty($PermissionIdler)) {
@@ -234,12 +234,12 @@ class PermissionRepository extends BaseRepository
         return $Map;
     }
     
-    /**
-     * Permission kodlarindan ID'leri getirir
-     * 
-     * @param array $PermissionKodlari
-     * @return array ['users.create' => 1, 'users.read' => 2, ...]
-     */
+    
+
+
+
+
+
     public function kodlardanIdleriGetir(array $PermissionKodlari): array
     {
         if (empty($PermissionKodlari)) {

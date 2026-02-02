@@ -2,44 +2,44 @@
 
 namespace App\Core;
 
-/**
- * Redis Baglanti ve Cache Yoneticisi
- * 
- * Singleton pattern ile tek bir Redis baglantisi yonetir.
- * Permission cache, session cache gibi islemler icin kullanilir.
- * 
- * @package App\Core
- */
+
+
+
+
+
+
+
+
 class Redis
 {
-    /** @var \Redis|null Singleton instance */
+    
     private static ?Redis $Instance = null;
     
-    /** @var \Redis Redis baglantisi */
+    
     private \Redis $Baglanti;
     
-    /** @var bool Baglanti durumu */
+    
     private bool $Bagli = false;
     
-    /** @var string Cache prefix */
+    
     private const CACHE_PREFIX = 'nbt:';
     
-    /** @var int Varsayilan TTL (1 saat) */
+    
     private const VARSAYILAN_TTL = 3600;
     
-    /**
-     * Private constructor - Singleton pattern
-     */
+    
+
+
     private function __construct()
     {
         $this->baglan();
     }
     
-    /**
-     * Singleton instance dondurur
-     * 
-     * @return self
-     */
+    
+
+
+
+
     public static function getInstance(): self
     {
         if (self::$Instance === null) {
@@ -48,11 +48,11 @@ class Redis
         return self::$Instance;
     }
     
-    /**
-     * Redis'e baglanir
-     * 
-     * @return bool Baglanti basarili mi
-     */
+    
+
+
+
+
     private function baglan(): bool
     {
         if ($this->Bagli) {
@@ -72,15 +72,15 @@ class Redis
             $this->Bagli = $this->Baglanti->connect(
                 $Config['host'],
                 $Config['port'],
-                2.0 // timeout
+                2.0 
             );
             
-            // Auth varsa
+            
             if (!empty($Config['password'])) {
                 $this->Baglanti->auth($Config['password']);
             }
             
-            // Database secimi
+            
             if (isset($Config['database'])) {
                 $this->Baglanti->select($Config['database']);
             }
@@ -94,11 +94,11 @@ class Redis
         }
     }
     
-    /**
-     * Baglanti durumunu kontrol eder
-     * 
-     * @return bool
-     */
+    
+
+
+
+
     public function bagliMi(): bool
     {
         if (!$this->Bagli) {
@@ -112,24 +112,24 @@ class Redis
         }
     }
     
-    /**
-     * Cache key olusturur (prefix ekler)
-     * 
-     * @param string $Anahtar
-     * @return string
-     */
+    
+
+
+
+
+
     private function anahtarOlustur(string $Anahtar): string
     {
         return self::CACHE_PREFIX . $Anahtar;
     }
     
-    /**
-     * Deger alir
-     * 
-     * @param string $Anahtar
-     * @param mixed $VarsayilanDeger
-     * @return mixed
-     */
+    
+
+
+
+
+
+
     public function al(string $Anahtar, $VarsayilanDeger = null)
     {
         if (!$this->bagliMi()) {
@@ -143,7 +143,7 @@ class Redis
                 return $VarsayilanDeger;
             }
             
-            // JSON decode dene
+            
             $Decoded = json_decode($Deger, true);
             return $Decoded !== null ? $Decoded : $Deger;
             
@@ -153,14 +153,14 @@ class Redis
         }
     }
     
-    /**
-     * Deger kaydeder
-     * 
-     * @param string $Anahtar
-     * @param mixed $Deger
-     * @param int $Ttl Saniye cinsinden sure (0 = suresiz)
-     * @return bool
-     */
+    
+
+
+
+
+
+
+
     public function kaydet(string $Anahtar, $Deger, int $Ttl = self::VARSAYILAN_TTL): bool
     {
         if (!$this->bagliMi()) {
@@ -170,7 +170,7 @@ class Redis
         try {
             $CacheAnahtar = $this->anahtarOlustur($Anahtar);
             
-            // Array veya object ise JSON'a cevir
+            
             if (is_array($Deger) || is_object($Deger)) {
                 $Deger = json_encode($Deger, JSON_UNESCAPED_UNICODE);
             }
@@ -187,12 +187,12 @@ class Redis
         }
     }
     
-    /**
-     * Anahtar siler
-     * 
-     * @param string $Anahtar
-     * @return bool
-     */
+    
+
+
+
+
+
     public function sil(string $Anahtar): bool
     {
         if (!$this->bagliMi()) {
@@ -207,12 +207,12 @@ class Redis
         }
     }
     
-    /**
-     * Pattern ile anahtarlari siler
-     * 
-     * @param string $Pattern Ornek: "user:*:permissions"
-     * @return int Silinen anahtar sayisi
-     */
+    
+
+
+
+
+
     public function patternIleSil(string $Pattern): int
     {
         if (!$this->bagliMi()) {
@@ -235,12 +235,12 @@ class Redis
         }
     }
     
-    /**
-     * Anahtar var mi kontrol eder
-     * 
-     * @param string $Anahtar
-     * @return bool
-     */
+    
+
+
+
+
+
     public function varMi(string $Anahtar): bool
     {
         if (!$this->bagliMi()) {
@@ -254,12 +254,12 @@ class Redis
         }
     }
     
-    /**
-     * Kalan TTL'i dondurur
-     * 
-     * @param string $Anahtar
-     * @return int -2: anahtar yok, -1: suresiz, >=0: kalan saniye
-     */
+    
+
+
+
+
+
     public function kalanSure(string $Anahtar): int
     {
         if (!$this->bagliMi()) {
@@ -273,14 +273,14 @@ class Redis
         }
     }
     
-    /**
-     * Hash set (birden fazla alan icin)
-     * 
-     * @param string $Anahtar
-     * @param array $Degerler ['alan1' => 'deger1', 'alan2' => 'deger2']
-     * @param int $Ttl
-     * @return bool
-     */
+    
+
+
+
+
+
+
+
     public function hashKaydet(string $Anahtar, array $Degerler, int $Ttl = self::VARSAYILAN_TTL): bool
     {
         if (!$this->bagliMi()) {
@@ -310,12 +310,12 @@ class Redis
         }
     }
     
-    /**
-     * Hash get (tum alanlari alir)
-     * 
-     * @param string $Anahtar
-     * @return array
-     */
+    
+
+
+
+
+
     public function hashAl(string $Anahtar): array
     {
         if (!$this->bagliMi()) {
@@ -329,7 +329,7 @@ class Redis
                 return [];
             }
             
-            // JSON decode dene
+            
             foreach ($Degerler as $Alan => $Deger) {
                 $Decoded = json_decode($Deger, true);
                 if ($Decoded !== null) {
@@ -345,13 +345,13 @@ class Redis
         }
     }
     
-    /**
-     * Set'e eleman ekler
-     * 
-     * @param string $Anahtar
-     * @param mixed ...$Uyeler
-     * @return int Eklenen eleman sayisi
-     */
+    
+
+
+
+
+
+
     public function setEkle(string $Anahtar, ...$Uyeler): int
     {
         if (!$this->bagliMi()) {
@@ -366,12 +366,12 @@ class Redis
         }
     }
     
-    /**
-     * Set'teki tum elemanlari alir
-     * 
-     * @param string $Anahtar
-     * @return array
-     */
+    
+
+
+
+
+
     public function setAl(string $Anahtar): array
     {
         if (!$this->bagliMi()) {
@@ -387,13 +387,13 @@ class Redis
         }
     }
     
-    /**
-     * Set'te eleman var mi kontrol eder
-     * 
-     * @param string $Anahtar
-     * @param string $Uye
-     * @return bool
-     */
+    
+
+
+
+
+
+
     public function setIcindeMi(string $Anahtar, string $Uye): bool
     {
         if (!$this->bagliMi()) {
@@ -407,13 +407,13 @@ class Redis
         }
     }
     
-    /**
-     * Increment (sayac artirma)
-     * 
-     * @param string $Anahtar
-     * @param int $Miktar
-     * @return int Yeni deger
-     */
+    
+
+
+
+
+
+
     public function artir(string $Anahtar, int $Miktar = 1): int
     {
         if (!$this->bagliMi()) {
@@ -427,11 +427,11 @@ class Redis
         }
     }
     
-    /**
-     * Tum cache'i temizler (dikkatli kullan!)
-     * 
-     * @return bool
-     */
+    
+
+
+
+
     public function temizle(): bool
     {
         if (!$this->bagliMi()) {
@@ -439,44 +439,44 @@ class Redis
         }
         
         try {
-            // Sadece bu uygulamanin prefix'i ile baslayan anahtarlari sil
+            
             return $this->patternIleSil('*') >= 0;
         } catch (\Exception $E) {
             return false;
         }
     }
     
-    /**
-     * Baglantıyı kapatir
-     */
+    
+
+
     public function kapat(): void
     {
         if ($this->Bagli) {
             try {
                 $this->Baglanti->close();
             } catch (\Exception $E) {
-                // Ignore
+                
             }
             $this->Bagli = false;
         }
     }
     
-    /**
-     * Destructor
-     */
+    
+
+
     public function __destruct()
     {
         $this->kapat();
     }
     
-    /**
-     * Clone engelleme (Singleton)
-     */
+    
+
+
     private function __clone() {}
     
-    /**
-     * Wakeup engelleme (Singleton)
-     */
+    
+
+
     public function __wakeup()
     {
         throw new \Exception("Singleton siniflari unserialize edilemez.");

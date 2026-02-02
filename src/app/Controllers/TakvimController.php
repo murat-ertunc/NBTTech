@@ -7,11 +7,11 @@ use App\Core\Response;
 use App\Repositories\CalendarRepository;
 use App\Services\CalendarService;
 
-/**
- * TakvimController
- * 
- * Musteri detay sayfasindaki takvim kayitlari icin endpoint'ler
- */
+
+
+
+
+
 class TakvimController
 {
     public static function index(): void
@@ -41,9 +41,9 @@ class TakvimController
         }
     }
 
-    /**
-     * Tek Takvim Kaydi Detayi Getir
-     */
+    
+
+
     public static function show(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
@@ -80,7 +80,7 @@ class TakvimController
             }
         }
 
-        // Ozet 255 karakteri gecemez
+        
         if (strlen($Girdi['Ozet']) > 255) {
             Response::error('Ozet 255 karakteri gecemez.', 422);
             return;

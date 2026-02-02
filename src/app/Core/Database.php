@@ -24,9 +24,9 @@ class Database
         return self::$instance;
     }
 
-    /**
-     * PDO connection'ı döndürür
-     */
+    
+
+
     public function getConnection(): PDO
     {
         return $this->pdo;
@@ -64,9 +64,9 @@ class Database
         }
     }
 
-    /**
-     * SQL sorgusu çalıştır ve sonucu döndür
-     */
+    
+
+
     public function execute(string $sql, array $params = []): bool
     {
         try {
@@ -78,9 +78,9 @@ class Database
         }
     }
 
-    /**
-     * Tek satır getir
-     */
+    
+
+
     public function fetchOne(string $sql, array $params = []): ?array
     {
         try {
@@ -94,9 +94,9 @@ class Database
         }
     }
 
-    /**
-     * Tüm satırları getir
-     */
+    
+
+
     public function fetchAll(string $sql, array $params = []): array
     {
         try {
@@ -109,9 +109,9 @@ class Database
         }
     }
 
-    /**
-     * Son eklenen ID'yi al
-     */
+    
+
+
     public function lastInsertId(): ?int
     {
         $result = $this->fetchOne("SELECT SCOPE_IDENTITY() as id");

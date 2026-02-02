@@ -1,11 +1,11 @@
 <?php
-/**
- * Fatura Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/invoices/new veya /customer/{id}/invoices/{invoiceId}/edit
- * 
- * Bu sayfa, invoice.php modal içeriğinin sayfa versiyonudur.
- * Aynı alanlar, aynı ID'ler, aynı mantık kullanılmaktadır.
- */
+
+
+
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $FaturaId = $FaturaId ?? 0;
@@ -15,7 +15,7 @@ $pageTitle = $IsEdit ? 'Fatura Düzenle' : 'Yeni Fatura';
 $activeNav = 'customers';
 $currentPage = 'invoice-form';
 
-// Form partial değişkenleri
+
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'faturalar';
 $FormTitle = $pageTitle;

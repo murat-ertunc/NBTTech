@@ -1,8 +1,8 @@
 <?php
-/**
- * RBAC Analiz Script
- * Rolleri, kullanicilari ve permission'lari analiz eder
- */
+
+
+
+
 
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
@@ -15,7 +15,7 @@ try {
     echo "║                    RBAC SISTEM ANALIZI                        ║\n";
     echo "╚════════════════════════════════════════════════════════════════╝\n\n";
     
-    // 1. ROLLER
+    
     echo "━━━ 1. ROLLER ━━━\n";
     $Roller = $Db->query("
         SELECT Id, RolAdi, RolKodu, Seviye, SistemRolu, Aktif 
@@ -31,7 +31,7 @@ try {
             $AktifStr, $Rol['Id'], $Rol['RolAdi'], $Rol['RolKodu'], $Rol['Seviye'], $SistemStr);
     }
     
-    // 2. KULLANICILAR
+    
     echo "\n━━━ 2. KULLANICILAR ━━━\n";
     $Kullanicilar = $Db->query("
         SELECT Id, KullaniciAdi, AdSoyad, Rol, Aktif 
@@ -45,7 +45,7 @@ try {
             $AktifStr, $K['Id'], $K['AdSoyad'], $K['KullaniciAdi'], $K['Rol']);
     }
     
-    // 3. KULLANICI-ROL İLİŞKİLERİ
+    
     echo "\n━━━ 3. KULLANICI-ROL İLİŞKİLERİ (tnm_user_rol) ━━━\n";
     $UserRoller = $Db->query("
         SELECT u.Id as UserId, u.KullaniciAdi, u.AdSoyad, r.RolKodu, r.RolAdi 
@@ -66,7 +66,7 @@ try {
         echo "  💡 Kullanıcılar tnm_user_rol tablosuna eklenmelidir.\n";
     }
     
-    // 4. PERMISSION'LAR
+    
     echo "\n━━━ 4. PERMISSION'LAR ━━━\n";
     $PermCount = $Db->query("
         SELECT COUNT(*) as Toplam 
@@ -75,7 +75,7 @@ try {
     ")->fetch();
     echo "  Toplam Aktif Permission: " . $PermCount['Toplam'] . "\n";
     
-    // Modül bazında
+    
     $PermModuller = $Db->query("
         SELECT ModulAdi, COUNT(*) as Adet
         FROM tnm_permission 
@@ -89,7 +89,7 @@ try {
         echo sprintf("    - %s: %d permission\n", $PM['ModulAdi'], $PM['Adet']);
     }
     
-    // 5. ROL-PERMISSION İLİŞKİLERİ
+    
     echo "\n━━━ 5. ROL-PERMISSION İLİŞKİLERİ ━━━\n";
     $RolPerms = $Db->query("
         SELECT r.RolKodu, r.RolAdi, COUNT(rp.Id) as PermissionSayisi
@@ -106,11 +106,11 @@ try {
             $RP['RolKodu'], $RP['RolAdi'], $RP['PermissionSayisi'], $PermCount['Toplam'], $Yuzde);
     }
     
-    // 6. SORUN TESPİTİ
+    
     echo "\n━━━ 6. SORUN TESPİTİ ━━━\n";
     $Sorunlar = [];
     
-    // Superadmin kullanıcısı var mı?
+    
     $SuperAdmin = $Db->query("
         SELECT Id FROM tnm_user WHERE KullaniciAdi = 'superadmin' AND Sil = 0
     ")->fetch();
@@ -118,7 +118,7 @@ try {
     if (!$SuperAdmin) {
         $Sorunlar[] = "✗ 'superadmin' kullanıcısı bulunamadı!";
     } else {
-        // Superadmin'e rol atanmış mı?
+        
         $SuperAdminRol = $Db->query("
             SELECT r.RolKodu, r.RolAdi
             FROM tnm_user_rol ur
@@ -131,7 +131,7 @@ try {
         } else {
             echo "  ✓ 'superadmin' kullanıcısı mevcut ve rolü: {$SuperAdminRol['RolKodu']}\n";
             
-            // Superadmin rolünün tüm permission'ları var mı?
+            
             $SuperAdminPermCount = $Db->query("
                 SELECT COUNT(*) as Toplam
                 FROM tnm_rol_permission rp
@@ -150,7 +150,7 @@ try {
         }
     }
     
-    // Admin rolü var mı?
+    
     $AdminRol = $Db->query("
         SELECT Id FROM tnm_rol WHERE RolKodu = 'admin' AND Sil = 0
     ")->fetch();

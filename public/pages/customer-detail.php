@@ -1,15 +1,15 @@
 <?php
-/**
- * Musteri Detay Sayfasi - Server-Rendered
- * URL: /customer/{id}
- * 
- * RBAC: Tab'lar server-side permission kontrolu ile render edilir.
- * Permission yoksa tab DOM'a eklenmez.
- * 
- * Tab degistirme URL'yi degistirmiyor, sadece JS state'i degisiyor
- */
 
-// Musteri Id'si URL'den router tarafindan aktariliyor
+
+
+
+
+
+
+
+
+
+
 $MusteriId = $MusteriId ?? 0;
 
 $pageTitle = 'Müşteri Detay';
@@ -18,7 +18,7 @@ $currentPage = 'customer';
 
 require __DIR__ . '/partials/header.php';
 
-// Tab permission mapping - tab key => required permission
+
 $TabPermissions = [
     'bilgi'        => 'customers.read',
     'kisiler'      => 'contacts.read',
@@ -34,7 +34,7 @@ $TabPermissions = [
     'dosyalar'     => 'files.read'
 ];
 
-// Tab gorsel bilgileri
+
 $TabInfo = [
     'bilgi'        => ['icon' => 'bi-info-circle', 'label' => 'Bilgi'],
     'kisiler'      => ['icon' => 'bi-people', 'label' => 'Kişiler'],
@@ -50,7 +50,7 @@ $TabInfo = [
     'dosyalar'     => ['icon' => 'bi-folder', 'label' => 'Dosyalar']
 ];
 
-// Izinli tab'lari filtrele
+
 $AllowedTabs = [];
 foreach ($TabPermissions as $TabKey => $Permission) {
     if ($can($Permission)) {
@@ -58,7 +58,7 @@ foreach ($TabPermissions as $TabKey => $Permission) {
     }
 }
 
-// Ilk izinli tab active olacak
+
 $DefaultTab = !empty($AllowedTabs) ? $AllowedTabs[0] : null;
 ?>
 

@@ -24,10 +24,10 @@ class BaseRepository
         return null;
     }
 
-    /**
-     * Pagination helper - SQL sorgusuna OFFSET FETCH ekliyor (MSSQL icin)
-     * Base SQL'den toplam kayit sayisini cikarip sayfalama yapiyoruz
-     */
+    
+
+
+
     protected function paginatedQuery(string $BaseSql, array $Parametreler = [], int $Sayfa = 1, int $Limit = 10): array
     {
         $SayimBaseSql = preg_replace('/\s+ORDER\s+BY\s+[\w\s,\.]+(?:ASC|DESC)?(?:\s*,\s*[\w\.]+\s*(?:ASC|DESC)?)*\s*$/is', '', $BaseSql);
@@ -76,10 +76,10 @@ class BaseRepository
         return $Sonuc ?: null;
     }
 
-    /**
-     * Sadece ana tablo kolonlarini getiren temel bul metodu
-     * JOIN'lerden gelen ek alanlar dahil degil - yedekleme icin kullanilir
-     */
+    
+
+
+
     public function bulTemel(int $Id): ?array
     {
         $Sql = "SELECT * FROM {$this->Tablo} WHERE Id = :Id AND Sil = 0";
@@ -90,7 +90,7 @@ class BaseRepository
 
     public function yedekle(int $Id, string $YedekTablo, ?int $KullaniciId = null): void
     {
-        // Sadece ana tablo kolonlarini al (JOIN'lerden gelen alanlar dahil degil)
+        
         $Kayit = $this->bulTemel($Id);
         if (!$Kayit) {
             return;
@@ -157,8 +157,8 @@ class BaseRepository
             try {
                 $this->yedekle($Id, $BckTablo, $KullaniciId);
             } catch (\Throwable $Ignored) {
-                // Yedekleme tablosu yoksa islem kesilmesin diye catch
-                // (Strict modda bu catch kaldirilabilir)
+                
+                
             }
 
             $Stmt = $this->Db->prepare($Sql);

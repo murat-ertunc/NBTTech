@@ -6,23 +6,23 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Database;
 
-/**
- * CalendarController
- * 
- * Dashboard takvim sistemi icin endpoint'ler.
- * Musteriye bagli etkinlikler (proje tarihleri, sozlesme tarihleri, vb.)
- */
+
+
+
+
+
+
 class CalendarController
 {
-    /**
-     * Takvim etkinliklerini getir
-     * GET /api/calendar
-     * 
-     * Query params:
-     * - customerId: Belirli musteriye ait etkinlikler
-     * - month: Ay (1-12)
-     * - year: Yil
-     */
+    
+
+
+
+
+
+
+
+
     public function index(): void
     {
         $KullaniciId = Context::kullaniciId();
@@ -35,10 +35,10 @@ class CalendarController
         $Ay = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('n');
         $Yil = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
 
-        // Sadece manuel takvim kayitlari (tbl_takvim)
+        
         $Etkinlikler = $this->getTakvimEvents($MusteriId, $Ay, $Yil);
 
-        // Tarihe gore sirala
+        
         usort($Etkinlikler, function($a, $b) {
             return strtotime($a['date']) - strtotime($b['date']);
         });
@@ -55,10 +55,10 @@ class CalendarController
         ]);
     }
 
-    /**
-     * Belirli bir gundeki etkinlikleri getir
-     * GET /api/calendar/day/{date}
-     */
+    
+
+
+
     public function day(string $date): void
     {
         $KullaniciId = Context::kullaniciId();
@@ -67,7 +67,7 @@ class CalendarController
             return;
         }
 
-        // Date format: YYYY-MM-DD
+        
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             Response::badRequest('Gecersiz tarih formati. YYYY-MM-DD olmali.');
             return;
@@ -84,9 +84,9 @@ class CalendarController
         ]);
     }
 
-    /**
-     * Sozlesme etkinliklerini getir
-     */
+    
+
+
     private function getContractEvents(?int $MusteriId, int $Ay, int $Yil, bool $TamamlananlarDahil): array
     {
         try {
@@ -136,7 +136,7 @@ class CalendarController
                             'customerId' => $Sozlesme['MusteriId'],
                             'customer' => $Sozlesme['MusteriUnvan'],
                             'date' => $Sozlesme['SozlesmeTarihi'],
-                            'color' => '#0d6efd', // blue
+                            'color' => '#0d6efd', 
                             'completed' => $Sozlesme['Durum'] != 1,
                             'relatedId' => $Sozlesme['Id'],
                             'relatedType' => 'contract'
@@ -151,9 +151,9 @@ class CalendarController
         }
     }
 
-    /**
-     * Teminat termin tarihi etkinliklerini getir
-     */
+    
+
+
     private function getGuaranteeEvents(?int $MusteriId, int $Ay, int $Yil, bool $TamamlananlarDahil): array
     {
         try {
@@ -168,7 +168,7 @@ class CalendarController
             }
             
             if (!$TamamlananlarDahil) {
-                $Kosullar .= " AND t.Durum = 1"; // Sadece bekleyen teminatlar
+                $Kosullar .= " AND t.Durum = 1"; 
             }
             
             $Sql = "
@@ -203,7 +203,7 @@ class CalendarController
                     'customer' => $Teminat['MusteriUnvan'],
                     'title' => 'Teminat Termin Tarihi: ' . $Teminat['Tur'],
                     'date' => $Teminat['TerminTarihi'],
-                    'color' => '#fd7e14', // orange
+                    'color' => '#fd7e14', 
                     'completed' => $Teminat['Durum'] != 1,
                     'relatedId' => $Teminat['Id'],
                     'relatedType' => 'guarantee',
@@ -218,9 +218,9 @@ class CalendarController
         }
     }
 
-    /**
-     * Fatura tarihlerini getir
-     */
+    
+
+
     private function getInvoiceEvents(?int $MusteriId, int $Ay, int $Yil): array
     {
         try {
@@ -265,7 +265,7 @@ class CalendarController
                     'customer' => $Fatura['MusteriUnvan'],
                     'title' => 'Fatura: ' . ($Fatura['Aciklama'] ?: 'Fatura #' . $Fatura['Id']),
                     'date' => $Fatura['Tarih'],
-                    'color' => '#20c997', // teal
+                    'color' => '#20c997', 
                     'completed' => false,
                     'relatedId' => $Fatura['Id'],
                     'relatedType' => 'invoice',
@@ -280,9 +280,9 @@ class CalendarController
         }
     }
 
-    /**
-     * Belirli bir gundeki etkinlikleri getir
-     */
+    
+
+
     private function getEventsForDay(string $Tarih, ?int $MusteriId): array
     {
         try {
@@ -295,7 +295,7 @@ class CalendarController
                 $Parametreler['customerId'] = $MusteriId;
             }
             
-            // Sadece Takvim kayitlari
+            
             $Sql = "
                 SELECT t.Id, t.MusteriId, t.Ozet, m.Unvan as MusteriUnvan
                 FROM tbl_takvim t
@@ -327,9 +327,9 @@ class CalendarController
         }
     }
 
-    /**
-     * Takvim kayitlarini getir (tbl_takvim)
-     */
+    
+
+
     private function getTakvimEvents(?int $MusteriId, int $Ay, int $Yil): array
     {
         try {
@@ -367,13 +367,13 @@ class CalendarController
             
             $Etkinlikler = [];
             foreach ($TakvimKayitlari as $Kayit) {
-                // Tarih formatini normalize et (YYYY-MM-DD)
+                
                 $TerminTarihi = $Kayit['TerminTarihi'];
                 if ($TerminTarihi) {
                     $TerminTarihi = date('Y-m-d', strtotime($TerminTarihi));
                 }
                 
-                // Musteri kodu yoksa otomatik olustur
+                
                 $MusteriKodu = $Kayit['MusteriKodu'] ?: 'MÜŞ-' . str_pad($Kayit['MusteriId'], 5, '0', STR_PAD_LEFT);
                 
                 $Etkinlikler[] = [
@@ -386,7 +386,7 @@ class CalendarController
                     'title' => $Kayit['Ozet'],
                     'description' => $Kayit['ProjeAdi'] ? 'Proje: ' . $Kayit['ProjeAdi'] : null,
                     'date' => $TerminTarihi,
-                    'color' => '#198754', // green
+                    'color' => '#198754', 
                     'completed' => false,
                     'relatedId' => $Kayit['Id'],
                     'relatedType' => 'takvim'

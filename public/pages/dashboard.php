@@ -1,8 +1,8 @@
 <?php
-/**
- * Dashboard Sayfası - Server-Rendered
- * URL: /dashboard veya /
- */
+
+
+
+
 
 $pageTitle = 'Ana Sayfa';
 $activeNav = 'dashboard';

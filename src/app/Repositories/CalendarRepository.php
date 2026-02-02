@@ -6,9 +6,9 @@ class CalendarRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_takvim';
 
-    /**
-     * Tum aktif takvim kayitlarini musteri ve proje adi ile birlikte getir
-     */
+    
+
+
     public function tumAktifler(): array
     {
         $Sql = "SELECT t.*, m.Unvan AS MusteriUnvan, p.ProjeAdi 

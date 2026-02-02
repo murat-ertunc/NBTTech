@@ -6,22 +6,22 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Database;
 
-/**
- * AlarmController
- * 
- * Dashboard alarm sistemi icin endpoint'ler.
- * Temel alarm fonksiyonlari:
- * 1. Odenmemis faturalar (bakiyesi olan tum faturalar)
- * 2. Yaklasan takvim isleri (7 gun icinde)
- * 3. Termin tarihi gecen teminatlar (aktif ve suresi dolmus)
- * 4. Gecerliligi biten/bitecek teklifler (7 gun icinde)
- */
+
+
+
+
+
+
+
+
+
+
 class AlarmController
 {
-    /**
-     * Tum alarmlari getir
-     * GET /api/alarms
-     */
+    
+
+
+
     public function index(): void
     {
         $KullaniciId = Context::kullaniciId();
@@ -31,7 +31,7 @@ class AlarmController
 
         $Alarmlar = [];
         
-        // 1. Odenmemis faturalar
+        
         $OdenmemisFaturalar = $this->odenmemisFaturalariGetir();
         if ($OdenmemisFaturalar['count'] > 0) {
             $Alarmlar[] = [
@@ -47,7 +47,7 @@ class AlarmController
             ];
         }
 
-        // 2. Yaklasan takvim isleri (7 gun icinde)
+        
         $YaklasanIsler = $this->yaklasanTakvimIsleriniGetir(7);
         if ($YaklasanIsler['count'] > 0) {
             $Alarmlar[] = [
@@ -61,7 +61,7 @@ class AlarmController
             ];
         }
 
-        // 3. Termin tarihi gecen teminatlar (aktif ve suresi dolmus)
+        
         $TerminTarihiGecenTeminatlar = $this->terminTarihiGecenTeminatlariGetir();
         if ($TerminTarihiGecenTeminatlar['count'] > 0) {
             $Alarmlar[] = [
@@ -77,7 +77,7 @@ class AlarmController
             ];
         }
 
-        // 4. Gecerliligi biten/bitecek teklifler (7 gun icinde veya gecmis)
+        
         $GecerililigiDolanTeklifler = $this->gecerliligiDolanTeklifleriGetir(7);
         if ($GecerililigiDolanTeklifler['count'] > 0) {
             $Alarmlar[] = [
@@ -91,7 +91,7 @@ class AlarmController
             ];
         }
 
-        // 5. Supheli alacak faturalari
+        
         $SupheliAlacaklar = $this->supheliAlacakFaturalariniGetir();
         if ($SupheliAlacaklar['count'] > 0) {
             $Alarmlar[] = [
@@ -114,15 +114,15 @@ class AlarmController
         ]);
     }
 
-    /**
-     * Odenmemis faturalari getir
-     */
+    
+
+
     private function odenmemisFaturalariGetir(): array
     {
         try {
             $Db = Database::connection();
             
-            // Her fatura icin ayri ayri kalan bakiyeyi hesapla
+            
             $Sql = "
                 SELECT 
                     f.Id,
@@ -153,7 +153,7 @@ class AlarmController
             $OdenmemisKalemler = [];
             $ToplamOdenmemis = 0;
             
-            // Para birimi bazinda toplamlar
+            
             $ParaBirimiToplam = [];
             
             $Bugun = new \DateTime();
@@ -164,17 +164,17 @@ class AlarmController
                 $Kalan = $FaturaTutari - $OdenenTutar;
                 $ParaBirimi = $Fatura['DovizCinsi'] ?? 'TRY';
                 
-                if ($Kalan > 0.01) { // Bakiye varsa
+                if ($Kalan > 0.01) { 
                     $FaturaTarihi = new \DateTime($Fatura['Tarih']);
                     $Fark = $Bugun->diff($FaturaTarihi);
                     $GecikmeGun = $Fark->days;
                     
-                    // Eger fatura tarihi bugunden onceyse gecikme pozitif
+                    
                     if ($FaturaTarihi > $Bugun) {
-                        $GecikmeGun = -$GecikmeGun; // Henuz termin tarihi gelmemis
+                        $GecikmeGun = -$GecikmeGun; 
                     }
                     
-                    // Para birimi bazinda topla
+                    
                     if (!isset($ParaBirimiToplam[$ParaBirimi])) {
                         $ParaBirimiToplam[$ParaBirimi] = 0;
                     }
@@ -198,7 +198,7 @@ class AlarmController
                 }
             }
             
-            // Gecikme gunune gore azalan sirala (en cok geciken en ustte)
+            
             usort($OdenmemisKalemler, function($a, $b) {
                 return $b['delayDays'] - $a['delayDays'];
             });
@@ -214,16 +214,16 @@ class AlarmController
         }
     }
 
-    /**
-     * Yaklasan takvim islerini getir (tbl_takvim tablosundan)
-     */
+    
+
+
     private function yaklasanTakvimIsleriniGetir(int $Gun = 7): array
     {
         try {
             $Db = Database::connection();
             
-            // Takvim tablosundan yaklasan veya gecmis isler
-            // Gun parametresi integer olarak dogrudan sorguya eklenir (SQL Injection riski yok)
+            
+            
             $GunInt = (int)$Gun;
             $Sql = "
                 SELECT 
@@ -277,10 +277,10 @@ class AlarmController
         }
     }
 
-    /**
-     * Termin tarihi gecen teminatlari getir
-     * Durum filtresi YOK - tum aktif teminatlardan suresi gecmis olanlari getir
-     */
+    
+
+
+
     private function terminTarihiGecenTeminatlariGetir(): array
     {
         try {
@@ -315,7 +315,7 @@ class AlarmController
             $Bugun = new \DateTime();
             $ToplamTutar = 0;
             
-            // Para birimi bazinda toplamlar
+            
             $ParaBirimiToplam = [];
             
             foreach ($Teminatlar as $Teminat) {
@@ -325,7 +325,7 @@ class AlarmController
                 $Tutar = (float)$Teminat['Tutar'];
                 $ParaBirimi = $Teminat['ParaBirimi'] ?? 'TRY';
                 
-                // Para birimi bazinda topla
+                
                 if (!isset($ParaBirimiToplam[$ParaBirimi])) {
                     $ParaBirimiToplam[$ParaBirimi] = 0;
                 }
@@ -357,17 +357,17 @@ class AlarmController
         }
     }
 
-    /**
-     * Gecerliligi dolan veya dolmak uzere olan teklifleri getir
-     * Sadece aktif (Durum = 0 veya 1) teklifler
-     */
+    
+
+
+
     private function gecerliligiDolanTeklifleriGetir(int $Gun = 7): array
     {
         try {
             $Db = Database::connection();
             
-            // Gecerliligi gecmis veya $Gun icerisinde dolacak aktif teklifler
-            // Gun parametresi integer olarak dogrudan sorguya eklenir (SQL Injection riski yok)
+            
+            
             $GunInt = (int)$Gun;
             $Sql = "
                 SELECT 
@@ -428,9 +428,9 @@ class AlarmController
         }
     }
 
-    /**
-     * Supheli alacak olarak isaretlenmis faturalari getir
-     */
+    
+
+
     private function supheliAlacakFaturalariniGetir(): array
     {
         try {
@@ -474,7 +474,7 @@ class AlarmController
                 $Kalan = $FaturaTutari - $OdenenTutar;
                 $ParaBirimi = $Fatura['DovizCinsi'] ?? 'TRY';
                 
-                // Kalan bakiye olmasa bile supheli alacak listesine dahil et
+                
                 $FaturaTarihi = new \DateTime($Fatura['Tarih']);
                 $Fark = $Bugun->diff($FaturaTarihi);
                 $GecikmeGun = $Fark->days;
@@ -483,7 +483,7 @@ class AlarmController
                     $GecikmeGun = -$GecikmeGun;
                 }
                 
-                // Para birimi bazinda topla (sadece kalan bakiyeyi)
+                
                 if ($Kalan > 0.01) {
                     if (!isset($ParaBirimiToplam[$ParaBirimi])) {
                         $ParaBirimiToplam[$ParaBirimi] = 0;
@@ -507,7 +507,7 @@ class AlarmController
                 ];
             }
             
-            // Gecikme gunune gore sirala
+            
             usort($Kalemler, function($a, $b) {
                 return $b['delayDays'] - $a['delayDays'];
             });

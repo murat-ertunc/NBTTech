@@ -1,13 +1,13 @@
 <?php
-/**
- * Permission Analiz Script
- * 
- * Bu script mevcut permission durumunu analiz eder:
- * 1. Permissions tablosundaki kodlar
- * 2. Superadmin'in sahip olduğu kodlar
- * 3. Expected (beklenen) permissions
- * 4. Her üç listedeki eksikler
- */
+
+
+
+
+
+
+
+
+
 
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
@@ -20,9 +20,9 @@ echo "════════════════════════�
 try {
     $Db = Database::connection();
     
-    // ═══════════════════════════════════════════════════════════
-    // A1: PERMISSIONS TABLOSUNDA VAR OLAN KODLAR
-    // ═══════════════════════════════════════════════════════════
+    
+    
+    
     echo "━━━ A1: PERMISSIONS TABLOSU ━━━\n";
     $Stmt = $Db->query("SELECT PermissionKodu FROM tnm_permission WHERE Sil = 0 AND Aktif = 1 ORDER BY PermissionKodu");
     $DbPermissions = $Stmt->fetchAll(PDO::FETCH_COLUMN);
@@ -31,9 +31,9 @@ try {
         echo "  - {$P}\n";
     }
     
-    // ═══════════════════════════════════════════════════════════
-    // A2: SUPERADMIN'IN SAHİP OLDUĞU KODLAR
-    // ═══════════════════════════════════════════════════════════
+    
+    
+    
     echo "\n━━━ A2: SUPERADMIN PERMISSIONLARI ━━━\n";
     $Stmt2 = $Db->query("
         SELECT p.PermissionKodu 
@@ -49,9 +49,9 @@ try {
         echo "  - {$P}\n";
     }
     
-    // ═══════════════════════════════════════════════════════════
-    // A3: SUPERADMIN MISSING (permissions - superadmin)
-    // ═══════════════════════════════════════════════════════════
+    
+    
+    
     echo "\n━━━ A3: SUPERADMIN MISSING CODES ━━━\n";
     $SuperadminMissing = array_diff($DbPermissions, $SuperadminPerms);
     echo "Eksik: " . count($SuperadminMissing) . " adet\n";
@@ -59,12 +59,12 @@ try {
         echo "  ✗ {$P}\n";
     }
     
-    // ═══════════════════════════════════════════════════════════
-    // B: BEKLENEN PERMISSION SETİ (Route + Controller analizi)
-    // ═══════════════════════════════════════════════════════════
+    
+    
+    
     echo "\n━━━ B: BEKLENEN PERMISSION SETİ ━━━\n";
     
-    // Modül listesi - API route'lardan ve web route'lardan türetildi
+    
     $CrudModuller = [
         'users',
         'roles', 
@@ -78,8 +78,8 @@ try {
         'meetings',
         'contacts',
         'files',
-        'calendar',      // api.php'de calendar.* olarak kullanılıyor
-        'stamp_taxes',   // api.php'de stamp_taxes.* olarak kullanılıyor
+        'calendar',      
+        'stamp_taxes',   
         'parameters',
     ];
     
@@ -89,10 +89,10 @@ try {
         'alarms',
     ];
     
-    // CRUD aksiyonları
+    
     $CrudAksiyonlar = ['create', 'read', 'update', 'delete'];
     
-    // Expected permissions oluştur
+    
     $ExpectedPermissions = [];
     
     foreach ($CrudModuller as $Modul) {
@@ -111,9 +111,9 @@ try {
         echo "  - {$P}\n";
     }
     
-    // ═══════════════════════════════════════════════════════════
-    // C: EXPECTED MISSING IN PERMISSIONS TABLE
-    // ═══════════════════════════════════════════════════════════
+    
+    
+    
     echo "\n━━━ C: EXPECTED MISSING IN PERMISSIONS TABLE ━━━\n";
     $ExpectedMissingInDb = array_diff($ExpectedPermissions, $DbPermissions);
     echo "Eksik: " . count($ExpectedMissingInDb) . " adet\n";
@@ -121,9 +121,9 @@ try {
         echo "  ✗ {$P} (DB'de YOK!)\n";
     }
     
-    // ═══════════════════════════════════════════════════════════
-    // D: ÖZET RAPOR
-    // ═══════════════════════════════════════════════════════════
+    
+    
+    
     echo "\n════════════════════════════════════════════════════════════\n";
     echo "ÖZET RAPOR\n";
     echo "════════════════════════════════════════════════════════════\n";
@@ -135,9 +135,9 @@ try {
     echo "  Superadmin missing codes      : " . count($SuperadminMissing) . "\n";
     echo "════════════════════════════════════════════════════════════\n";
     
-    // ═══════════════════════════════════════════════════════════
-    // E: OZEL KANIT: calendar.create
-    // ═══════════════════════════════════════════════════════════
+    
+    
+    
     echo "\n━━━ E: ÖZEL KANIT: calendar.create ━━━\n";
     
     $CalendarCreateInDb = in_array('calendar.create', $DbPermissions);

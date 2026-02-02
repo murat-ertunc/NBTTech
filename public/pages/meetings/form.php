@@ -1,8 +1,8 @@
 <?php
-/**
- * Görüşme Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/meetings/new veya /customer/{id}/meetings/{meetingId}/edit
- */
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $GorusmeId = $GorusmeId ?? 0;
@@ -12,7 +12,7 @@ $pageTitle = $IsEdit ? 'Görüşme Düzenle' : 'Yeni Görüşme';
 $activeNav = 'customers';
 $currentPage = 'meeting-form';
 
-// Form partial değişkenleri
+
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'gorusme';
 $FormTitle = $pageTitle;

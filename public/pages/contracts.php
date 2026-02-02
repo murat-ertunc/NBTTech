@@ -1,8 +1,8 @@
 <?php
-/**
- * Sözleşmeler Listesi Sayfası - Server-Rendered
- * URL: /contracts
- */
+
+
+
+
 
 $pageTitle = 'Sözleşmeler';
 $activeNav = 'islemler';

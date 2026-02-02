@@ -49,7 +49,7 @@ class FileController
             return;
         }
 
-        // Hem 'file' hem 'dosya' adini kabul et
+        
         $DosyaAnahtari = isset($_FILES['file']) ? 'file' : (isset($_FILES['dosya']) ? 'dosya' : null);
         if (!$DosyaAnahtari || $_FILES[$DosyaAnahtari]['error'] !== UPLOAD_ERR_OK) {
             $HataMesajlari = [
@@ -67,11 +67,11 @@ class FileController
             return;
         }
 
-        // FaturaId varsa MusteriId zorunlu degil (fatura uzerinden musteri bulunur)
+        
         $FaturaId = isset($_POST['FaturaId']) ? (int)$_POST['FaturaId'] : null;
         $MusteriId = isset($_POST['MusteriId']) ? (int)$_POST['MusteriId'] : 0;
         
-        // FaturaId varsa faturadan MusteriId al
+        
         if ($FaturaId && $MusteriId <= 0) {
             $FaturaRepo = new \App\Repositories\InvoiceRepository();
             $Fatura = $FaturaRepo->bul($FaturaId);
@@ -186,7 +186,7 @@ class FileController
             return;
         }
 
-        // Opsiyonel dosya degistirme
+        
         $DosyaAnahtari = isset($_FILES['file']) ? 'file' : (isset($_FILES['dosya']) ? 'dosya' : null);
         $YeniDosya = null;
         if ($DosyaAnahtari && $_FILES[$DosyaAnahtari]['error'] === UPLOAD_ERR_OK) {
@@ -236,7 +236,7 @@ class FileController
         });
 
         if ($YeniDosya) {
-            // Eski dosyayi sil
+            
             if (!empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
                 if (file_exists($EskiDosyaYolu)) {
@@ -264,7 +264,7 @@ class FileController
             return;
         }
 
-        // Dosyayi fiziksel olarak silmiyoruz, sadece soft delete
+        
         Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
             $Repo->softSil($Id, $KullaniciId);
         });
@@ -288,7 +288,7 @@ class FileController
             return;
         }
 
-        // DosyaYolu: storage/uploads/... şeklinde kayıtlı, SRC_PATH ile birleştir
+        
         $TamDosyaYolu = SRC_PATH . $Dosya['DosyaYolu'];
         
         if (!file_exists($TamDosyaYolu)) {

@@ -1,43 +1,43 @@
 <?php
 
-/**
- * Web Routes - Server-Rendered Sayfa Mimarisi
- * 
- * Her sayfa ayri bir PHP dosyasindan server-side render edilir.
- * SPA routing KALDIRILDI - her route gercek sayfa yuklemesi yapar.
- * 
- * RBAC: Tum sayfa route'lari Page middleware ile korunur.
- * Page::can('module.action') - Hem auth hem permission kontrolu yapar.
- * 
- * URL Yapisi:
- *   /               → Dashboard (dashboard.read)
- *   /dashboard      → Dashboard (dashboard.read)
- *   /customer/{id}  → Musteri detay (customers.read)
- *   /invoices       → Fatura listesi (invoices.read)
- *   /payments       → Odeme listesi (payments.read)
- *   /projects       → Proje listesi (projects.read)
- *   /offers         → Teklif listesi (offers.read)
- *   /contracts      → Sozlesme listesi (contracts.read)
- *   /guarantees     → Teminat listesi (guarantees.read)
- *   /users          → Kullanici listesi (users.read)
- *   /roles          → Rol listesi (roles.read)
- *   /logs           → Log listesi (logs.read)
- *   /parameters     → Parametreler (parameters.read)
- *   /alarms         → Alarmlar (alarms.read)
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 use App\Middleware\Page;
 use App\Services\Authorization\AuthorizationService;
 
-// Path sabiti (PUBLIC_PATH bootstrap'ta tanımlı)
+
 $PagesPath = PUBLIC_PATH . 'pages' . DIRECTORY_SEPARATOR;
 
-// ===== AUTH (Korumasiz) =====
+
 $Router->add('GET', '/login', function () {
 	require PUBLIC_PATH . 'login.php';
 });
 
-// ===== DASHBOARD =====
+
 $Router->add('GET', '/', function () use ($PagesPath) {
 	if (!Page::can('dashboard.read')) return;
 	require $PagesPath . 'dashboard.php';
@@ -48,16 +48,16 @@ $Router->add('GET', '/dashboard', function () use ($PagesPath) {
 	require $PagesPath . 'dashboard.php';
 });
 
-// ===== MUSTERILER =====
 
-// Yeni müşteri ekle 
+
+
 $Router->add('GET', '/customer/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('customers.create')) return;
 	$MusteriId = 0;
 	require $PagesPath . 'customers' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// Müşteri düzenle 
+
 $Router->add('GET', '/customer/{id}/edit', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('customers.update')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -72,7 +72,7 @@ $Router->add('GET', '/customer/{id}', function ($Parametreler) use ($PagesPath) 
 	require $PagesPath . 'customer-detail.php';
 });
 
-// ===== MÜŞTERI TEKLIFLERI (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/offers/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('offers.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -90,7 +90,7 @@ $Router->add('GET', '/customer/{id}/offers/{offerId}/edit', function ($Parametre
 	require $PagesPath . 'offers' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== MÜŞTERI SÖZLEŞMELERI (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/contracts/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('contracts.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -108,7 +108,7 @@ $Router->add('GET', '/customer/{id}/contracts/{contractId}/edit', function ($Par
 	require $PagesPath . 'contracts' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== MÜŞTERI KIŞILERI (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/contacts/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('contacts.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -126,7 +126,7 @@ $Router->add('GET', '/customer/{id}/contacts/{contactId}/edit', function ($Param
 	require $PagesPath . 'contacts' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== MÜŞTERI GÖRÜŞMELERİ (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/meetings/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('meetings.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -144,7 +144,7 @@ $Router->add('GET', '/customer/{id}/meetings/{meetingId}/edit', function ($Param
 	require $PagesPath . 'meetings' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== MÜŞTERI PROJELERİ (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/projects/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('projects.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -162,7 +162,7 @@ $Router->add('GET', '/customer/{id}/projects/{projectId}/edit', function ($Param
 	require $PagesPath . 'projects' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== MÜŞTERI TAKVİM (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/calendar/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('calendar.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -180,7 +180,7 @@ $Router->add('GET', '/customer/{id}/calendar/{calendarId}/edit', function ($Para
 	require $PagesPath . 'calendar' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== MÜŞTERI DAMGA VERGİSİ (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/stamp-taxes/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('stamp_taxes.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -198,7 +198,7 @@ $Router->add('GET', '/customer/{id}/stamp-taxes/{stampTaxId}/edit', function ($P
 	require $PagesPath . 'stamp-taxes' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== MÜŞTERI TEMİNATLARI (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/guarantees/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('guarantees.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -216,7 +216,7 @@ $Router->add('GET', '/customer/{id}/guarantees/{guaranteeId}/edit', function ($P
 	require $PagesPath . 'guarantees' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== MÜŞTERI FATURALARI (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/invoices/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('invoices.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -234,7 +234,7 @@ $Router->add('GET', '/customer/{id}/invoices/{invoiceId}/edit', function ($Param
 	require $PagesPath . 'invoices' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== MÜŞTERI ÖDEMELERİ (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/payments/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('payments.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -252,7 +252,7 @@ $Router->add('GET', '/customer/{id}/payments/{paymentId}/edit', function ($Param
 	require $PagesPath . 'payments' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== MÜŞTERI DOSYALARI (Sayfa Bazlı Form) =====
+
 $Router->add('GET', '/customer/{id}/files/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('files.create')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -270,56 +270,56 @@ $Router->add('GET', '/customer/{id}/files/{fileId}/edit', function ($Parametrele
 	require $PagesPath . 'files' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== FATURALAR =====
+
 $Router->add('GET', '/invoices', function () use ($PagesPath) {
 	if (!Page::can('invoices.read')) return;
 	require $PagesPath . 'invoices.php';
 });
 
-// ===== ODEMELER =====
+
 $Router->add('GET', '/payments', function () use ($PagesPath) {
 	if (!Page::can('payments.read')) return;
 	require $PagesPath . 'payments.php';
 });
 
-// ===== PROJELER =====
+
 $Router->add('GET', '/projects', function () use ($PagesPath) {
 	if (!Page::can('projects.read')) return;
 	require $PagesPath . 'projects.php';
 });
 
-// ===== TEKLIFLER =====
+
 $Router->add('GET', '/offers', function () use ($PagesPath) {
 	if (!Page::can('offers.read')) return;
 	require $PagesPath . 'offers.php';
 });
 
-// ===== SOZLESMELER =====
+
 $Router->add('GET', '/contracts', function () use ($PagesPath) {
 	if (!Page::can('contracts.read')) return;
 	require $PagesPath . 'contracts.php';
 });
 
-// ===== TEMINATLAR =====
+
 $Router->add('GET', '/guarantees', function () use ($PagesPath) {
 	if (!Page::can('guarantees.read')) return;
 	require $PagesPath . 'guarantees.php';
 });
 
-// ===== KULLANICILAR =====
+
 $Router->add('GET', '/users', function () use ($PagesPath) {
 	if (!Page::can('users.read')) return;
 	require $PagesPath . 'users.php';
 });
 
-// Yeni kullanıcı ekle
+
 $Router->add('GET', '/users/new', function () use ($PagesPath) {
 	if (!Page::can('users.create')) return;
 	$KullaniciId = 0;
 	require $PagesPath . 'users' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// Kullanıcı düzenle
+
 $Router->add('GET', '/users/{id}/edit', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('users.update')) return;
 	$KullaniciId = (int)($Parametreler['id'] ?? 0);
@@ -327,20 +327,20 @@ $Router->add('GET', '/users/{id}/edit', function ($Parametreler) use ($PagesPath
 	require $PagesPath . 'users' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== ROLLER =====
+
 $Router->add('GET', '/roles', function () use ($PagesPath) {
 	if (!Page::can('roles.read')) return;
 	require $PagesPath . 'roles.php';
 });
 
-// Yeni rol ekle
+
 $Router->add('GET', '/roles/new', function () use ($PagesPath) {
 	if (!Page::can('roles.create')) return;
 	$RolId = 0;
 	require $PagesPath . 'roles' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// Rol düzenle
+
 $Router->add('GET', '/roles/{id}/edit', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('roles.update')) return;
 	$RolId = (int)($Parametreler['id'] ?? 0);
@@ -356,26 +356,26 @@ $Router->add('GET', '/roles/{id}/edit', function ($Parametreler) use ($PagesPath
 	require $PagesPath . 'roles' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// ===== LOGLAR =====
+
 $Router->add('GET', '/logs', function () use ($PagesPath) {
 	if (!Page::can('logs.read')) return;
 	require $PagesPath . 'logs.php';
 });
 
-// ===== HESABIM =====
+
 $Router->add('GET', '/my-account', function () use ($PagesPath) {
-	// Kendi hesabına herkes erişebilir (sadece auth gerekli)
+	
 	if (!Page::auth()) return;
 	require $PagesPath . 'my-account.php';
 });
 
-// ===== ALARMLAR =====
+
 $Router->add('GET', '/alarms', function () use ($PagesPath) {
 	if (!Page::can('alarms.read')) return;
 	require $PagesPath . 'alarms.php';
 });
 
-// ===== PARAMETRELER =====
+
 $Router->add('GET', '/parameters', function () use ($PagesPath) {
 	if (!Page::can('parameters.read')) return;
 	require $PagesPath . 'parameters.php';

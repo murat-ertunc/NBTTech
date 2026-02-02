@@ -1,12 +1,12 @@
 <?php
-/**
- * Login Sayfası
- */
 
-// Bootstrap yükle (merkezi init)
+
+
+
+
 require dirname(__DIR__) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
-// Cache önleme header'ları
+
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
 header('Pragma: no-cache');

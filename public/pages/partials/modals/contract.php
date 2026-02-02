@@ -1,7 +1,7 @@
 <?php
-/**
- * Sözleşme Modal - Ekle/Düzenle
- */
+
+
+
 ?>
 <!-- Sözleşme Modal -->
 <div class="modal fade" id="contractModal" tabindex="-1">

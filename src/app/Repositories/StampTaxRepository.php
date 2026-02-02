@@ -9,12 +9,12 @@ class StampTaxRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_damgavergisi';
 
-    // Tablo artik standart alan adlarina sahip (EklemeZamani, EkleyenUserId, Guid, BIT Sil)
-    // Bu yuzden BaseRepository'nin ekle() metodunu kullaniyoruz - ozel override gerekmiyor
+    
+    
 
-    /**
-     * Tum aktif damga vergilerini musteri adi ile birlikte getir
-     */
+    
+
+
     public function tumAktifler(): array
     {
         $Sql = "SELECT d.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 

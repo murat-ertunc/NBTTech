@@ -1,7 +1,7 @@
 <?php
-/**
- * Takvim Modal - Ekle/Düzenle
- */
+
+
+
 ?>
 <!-- Takvim Modal -->
 <div class="modal fade" id="calendarModal" tabindex="-1">

@@ -6,9 +6,9 @@ class ContactRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_kisi';
 
-    /**
-     * Tum aktif kisileri musteri adi ile birlikte getir
-     */
+    
+
+
     public function tumAktifler(): array
     {
         $Sql = "SELECT k.*, m.Unvan AS MusteriUnvan 

@@ -1,7 +1,7 @@
 <?php
-/**
- * Teklif Modal - Ekle/Düzenle
- */
+
+
+
 ?>
 <!-- Teklif Modal -->
 <div class="modal fade" id="offerModal" tabindex="-1">

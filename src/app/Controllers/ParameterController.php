@@ -12,9 +12,9 @@ use App\Services\Logger\ActionLogger;
 
 class ParameterController
 {
-    /**
-     * Tum parametreleri listele
-     */
+    
+
+
     public static function index(): void
     {
         $Repo = new ParameterRepository();
@@ -24,7 +24,7 @@ class ParameterController
             return;
         }
 
-        // Grup parametresi varsa o grubu getir
+        
         $Grup = isset($_GET['grup']) ? trim($_GET['grup']) : null;
         
         if ($Grup) {
@@ -36,9 +36,9 @@ class ParameterController
         }
     }
 
-    /**
-     * Parametre detayi getir
-     */
+    
+
+
     public static function show(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int)$Parametreler['id'] : 0;
@@ -63,9 +63,9 @@ class ParameterController
         Response::json(['data' => $Parametre]);
     }
 
-    /**
-     * Aktif dovizleri getir
-     */
+    
+
+
     public static function currencies(): void
     {
         $Repo = new ParameterRepository();
@@ -84,9 +84,9 @@ class ParameterController
         ]);
     }
 
-    /**
-     * Varsayilan dovizi getir
-     */
+    
+
+
     public static function defaultCurrency(): void
     {
         $Repo = new ParameterRepository();
@@ -103,9 +103,9 @@ class ParameterController
         ]);
     }
 
-    /**
-     * Durum parametrelerini getir (belirli bir entity icin)
-     */
+    
+
+
     public static function statuses(): void
     {
         $Repo = new ParameterRepository();
@@ -124,7 +124,7 @@ class ParameterController
         $Grup = 'durum_' . $Entity;
         $Durumlar = $Repo->grubaGore($Grup);
         
-        // Frontend icin array formatinda don
+        
         $Sonuc = [];
         foreach ($Durumlar as $Durum) {
             $Sonuc[] = [
@@ -139,9 +139,9 @@ class ParameterController
         Response::json(['data' => $Sonuc]);
     }
 
-    /**
-     * Genel ayarlari getir (pagination vb)
-     */
+    
+
+
     public static function settings(): void
     {
         $Repo = new ParameterRepository();
@@ -162,9 +162,9 @@ class ParameterController
         ]);
     }
 
-    /**
-     * Yeni parametre ekle
-     */
+    
+
+
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -182,7 +182,7 @@ class ParameterController
             return;
         }
 
-        // Permission kontrolu
+        
         $AuthService = AuthorizationService::getInstance();
         if (!$AuthService->can($KullaniciId, 'parameters.create')) {
             Response::error('Bu islem icin yetkiniz yok.', 403);
@@ -205,9 +205,9 @@ class ParameterController
         Response::json(['id' => $Id], 201);
     }
 
-    /**
-     * Parametre guncelle
-     */
+    
+
+
     public static function update(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int)$Parametreler['id'] : 0;
@@ -224,7 +224,7 @@ class ParameterController
             return;
         }
 
-        // Permission kontrolu
+        
         $AuthService = AuthorizationService::getInstance();
         if (!$AuthService->can($KullaniciId, 'parameters.update')) {
             ActionLogger::error('ParameterController::update', 'Yetkisiz erisim denemesi. UserId: ' . $KullaniciId);
@@ -234,7 +234,7 @@ class ParameterController
 
         $Repo = new ParameterRepository();
         
-        // Kayit mevcut mu kontrol et
+        
         $Mevcut = $Repo->bul($Id);
         if (!$Mevcut) {
             ActionLogger::error('ParameterController::update', 'Parametre bulunamadi. ID: ' . $Id);
@@ -262,9 +262,9 @@ class ParameterController
         Response::json(['status' => 'success']);
     }
 
-    /**
-     * Parametre sil
-     */
+    
+
+
     public static function delete(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int)$Parametreler['id'] : 0;
@@ -280,7 +280,7 @@ class ParameterController
             return;
         }
 
-        // Permission kontrolu
+        
         $AuthService = AuthorizationService::getInstance();
         if (!$AuthService->can($KullaniciId, 'parameters.delete')) {
             ActionLogger::error('ParameterController::delete', 'Yetkisiz erisim denemesi. UserId: ' . $KullaniciId);
@@ -290,7 +290,7 @@ class ParameterController
 
         $Repo = new ParameterRepository();
         
-        // Kayit mevcut mu kontrol et
+        
         $Mevcut = $Repo->bul($Id);
         if (!$Mevcut) {
             ActionLogger::error('ParameterController::delete', 'Parametre bulunamadi. ID: ' . $Id);
@@ -304,9 +304,9 @@ class ParameterController
         Response::json(['status' => 'success']);
     }
 
-    /**
-     * Toplu guncelleme (aktiflik ve varsayilan ayarlari)
-     */
+    
+
+
     public static function bulkUpdate(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -317,7 +317,7 @@ class ParameterController
             return;
         }
 
-        // Permission kontrolu
+        
         $AuthService = AuthorizationService::getInstance();
         if (!$AuthService->can($KullaniciId, 'parameters.update')) {
             Response::error('Bu islem icin yetkiniz yok.', 403);
@@ -327,14 +327,14 @@ class ParameterController
         $Repo = new ParameterRepository();
 
         Transaction::wrap(function () use ($Girdi, $Repo, $KullaniciId) {
-            // Aktiflik guncellemeleri
+            
             if (isset($Girdi['aktiflik']) && is_array($Girdi['aktiflik'])) {
                 foreach ($Girdi['aktiflik'] as $item) {
                     $Repo->aktiflikDegistir((int)$item['id'], (bool)$item['aktif'], $KullaniciId);
                 }
             }
 
-            // Varsayilan guncellemeleri
+            
             if (isset($Girdi['varsayilan']) && is_array($Girdi['varsayilan'])) {
                 foreach ($Girdi['varsayilan'] as $item) {
                     if ($item['varsayilan']) {
@@ -343,7 +343,7 @@ class ParameterController
                 }
             }
 
-            // Deger guncellemeleri
+            
             if (isset($Girdi['degerler']) && is_array($Girdi['degerler'])) {
                 foreach ($Girdi['degerler'] as $item) {
                     $Repo->guncelle((int)$item['id'], ['Deger' => $item['deger']], $KullaniciId);
@@ -354,9 +354,9 @@ class ParameterController
         Response::json(['status' => 'success']);
     }
 
-    /**
-     * Hatirlatma ayarlarini getir
-     */
+    
+
+
     public static function reminderSettings(): void
     {
         $KullaniciId = Context::kullaniciId();
@@ -369,9 +369,9 @@ class ParameterController
         Response::json(['data' => $Settings]);
     }
 
-    /**
-     * Hatirlatma ayarlarini guncelle
-     */
+    
+
+
     public static function updateReminderSettings(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -382,7 +382,7 @@ class ParameterController
             return;
         }
 
-        // Permission kontrolu
+        
         $AuthService = AuthorizationService::getInstance();
         if (!$AuthService->can($KullaniciId, 'parameters.update')) {
             Response::error('Bu islem icin yetkiniz yok.', 403);
@@ -393,7 +393,7 @@ class ParameterController
         
         Transaction::wrap(function () use ($Repo, $Girdi, $KullaniciId) {
             foreach ($Girdi as $Tip => $Ayarlar) {
-                // Gun parametresini guncelle
+                
                 if (isset($Ayarlar['gun'])) {
                     $GunParametreAdi = $Tip . '_hatirlatma_gun';
                     if ($Tip === 'teklif') $GunParametreAdi = 'teklif_gecerlilik_hatirlatma_gun';
@@ -402,7 +402,7 @@ class ParameterController
                     $Repo->degerGuncelle($GunParametreAdi, (string)$Ayarlar['gun'], $KullaniciId);
                 }
                 
-                // Aktif parametresini guncelle
+                
                 if (isset($Ayarlar['aktif'])) {
                     $AktifParametreAdi = $Tip . '_hatirlatma_aktif';
                     if ($Tip === 'teklif') $AktifParametreAdi = 'teklif_gecerlilik_hatirlatma_aktif';

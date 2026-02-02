@@ -1,11 +1,11 @@
 <?php
-/**
- * Sözleşme Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/contracts/new veya /customer/{id}/contracts/{contractId}/edit
- * 
- * Modal yerine tam sayfa form.
- * Kaydetme sonrası müşteri detay sayfasındaki sözleşmeler tabına yönlendirme.
- */
+
+
+
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $SozlesmeId = $SozlesmeId ?? 0;

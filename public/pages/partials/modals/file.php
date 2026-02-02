@@ -1,7 +1,7 @@
 <?php
-/**
- * Dosya Yükleme Modal
- */
+
+
+
 ?>
 <!-- Dosya Yükleme Modal -->
 <div class="modal fade" id="fileModal" tabindex="-1">

@@ -1,7 +1,7 @@
 <?php
-/**
- * Fatura Modal - Ekle/Düzenle (XL Modal)
- */
+
+
+
 ?>
 <!-- Fatura Modal -->
 <div class="modal fade" id="invoiceModal" tabindex="-1">

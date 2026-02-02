@@ -1,8 +1,8 @@
 <?php
-/**
- * Ödeme Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/payments/new veya /customer/{id}/payments/{paymentId}/edit
- */
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $OdemeId = $OdemeId ?? 0;
@@ -12,7 +12,7 @@ $pageTitle = $IsEdit ? 'Ödeme Düzenle' : 'Yeni Ödeme';
 $activeNav = 'customers';
 $currentPage = 'payment-form';
 
-// Form partial değişkenleri
+
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'odemeler';
 $FormTitle = $pageTitle;

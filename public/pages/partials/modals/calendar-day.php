@@ -1,8 +1,8 @@
 <?php
-/**
- * Takvim Gün Detay Modalı
- * Dashboard'da bir güne tıklandığında o günün etkinliklerini gösterir
- */
+
+
+
+
 ?>
 <div class="modal fade" id="calendarDayModal" tabindex="-1">
   <div class="modal-dialog modal-lg">

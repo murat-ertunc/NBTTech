@@ -8,9 +8,9 @@ use App\Core\Transaction;
 use App\Repositories\DistrictRepository;
 use App\Repositories\CityRepository;
 
-/**
- * İlçe Controller
- */
+
+
+
 class DistrictController
 {
     public static function index(): void
@@ -23,7 +23,7 @@ class DistrictController
 
         $Repo = new DistrictRepository();
         
-        // Şehir ID ile filtreleme
+        
         $SehirId = isset($_GET['sehir_id']) ? (int)$_GET['sehir_id'] : 0;
         
         if ($SehirId > 0) {
@@ -78,7 +78,7 @@ class DistrictController
             return;
         }
 
-        // Şehir var mı kontrol et
+        
         $CityRepo = new CityRepository();
         $Sehir = $CityRepo->bul((int)$Girdi['SehirId']);
         if (!$Sehir) {
@@ -88,7 +88,7 @@ class DistrictController
 
         $Repo = new DistrictRepository();
         
-        // Duplicate kontrolü
+        
         $Mevcut = $Repo->sehirVeAdIleBul((int)$Girdi['SehirId'], trim($Girdi['Ad']));
         if ($Mevcut) {
             Response::error('Bu sehirde bu isimde bir ilce zaten mevcut.', 422);

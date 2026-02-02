@@ -6,9 +6,9 @@ class OfferRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_teklif';
 
-    /**
-     * Tum aktif teklifleri musteri adi ile birlikte getir
-     */
+    
+
+
     public function tumAktifler(): array
     {
         $Sql = "SELECT t.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 

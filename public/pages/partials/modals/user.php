@@ -1,10 +1,10 @@
 <?php
-/**
- * Kullanıcı Modal - Ekle/Düzenle
- * 
- * RBAC entegreli: Çoklu rol seçimi destekler.
- * Roller API'den yüklenir ve subset constraint'e uygun filtrelenir.
- */
+
+
+
+
+
+
 ?>
 <!-- Kullanıcı Ekle Modal -->
 <div class="modal fade" id="userModal" tabindex="-1">

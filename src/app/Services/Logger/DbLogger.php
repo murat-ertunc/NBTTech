@@ -6,12 +6,12 @@ use App\Core\Context;
 use App\Core\Database;
 use PDO;
 
-/**
- * Veritabani Loglayici
- * 
- * Log kayitlarini log_action tablosuna yazar.
- * Tum CRUD islemleri bu sinif araciligiyla loglanir.
- */
+
+
+
+
+
+
 class DbLogger implements LoggerInterface
 {
     private function db(): PDO
@@ -24,15 +24,15 @@ class DbLogger implements LoggerInterface
         return config('log.table', 'log_action');
     }
 
-    /**
-     * Log kaydi olustur
-     * 
-     * @param array $Yukleme Log verisi
-     *   - Islem: CREATE, UPDATE, DELETE, SELECT
-     *   - Tablo: Islem yapilan tablo adi
-     *   - IpAdresi: Istek IP adresi
-     *   - Veri: JSON formatinda islem detaylari
-     */
+    
+
+
+
+
+
+
+
+
     public function log(array $Yukleme): void
     {
         try {

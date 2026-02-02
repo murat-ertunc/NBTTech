@@ -4,17 +4,17 @@ namespace App\Services;
 
 use App\Core\Database;
 
-/**
- * CalendarService - Takvim işlemleri için servis sınıfı
- * 
- * Çeşitli modüllerden takvim aktivitesi oluşturmak için kullanılır.
- * Parametrelerden hatırlatma gün sayısını ve aktif/pasif durumunu okur.
- */
+
+
+
+
+
+
 class CalendarService
 {
-    /**
-     * Takvim durumlari icin varsayilan kodu getir
-     */
+    
+
+
     public static function getDefaultTakvimDurum(): int
     {
         $Db = Database::getInstance();
@@ -23,9 +23,9 @@ class CalendarService
         );
         return $Sonuc ? (int)$Sonuc['Kod'] : 1;
     }
-    /**
-     * Kaynak türleri ve parametre isimleri eşleştirmesi
-     */
+    
+
+
     private static $KaynakTurleri = [
         'gorusme' => [
             'gunParam' => 'gorusme_hatirlatma_gun',
@@ -71,14 +71,14 @@ class CalendarService
         ]
     ];
 
-    /**
-     * Parametre değerini al
-     */
+    
+
+
     private static function getParameter(string $ParametreAdi, $Varsayilan = null)
     {
         $Db = Database::getInstance();
         
-        // Kod alanina bak
+        
         $Sonuc = $Db->fetchOne(
             "SELECT Deger FROM tbl_parametre WHERE Kod = :kod AND Grup = 'genel' AND Sil = 0",
             ['kod' => $ParametreAdi]
@@ -87,9 +87,9 @@ class CalendarService
         return $Sonuc ? $Sonuc['Deger'] : $Varsayilan;
     }
 
-    /**
-     * Hatırlatma aktif mi kontrol et
-     */
+    
+
+
     public static function isReminderActive(string $KaynakTuru): bool
     {
         if (!isset(self::$KaynakTurleri[$KaynakTuru])) {
@@ -101,9 +101,9 @@ class CalendarService
         return $Aktif === '1' || $Aktif === 1 || $Aktif === true;
     }
 
-    /**
-     * Hatırlatma gün sayısını al
-     */
+    
+
+
     public static function getReminderDays(string $KaynakTuru): int
     {
         if (!isset(self::$KaynakTurleri[$KaynakTuru])) {
@@ -115,13 +115,13 @@ class CalendarService
         return (int)$Gun;
     }
 
-    /**
-     * Hatırlatma tarihini hesapla
-     * 
-     * @param string $KaynakTuru Kaynak türü
-     * @param string $HedefTarih Hedef tarih (YYYY-MM-DD formatında)
-     * @return string|null Hatırlatma tarihi veya null
-     */
+    
+
+
+
+
+
+
     public static function calculateReminderDate(string $KaynakTuru, string $HedefTarih): ?string
     {
         if (!self::isReminderActive($KaynakTuru)) {
@@ -138,17 +138,17 @@ class CalendarService
         return $Tarih->format('Y-m-d');
     }
 
-    /**
-     * Takvim kaydı oluştur veya güncelle
-     * 
-     * @param int $MusteriId Müşteri ID
-     * @param string $KaynakTuru Kaynak türü (gorusme, teklif, sozlesme, vb.)
-     * @param int $KaynakId Kaynak ID
-     * @param string $HedefTarih Hedef tarih (YYYY-MM-DD formatında)
-     * @param string|null $OzelIcerik Özel içerik (null ise varsayılan kullanılır)
-     * @param int|null $KullaniciId Kullanıcı ID (null ise mevcut kullanıcı)
-     * @return int|null Takvim kayıt ID veya null
-     */
+    
+
+
+
+
+
+
+
+
+
+
     public static function createOrUpdateReminder(
         int $MusteriId,
         string $KaynakTuru,
@@ -157,20 +157,20 @@ class CalendarService
         ?string $OzelIcerik = null,
         ?int $KullaniciId = null
     ): ?int {
-        // Hatırlatma aktif mi kontrol et
+        
         if (!self::isReminderActive($KaynakTuru)) {
-            // Pasifse mevcut kaydı sil
+            
             self::deleteReminder($KaynakTuru, $KaynakId);
             return null;
         }
 
-        // Hatırlatma tarihini hesapla
+        
         $HatirlatmaTarihi = self::calculateReminderDate($KaynakTuru, $HedefTarih);
         if (!$HatirlatmaTarihi) {
             return null;
         }
 
-        // İçerik belirle
+        
         $Konfig = self::$KaynakTurleri[$KaynakTuru] ?? null;
         if (!$Konfig) {
             return null;
@@ -181,7 +181,7 @@ class CalendarService
 
         $Db = Database::getInstance();
 
-        // Mevcut kayıt var mı kontrol et
+        
         $Mevcut = $Db->fetchOne(
             "SELECT Id, Durum FROM tbl_takvim WHERE KaynakTuru = :turu AND KaynakId = :id AND Sil = 0",
             ['turu' => $KaynakTuru, 'id' => $KaynakId]
@@ -190,7 +190,7 @@ class CalendarService
         $VarsayilanDurum = self::getDefaultTakvimDurum();
 
         if ($Mevcut) {
-            // Güncelle
+            
             $Db->execute(
                 "UPDATE tbl_takvim SET 
                     MusteriId = :musteriId,
@@ -211,7 +211,7 @@ class CalendarService
             );
             return $Mevcut['Id'];
         } else {
-            // Yeni kayıt oluştur - Guid oluştur
+            
             $Guid = strtoupper(sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X',
                 mt_rand(0, 65535), mt_rand(0, 65535),
                 mt_rand(0, 65535),
@@ -235,19 +235,19 @@ class CalendarService
                 ]
             );
             
-            // Son eklenen ID'yi al
+            
             $SonId = $Db->fetchOne("SELECT SCOPE_IDENTITY() as id");
             return $SonId ? (int)$SonId['id'] : null;
         }
     }
 
-    /**
-     * Takvim kaydını sil (soft delete)
-     * 
-     * @param string $KaynakTuru Kaynak türü
-     * @param int $KaynakId Kaynak ID
-     * @return bool
-     */
+    
+
+
+
+
+
+
     public static function deleteReminder(string $KaynakTuru, int $KaynakId): bool
     {
         $Db = Database::getInstance();
@@ -257,13 +257,13 @@ class CalendarService
         );
     }
 
-    /**
-     * Müşterinin belirli türdeki tüm hatırlatmalarını sil
-     * 
-     * @param int $MusteriId Müşteri ID
-     * @param string $KaynakTuru Kaynak türü
-     * @return bool
-     */
+    
+
+
+
+
+
+
     public static function deleteRemindersByCustomer(int $MusteriId, string $KaynakTuru): bool
     {
         $Db = Database::getInstance();
@@ -273,11 +273,11 @@ class CalendarService
         );
     }
 
-    /**
-     * Tüm hatırlatma parametrelerini getir
-     * 
-     * @return array
-     */
+    
+
+
+
+
     public static function getAllReminderSettings(): array
     {
         $Ayarlar = [];

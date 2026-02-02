@@ -44,9 +44,9 @@ class GuaranteeController
         }
     }
 
-    /**
-     * Tek Teminat Detayi Getir
-     */
+    
+
+
     public static function show(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
@@ -74,12 +74,12 @@ class GuaranteeController
 
     public static function store(): void
     {
-        // Hem JSON hem FormData destegi
+        
         $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         } else {
-            // multipart/form-data
+            
             $Girdi = $_POST;
         }
         
@@ -97,7 +97,7 @@ class GuaranteeController
             return;
         }
 
-        // Dosya yukleme islemi
+        
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
@@ -141,7 +141,7 @@ class GuaranteeController
             return $Repo->ekle($YuklenecekVeri, $KullaniciId);
         });
 
-        // Takvim hatirlatmasi olustur - termin tarihi varsa
+        
         if (!empty($YuklenecekVeri['TerminTarihi'])) {
             $Tur = !empty($YuklenecekVeri['Tur']) ? $YuklenecekVeri['Tur'] : 'Teminat';
             CalendarService::createOrUpdateReminder(
@@ -165,20 +165,20 @@ class GuaranteeController
             return;
         }
 
-        // Hem JSON hem FormData destegi
+        
         $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         } elseif (strpos($IcerikTipi, 'multipart/form-data') !== false) {
-            // PUT isteklerinde $_POST bos kalir, bu yuzden $_POST kullaniyoruz
-            // Ancak PHP multipart/form-data'yi PUT icin otomatik parse etmez
-            // Frontend POST gibi davranir ve $_POST dolar
+            
+            
+            
             $Girdi = $_POST;
         } elseif (strpos($IcerikTipi, 'application/x-www-form-urlencoded') !== false) {
-            // PUT icin urlencoded veri parse ediliyor
+            
             parse_str(file_get_contents('php://input'), $Girdi);
         } else {
-            // Diger durumlar icin $_POST kullan
+            
             $Girdi = $_POST;
         }
         
@@ -189,10 +189,10 @@ class GuaranteeController
             return;
         }
 
-        // Dosya silme veya guncelleme islemi (Transaction disinda)
+        
         $DosyaGuncellemesi = [];
         if (!empty($Girdi['removeFile'])) {
-            // Mevcut dosyayi sil
+            
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
@@ -204,14 +204,14 @@ class GuaranteeController
             $DosyaGuncellemesi['DosyaYolu'] = null;
         }
 
-        // Yeni dosya yuklendiyse
+        
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
             $Hata = UploadValidator::validateDocument($_FILES['dosya'], 10 * 1024 * 1024);
             if ($Hata !== null) {
                 Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
                 return;
             }
-            // Eski dosyayi sil
+            
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
@@ -250,7 +250,7 @@ class GuaranteeController
             }
             if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = !empty($Girdi['ProjeId']) ? (int)$Girdi['ProjeId'] : null;
 
-            // Dosya guncellemesi varsa ekle
+            
             $Guncellenecek = array_merge($Guncellenecek, $DosyaGuncellemesi);
 
             if (!empty($Guncellenecek)) {
@@ -258,7 +258,7 @@ class GuaranteeController
             }
         });
 
-        // Takvim hatirlatmasi guncelle - termin tarihi varsa
+        
         if (isset($Girdi['TerminTarihi'])) {
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut) {
@@ -296,7 +296,7 @@ class GuaranteeController
             $Repo->softSil($Id, $KullaniciId);
         });
 
-        // Takvim hatirlatmasini sil
+        
         CalendarService::deleteReminder('teminat', $Id);
 
         Response::json(['status' => 'success']);

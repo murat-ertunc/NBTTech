@@ -1,7 +1,7 @@
 <?php
-/**
- * SQL Migration Script - Takvim Kaynak Alanlari ve Hatirlatma Parametreleri
- */
+
+
+
 
 require dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
@@ -11,12 +11,12 @@ try {
     $db = Database::connection();
     echo "Veritabani baglantisi basarili.\n\n";
 
-    // =============================================
-    // 1. TAKVIM TABLOSU KAYNAK ALANLARI
-    // =============================================
+    
+    
+    
     echo "=== TAKVIM TABLOSU GUNCELLEME ===\n";
     
-    // KaynakTuru kolonu
+    
     $check = $db->query("SELECT COL_LENGTH('tbl_takvim', 'KaynakTuru') as len");
     $result = $check->fetch();
     
@@ -28,7 +28,7 @@ try {
         echo "KaynakTuru zaten mevcut.\n";
     }
     
-    // KaynakId kolonu
+    
     $check = $db->query("SELECT COL_LENGTH('tbl_takvim', 'KaynakId') as len");
     $result = $check->fetch();
     
@@ -40,7 +40,7 @@ try {
         echo "KaynakId zaten mevcut.\n";
     }
     
-    // Index
+    
     $check = $db->query("SELECT name FROM sys.indexes WHERE object_id = OBJECT_ID('tbl_takvim') AND name = 'IX_tbl_takvim_Kaynak'");
     $result = $check->fetch();
     
@@ -54,9 +54,9 @@ try {
     
     echo "\n=== HATIRLATMA PARAMETRELERI ===\n";
     
-    // =============================================
-    // 2. HATIRLATMA GUN PARAMETRELERI
-    // =============================================
+    
+    
+    
     $gunParametreleri = [
         ['gorusme_hatirlatma_gun', '0', 'Görüşme Tarihi Öncesi Hatırlatma Günü'],
         ['teklif_gecerlilik_hatirlatma_gun', '3', 'Teklif Geçerlilik Tarihi Öncesi Hatırlatma Günü'],
@@ -89,9 +89,9 @@ try {
         $sira++;
     }
     
-    // =============================================
-    // 3. HATIRLATMA AKTIF/PASIF PARAMETRELERI
-    // =============================================
+    
+    
+    
     echo "\n=== HATIRLATMA AKTIF/PASIF PARAMETRELERI ===\n";
     
     $aktifParametreleri = [

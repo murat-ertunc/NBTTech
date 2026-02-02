@@ -1,8 +1,8 @@
 <?php
-/**
- * Teklifler Listesi Sayfası - Server-Rendered
- * URL: /offers
- */
+
+
+
+
 
 $pageTitle = 'Teklifler';
 $activeNav = 'islemler';

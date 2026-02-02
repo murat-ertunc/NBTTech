@@ -1,11 +1,11 @@
 <?php
-/**
- * Müşteri Form Sayfası - Ekle/Düzenle
- * URL: /customer/new veya /customer/{id}/edit
- * 
- * Modal yerine tam sayfa form.
- * files/form.php ile aynı pattern kullanılıyor.
- */
+
+
+
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $IsEdit = $MusteriId > 0;

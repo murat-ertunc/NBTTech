@@ -31,7 +31,7 @@ class ProjectController
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            // Standalone sayfalarda pagination varsa paginated sonuc dondur
+            
             if (isset($_GET['page']) || isset($_GET['limit'])) {
                 $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
                 Response::json($Sonuc);
@@ -42,9 +42,9 @@ class ProjectController
         }
     }
 
-    /**
-     * Tek Proje Detayi Getir
-     */
+    
+
+
     public static function show(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
@@ -145,7 +145,7 @@ class ProjectController
             return;
         }
 
-        // Cascade soft delete: Proje silindiginde iliskili kayitlar da Sil=1 yapilir
+        
         Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
             $Repo->cascadeSoftSil($Id, $KullaniciId);
         });

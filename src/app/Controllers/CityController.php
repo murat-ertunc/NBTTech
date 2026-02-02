@@ -7,9 +7,9 @@ use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\CityRepository;
 
-/**
- * Şehir (İl) Controller
- */
+
+
+
 class CityController
 {
     public static function index(): void
@@ -66,7 +66,7 @@ class CityController
 
         $Repo = new CityRepository();
         
-        // Duplicate kontrolü
+        
         $Mevcut = $Repo->adIleBul(trim($Girdi['Ad']));
         if ($Mevcut) {
             Response::error('Bu isimde bir sehir zaten mevcut.', 422);

@@ -1,18 +1,18 @@
 <?php
-/**
- * Veritabani Seeder
- * 
- * Kullanim: php database/seeder.php
- * 
- * Bu seeder:
- * 1. Permission'lari otomatik upsert eder (expected permissions)
- * 2. Superadmin kullanicisini olusturur
- * 3. Superadmin rolune TUM permission'lari atar (her calistirmada sync)
- * 4. Superadmin kullanicisina superadmin rolunu atar
- * 5. Fail-fast: Eksik permission varsa exit(1)
- */
 
-// Proje kökünü güvenli şekilde bul (src/database → 2 seviye yukarı = root)
+
+
+
+
+
+
+
+
+
+
+
+
+
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
 use App\Core\Database;
@@ -23,9 +23,9 @@ echo "════════════════════════�
 echo "NBT Project Seeder Baslatildi\n";
 echo "════════════════════════════════════════════════════════════\n\n";
 
-// =============================================
-// HELPER: GUID Olustur
-// =============================================
+
+
+
 function generateGuid(): string
 {
     return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
@@ -37,19 +37,19 @@ function generateGuid(): string
     );
 }
 
-// =============================================
-// 0. PERMISSION GENERATOR (UPSERT)
-// =============================================
+
+
+
 echo "━━━ 0. PERMISSION GENERATOR (UPSERT) ━━━\n";
 
-/**
- * Modül Listesi - Tek Kaynak (Single Source of Truth)
- * 
- * Bu liste tüm projedeki modülleri tanımlar.
- * api.php, web.php ve controller'larla tutarlı olmalıdır.
- */
+
+
+
+
+
+
 $ModulTanimlari = [
-    // CRUD Modüller (create, read, update, delete)
+    
     'users' => [
         'aksiyonlar' => ['create', 'read', 'read_all', 'update', 'delete'],
         'aciklamalar' => [
@@ -190,7 +190,7 @@ $ModulTanimlari = [
             'delete' => 'Parametre silme yetkisi',
         ],
     ],
-    // Read-Only Modüller
+    
     'dashboard' => [
         'aksiyonlar' => ['read'],
         'aciklamalar' => [
@@ -211,7 +211,7 @@ $ModulTanimlari = [
     ],
 ];
 
-// Expected permissions listesini oluştur
+
 $ExpectedPermissions = [];
 foreach ($ModulTanimlari as $Modul => $Tanim) {
     foreach ($Tanim['aksiyonlar'] as $Aksiyon) {
@@ -226,11 +226,11 @@ foreach ($ModulTanimlari as $Modul => $Tanim) {
 
 echo "  Beklenen permission sayisi: " . count($ExpectedPermissions) . "\n";
 
-// Mevcut permission'lari al
+
 $Stmt = $Db->query("SELECT PermissionKodu FROM tnm_permission WHERE Sil = 0 AND Aktif = 1");
 $MevcutKodlar = $Stmt->fetchAll(\PDO::FETCH_COLUMN);
 
-// UPSERT: Eksik permission'lari ekle
+
 $EklenenSayi = 0;
 $Simdi = date('Y-m-d H:i:s');
 
@@ -263,14 +263,14 @@ if ($EklenenSayi > 0) {
     echo "  ✓ Tum expected permissions zaten mevcut\n";
 }
 
-// =============================================
-// 1. KULLANICI SEED
-// =============================================
+
+
+
 echo "\n━━━ 1. KULLANICI SEED ━━━\n";
 
-/**
- * GUID Oluşturucu - Yukarıda tanımlandı
- */
+
+
+
 
 $Kullanicilar = [
     [
@@ -324,12 +324,12 @@ foreach ($Kullanicilar as $Kullanici) {
     }
 }
 
-// =============================================
-// 2. SUPERADMIN ROLUNE TUM PERMISSION'LARI SYNC ET
-// =============================================
+
+
+
 echo "\n━━━ 2. SUPERADMIN PERMISSION SYNC ━━━\n";
 
-// Superadmin rol ID'sini bul
+
 $Stmt = $Db->prepare("SELECT Id FROM tnm_rol WHERE RolKodu = 'superadmin' AND Sil = 0");
 $Stmt->execute();
 $SuperAdminRol = $Stmt->fetch();
@@ -337,12 +337,12 @@ $SuperAdminRol = $Stmt->fetch();
 if ($SuperAdminRol) {
     $SuperAdminRolId = (int) $SuperAdminRol['Id'];
     
-    // Toplam permission sayisini al
+    
     $Stmt = $Db->prepare("SELECT COUNT(*) as cnt FROM tnm_permission WHERE Sil = 0 AND Aktif = 1");
     $Stmt->execute();
     $TotalPerms = (int) $Stmt->fetch()['cnt'];
     
-    // Mevcut superadmin permission sayisini al
+    
     $Stmt = $Db->prepare("SELECT COUNT(*) as cnt FROM tnm_rol_permission WHERE RolId = :RolId AND Sil = 0");
     $Stmt->execute(['RolId' => $SuperAdminRolId]);
     $CurrentPerms = (int) $Stmt->fetch()['cnt'];
@@ -350,15 +350,15 @@ if ($SuperAdminRol) {
     echo "  Toplam Permission: {$TotalPerms}\n";
     echo "  Superadmin Mevcut: {$CurrentPerms}\n";
     
-    // Eksik permission var mi kontrol et
+    
     if ($CurrentPerms < $TotalPerms) {
         echo "  ! Eksik permission tespit edildi, sync yapiliyor...\n";
         
-        // Mevcut atamalari temizle
+        
         $Stmt = $Db->prepare("DELETE FROM tnm_rol_permission WHERE RolId = :RolId");
         $Stmt->execute(['RolId' => $SuperAdminRolId]);
         
-        // Tum permission'lari ekle
+        
         $Simdi = date('Y-m-d H:i:s');
         $Stmt = $Db->prepare("SELECT Id FROM tnm_permission WHERE Sil = 0 AND Aktif = 1");
         $Stmt->execute();
@@ -390,12 +390,12 @@ if ($SuperAdminRol) {
     echo "  ✗ Superadmin rolu bulunamadi! Once SQL migration'lari calistirin.\n";
 }
 
-// =============================================
-// 3. SUPERADMIN KULLANICISINA ROL ATA
-// =============================================
+
+
+
 echo "\n━━━ 3. SUPERADMIN KULLANICI-ROL ESLEMESI ━━━\n";
 
-// Superadmin kullanici ID'sini bul
+
 $Stmt = $Db->prepare("SELECT Id FROM tnm_user WHERE KullaniciAdi = 'superadmin' AND Sil = 0");
 $Stmt->execute();
 $SuperAdminUser = $Stmt->fetch();
@@ -404,7 +404,7 @@ if ($SuperAdminUser && $SuperAdminRol) {
     $SuperAdminUserId = (int) $SuperAdminUser['Id'];
     $SuperAdminRolId = (int) $SuperAdminRol['Id'];
     
-    // Mevcut esleme var mi kontrol et
+    
     $Stmt = $Db->prepare("SELECT Id FROM tnm_user_rol WHERE UserId = :UserId AND RolId = :RolId AND Sil = 0");
     $Stmt->execute(['UserId' => $SuperAdminUserId, 'RolId' => $SuperAdminRolId]);
     $MevcutEsleme = $Stmt->fetch();
@@ -432,12 +432,12 @@ if ($SuperAdminUser && $SuperAdminRol) {
     echo "  ✗ Superadmin kullanici veya rol bulunamadi!\n";
 }
 
-// =============================================
-// 4. DOGRULAMA (FAIL-FAST)
-// =============================================
+
+
+
 echo "\n━━━ 4. DOGRULAMA (FAIL-FAST) ━━━\n";
 
-// 4A: Expected permissions vs DB permissions
+
 echo "  4A. Expected Permissions Kontrolu:\n";
 $Stmt = $Db->query("SELECT PermissionKodu FROM tnm_permission WHERE Sil = 0 AND Aktif = 1");
 $DbPermKodlari = $Stmt->fetchAll(\PDO::FETCH_COLUMN);
@@ -459,7 +459,7 @@ if (count($ExpectedMissingInDb) > 0) {
     echo "      ✓ Tum expected permissions DB'de mevcut\n";
 }
 
-// 4B: Superadmin missing kontrolu
+
 echo "\n  4B. Superadmin Permission Kontrolu:\n";
 $Stmt = $Db->prepare("SELECT COUNT(*) as cnt FROM tnm_permission WHERE Sil = 0 AND Aktif = 1");
 $Stmt->execute();
@@ -483,7 +483,7 @@ echo "      Superadmin Missing    : {$MissingSayi}\n";
 if ($MissingSayi === 0) {
     echo "      ✓ Superadmin tum permission'lara sahip!\n";
 } else {
-    // Eksik permission'lari listele
+    
     echo "\n  ✗ HATA: Superadmin'de {$MissingSayi} eksik permission var!\n";
     echo "\n  Eksik Permissionlar:\n";
     
@@ -503,7 +503,7 @@ if ($MissingSayi === 0) {
         echo "    - {$Perm}\n";
     }
     
-    // Eksik permission'lari dosyaya yaz
+    
     $MissingFile = __DIR__ . '/missing_permissions.txt';
     file_put_contents($MissingFile, implode("\n", $MissingPerms));
     echo "\n  Eksik permissionlar dosyaya yazildi: {$MissingFile}\n";
@@ -514,9 +514,9 @@ if ($MissingSayi === 0) {
     exit(1);
 }
 
-// =============================================
-// 5. EFFECTIVE PERMISSIONS KONTROLU
-// =============================================
+
+
+
 echo "\n━━━ 5. EFFECTIVE PERMISSIONS KONTROLU ━━━\n";
 
 $EffectiveStmt = $Db->prepare("

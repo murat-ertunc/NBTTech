@@ -9,24 +9,24 @@ use App\Repositories\RoleRepository;
 use App\Repositories\PermissionRepository;
 use App\Services\Authorization\AuthorizationService;
 
-/**
- * Rol Controller
- * 
- * Rol CRUD ve permission atama islemlerini yonetir.
- * Tum islemler yetki kontrolu altindadir.
- * 
- * @package App\Controllers
- */
+
+
+
+
+
+
+
+
 class RoleController
 {
-    // =========================================================================
-    // ROL CRUD
-    // =========================================================================
     
-    /**
-     * Tum rolleri listeler
-     * GET /api/roles
-     */
+    
+    
+    
+    
+
+
+
     public static function index(): void
     {
         if (!Permission::izinGerekli('roles.read')) {
@@ -55,10 +55,10 @@ class RoleController
         }
     }
     
-    /**
-     * Rol detayi getirir
-     * GET /api/roles/{id}
-     */
+    
+
+
+
     public static function show(array $Parametreler): void
     {
         if (!Permission::izinGerekli('roles.read')) {
@@ -90,10 +90,10 @@ class RoleController
         Response::json(['data' => $Rol]);
     }
     
-    /**
-     * Yeni rol olusturur
-     * POST /api/roles
-     */
+    
+
+
+
     public static function store(): void
     {
         if (!Permission::izinGerekli('roles.create')) {
@@ -107,7 +107,7 @@ class RoleController
             return;
         }
         
-        // Validasyon
+        
         $Hatalar = [];
         
         if (empty($Girdi['RolKodu'])) {
@@ -164,10 +164,10 @@ class RoleController
         }
     }
     
-    /**
-     * Rol gunceller
-     * PUT /api/roles/{id}
-     */
+    
+
+
+
     public static function update(array $Parametreler): void
     {
         if (!Permission::izinGerekli('roles.update')) {
@@ -195,7 +195,7 @@ class RoleController
             return;
         }
         
-        // Validasyon
+        
         $Hatalar = [];
         
         if (isset($Girdi['RolKodu']) && !preg_match('/^[a-z][a-z0-9_]{2,29}$/', $Girdi['RolKodu'])) {
@@ -240,10 +240,10 @@ class RoleController
         }
     }
     
-    /**
-     * Rol siler
-     * DELETE /api/roles/{id}
-     */
+    
+
+
+
     public static function delete(array $Parametreler): void
     {
         if (!Permission::izinGerekli('roles.delete')) {
@@ -275,15 +275,15 @@ class RoleController
         }
     }
     
-    // =========================================================================
-    // PERMISSION ATAMA
-    // =========================================================================
     
-    /**
-     * Role permission listesi atar (toplu atama)
-     * POST /api/roles/{id}/permissions
-     * Body: { "permissions": [1, 2, 3] }
-     */
+    
+    
+    
+    
+
+
+
+
     public static function assignPermissions(array $Parametreler): void
     {
         if (!Permission::izinGerekli('roles.update')) {
@@ -314,7 +314,7 @@ class RoleController
         try {
             $AuthService = AuthorizationService::getInstance();
             
-            // Subset constraint kontrolu: sadece kendi sahip oldugu permissionlari atayabilir
+            
             $KullaniciPermissionlari = $AuthService->kullaniciPermissionlariGetir($KullaniciId);
             $Repo = new RoleRepository();
             $TumPermissionlar = $AuthService->tumPermissionlariGetir();
@@ -351,10 +351,10 @@ class RoleController
         }
     }
     
-    /**
-     * Rolun permissionlarini getirir
-     * GET /api/roles/{id}/permissions
-     */
+    
+
+
+
     public static function getPermissions(array $Parametreler): void
     {
         if (!Permission::izinGerekli('roles.read')) {
@@ -374,14 +374,14 @@ class RoleController
         Response::json(['data' => $Permissionlar]);
     }
     
-    // =========================================================================
-    // YARDIMCI ENDPOINTLER
-    // =========================================================================
     
-    /**
-     * Tum permission listesini getirir (rol duzenleme icin)
-     * GET /api/permissions
-     */
+    
+    
+    
+    
+
+
+
     public static function allPermissions(): void
     {
         if (!Permission::izinGerekli('roles.read')) {
@@ -391,7 +391,7 @@ class RoleController
         $AuthService = AuthorizationService::getInstance();
         $KullaniciId = Context::kullaniciId();
         
-        // Kritik permission'larin varligini garanti altina al
+        
         $PermissionRepo = new PermissionRepository();
         $KritikPermissionlar = [
             'users.read_all' => [
@@ -418,16 +418,16 @@ class RoleController
             }
         }
         
-        // Turkce ceviri dosyasini yukle
+        
         $Ceviriler = require CONFIG_PATH . 'permissions_tr.php';
         $ModulCevirileri = $Ceviriler['moduller'] ?? [];
         $PermissionCevirileri = $Ceviriler['permissionlar'] ?? [];
         $AksiyonCevirileri = $Ceviriler['aksiyonlar'] ?? [];
         
-        // Modul bazinda gruplu
+        
         $ModulBazinda = $AuthService->permissionlariModulBazindaGetir();
         
-        // Turkce ceviri ekle
+        
         $ModulBazindaTr = [];
         foreach ($ModulBazinda as $Modul => $Permler) {
             $ModulAdiTr = $ModulCevirileri[$Modul] ?? ucfirst($Modul);
@@ -446,7 +446,7 @@ class RoleController
             ];
         }
         
-        // Duz liste
+        
         $TumListe = $AuthService->tumPermissionlariGetir();
         $TumListeTr = array_map(function ($P) use ($PermissionCevirileri) {
             $P['PermissionAdiTr'] = $PermissionCevirileri[$P['PermissionKodu']] ?? $P['PermissionKodu'];
@@ -463,10 +463,10 @@ class RoleController
         ]);
     }
     
-    /**
-     * Kullanicinin atayabilecegi rolleri getirir
-     * GET /api/roles/assignable
-     */
+    
+
+
+
     public static function assignableRoles(): void
     {
         $KullaniciId = Context::kullaniciId();
@@ -482,10 +482,10 @@ class RoleController
         Response::json(['data' => $AtanabilirRoller]);
     }
     
-    /**
-     * Mevcut kullanicinin yetkilerini getirir (frontend icin)
-     * GET /api/auth/permissions
-     */
+    
+
+
+
     public static function myPermissions(): void
     {
         $UserId = Context::kullaniciId();

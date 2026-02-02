@@ -1,11 +1,11 @@
 <?php
-/**
- * Parametreler Sayfası - Server-Rendered
- * URL: /parameters
- * Sistem parametrelerinin yönetimi (döviz, durum badge'leri, pagination vb.)
- * 
- * /alarms sayfası ile aynı tab tasarım dili uygulandı.
- */
+
+
+
+
+
+
+
 
 $pageTitle = 'Tanımlamalar';
 $activeNav = 'sistem';

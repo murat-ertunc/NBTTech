@@ -1,20 +1,20 @@
 <?php
-/**
- * Veritabani Reset ve Migration Script
- * 
- * UYARI: Bu script mevcut veritabanini tamamen siler ve yeniden olusturur!
- * 
- * Kullanim: php database/reset_and_migrate.php
- * 
- * Guvenlik: Bu script sadece development ortaminda calisir.
- * Production ortaminda calistirilmaya calisildiginda hata verir.
- */
+
+
+
+
+
+
+
+
+
+
 
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
 use App\Core\Database;
 
-// Guvenlik kontrolu - Production'da calistirma
+
 $OrtamGuvenli = env('APP_ENV', 'production');
 if ($OrtamGuvenli === 'production') {
     echo "\n";
@@ -27,7 +27,7 @@ if ($OrtamGuvenli === 'production') {
     exit(1);
 }
 
-// Ek guvenlik - Kullanici onay alsın
+
 echo "\n";
 echo "╔════════════════════════════════════════════════════════════════╗\n";
 echo "║  ⚠️  UYARI: Veritabani TAMAMEN silinecek ve yeniden            ║\n";
@@ -53,10 +53,10 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 try {
     $Db = Database::connection();
     
-    // Aşama 1: Tüm tabloları DROP et
+    
     echo "📦 Aşama 1: Mevcut tablolar siliniyor...\n";
     
-    // Tüm foreign key constraint'leri getir ve DROP et
+    
     $ForeignKeys = $Db->query("
         SELECT 
             OBJECT_NAME(f.parent_object_id) AS TableName,
@@ -70,13 +70,13 @@ try {
             $Db->exec("ALTER TABLE [{$Fk['TableName']}] DROP CONSTRAINT [{$Fk['ForeignKeyName']}]");
             echo "   ⊟ FK constraint silindi: {$Fk['TableName']}.{$Fk['ForeignKeyName']}\n";
         } catch (\Exception $e) {
-            // Constraint yoksa devam et
+            
         }
     }
     
     echo "\n";
     
-    // Tüm tabloları getir ve DROP et
+    
     $Tablolar = $Db->query("
         SELECT TABLE_NAME 
         FROM INFORMATION_SCHEMA.TABLES 
@@ -96,10 +96,10 @@ try {
     
     echo "\n📦 Aşama 2: SQL dosyalari calistiriliyor...\n\n";
     
-    // SQL dosyalarini sirali olarak calistir
+    
     $SqlDizini = SRC_PATH . 'sql';
     $Dosyalar = glob($SqlDizini . '/*.sql');
-    sort($Dosyalar); // Sirayla calistir (000_, 001_, 002_, ...)
+    sort($Dosyalar); 
     
     $BasariliSayisi = 0;
     $HataliSayisi = 0;
@@ -114,7 +114,7 @@ try {
         }
         
         try {
-            // GO ifadelerini ayir ve her birini ayri calistir
+            
             $Parcalar = preg_split('/^\s*GO\s*$/mi', $SqlIcerik);
             
             foreach ($Parcalar as $Parca) {
@@ -143,7 +143,7 @@ try {
         exit(1);
     }
     
-    // Aşama 3: Seeder'i calistir
+    
     echo "📦 Aşama 3: Seeder calistiriliyor...\n\n";
     include __DIR__ . '/seeder.php';
     

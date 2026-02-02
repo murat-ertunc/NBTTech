@@ -38,7 +38,7 @@ class OfferController
             $Satirlar = $Repo->projeTeklifleri($ProjeId);
             Response::json(['data' => $Satirlar]);
         } else {
-            // Standalone sayfalarda pagination varsa paginated sonuc dondur
+            
             if (isset($_GET['page']) || isset($_GET['limit'])) {
                 $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
                 Response::json($Sonuc);
@@ -49,9 +49,9 @@ class OfferController
         }
     }
 
-    /**
-     * Tek Teklif Detayi Getir
-     */
+    
+
+
     public static function show(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
@@ -79,12 +79,12 @@ class OfferController
 
     public static function store(): void
     {
-        // Hem JSON hem FormData gelen istekleri destekliyoruz
+        
         $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         } else {
-            // multipart/form-data
+            
             $Girdi = $_POST;
         }
         
@@ -102,11 +102,11 @@ class OfferController
             return;
         }
 
-        // Dosya yukleme islemi - varsa dosya yolunu ve adini kaydediyoruz
+        
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
-            $MaksimumBoyut = 10 * 1024 * 1024; // 10MB
+            $MaksimumBoyut = 10 * 1024 * 1024; 
             $Hata = UploadValidator::validateDocument($_FILES['dosya'], $MaksimumBoyut);
             if ($Hata !== null) {
                 Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
@@ -147,7 +147,7 @@ class OfferController
             return $Repo->ekle($YuklenecekVeri, $KullaniciId);
         });
 
-        // Takvim hatirlatmasi olustur - gecerlilik tarihi varsa
+        
         if (!empty($YuklenecekVeri['GecerlilikTarihi'])) {
             CalendarService::createOrUpdateReminder(
                 (int)$YuklenecekVeri['MusteriId'],
@@ -170,7 +170,7 @@ class OfferController
             return;
         }
 
-        // Hem JSON hem FormData gelen istekleri destekliyoruz
+        
         $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -198,9 +198,9 @@ class OfferController
         if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
         if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = (int)$Girdi['ProjeId'];
 
-        // Dosya silme veya guncelleme islemi
+        
         if (!empty($Girdi['removeFile'])) {
-            // Mevcut dosyayi sil
+            
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
@@ -212,16 +212,16 @@ class OfferController
             $Guncellenecek['DosyaYolu'] = null;
         }
 
-        // Yeni dosya yuklendiyse eskisini silip yenisini kaydediyoruz
+        
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
-            $MaksimumBoyut = 10 * 1024 * 1024; // 10MB
+            $MaksimumBoyut = 10 * 1024 * 1024; 
             $Hata = UploadValidator::validateDocument($_FILES['dosya'], $MaksimumBoyut);
             if ($Hata !== null) {
                 Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
                 return;
             }
             
-            // Eski dosyayi fiziksel olarak sil
+            
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
@@ -252,7 +252,7 @@ class OfferController
             });
         }
 
-        // Takvim hatirlatmasi guncelle - gecerlilik tarihi varsa
+        
         if (isset($Girdi['GecerlilikTarihi'])) {
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut) {
@@ -290,7 +290,7 @@ class OfferController
             $Repo->softSil($Id, $KullaniciId);
         });
 
-        // Takvim hatirlatmasini sil
+        
         CalendarService::deleteReminder('teklif', $Id);
 
         Response::json(['status' => 'success']);

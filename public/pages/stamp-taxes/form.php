@@ -1,8 +1,8 @@
 <?php
-/**
- * Damga Vergisi Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/stamp-taxes/new veya /customer/{id}/stamp-taxes/{stampTaxId}/edit
- */
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $DamgaId = $DamgaId ?? 0;
@@ -12,7 +12,7 @@ $pageTitle = $IsEdit ? 'Damga Vergisi Düzenle' : 'Yeni Damga Vergisi';
 $activeNav = 'customers';
 $currentPage = 'stamp-tax-form';
 
-// Form partial değişkenleri
+
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'damgavergisi';
 $FormTitle = $pageTitle;

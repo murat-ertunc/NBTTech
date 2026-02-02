@@ -48,10 +48,10 @@ class CustomerRepository extends BaseRepository
         return $Kayit ?: null;
     }
 
-    /**
-     * Kullaniciya ait tum musterileri soft delete yapar
-     * Kullanici silindiginde cagrilir
-     */
+    
+
+
+
     public function kullanicininMusterileriniSil(int $KullaniciId, int $SilenKullaniciId): int
     {
         $Musteriler = $this->kullaniciyaGoreAktifler($KullaniciId);
@@ -59,7 +59,7 @@ class CustomerRepository extends BaseRepository
             $this->yedekle((int) $Musteri['Id'], 'bck_tbl_musteri', $SilenKullaniciId);
         }
         
-        // Toplu soft delete
+        
         $StandartAlanlar = BaseModel::softDeleteIcinStandartAlanlar($SilenKullaniciId);
         $SetParcalari = [];
         $Yukleme = ['EkleyenUserId' => $KullaniciId];
@@ -79,10 +79,10 @@ class CustomerRepository extends BaseRepository
         return $Etkilenen;
     }
 
-    /**
-     * Sayfalama ile tum aktif musterileri getirir (superadmin/admin icin)
-     * Arama: MusteriKodu veya Unvan icinde buyuk/kucuk harf ve Turkce karakter duyarsiz arama
-     */
+    
+
+
+
     public function tumAktiflerSiraliPaginated(int $Page = 1, int $Limit = 10, string $Arama = ''): array
     {
         $Offset = ($Page - 1) * $Limit;
@@ -90,19 +90,19 @@ class CustomerRepository extends BaseRepository
         $Parametreler = [];
         
         if ($Arama !== '' && mb_strlen($Arama) >= 2) {
-            // SQL Server COLLATE ile Turkce karakter duyarsiz arama
+            
             $AramaKosulu = " AND (MusteriKodu COLLATE Turkish_CI_AI LIKE :arama OR Unvan COLLATE Turkish_CI_AI LIKE :arama2)";
             $Parametreler['arama'] = '%' . $Arama . '%';
             $Parametreler['arama2'] = '%' . $Arama . '%';
         }
         
-        // Total count
+        
         $CountSql = "SELECT COUNT(*) FROM {$this->Tablo} WHERE Sil = 0" . $AramaKosulu;
         $CountStmt = $this->Db->prepare($CountSql);
         $CountStmt->execute($Parametreler);
         $Total = (int) $CountStmt->fetchColumn();
         
-        // Data with user info
+        
         $Sql = "SELECT m.*, u.AdSoyad AS EkleyenAdSoyad, u.KullaniciAdi AS EkleyenKullaniciAdi 
                 FROM {$this->Tablo} m 
                 LEFT JOIN tnm_user u ON m.EkleyenUserId = u.Id 
@@ -131,10 +131,10 @@ class CustomerRepository extends BaseRepository
         ];
     }
 
-    /**
-     * Sayfalama ile kullaniciya ait aktif musterileri getirir
-     * Arama: MusteriKodu veya Unvan icinde buyuk/kucuk harf ve Turkce karakter duyarsiz arama
-     */
+    
+
+
+
     public function kullaniciyaGoreAktiflerPaginated(int $KullaniciId, int $Page = 1, int $Limit = 10, string $Arama = ''): array
     {
         $Offset = ($Page - 1) * $Limit;
@@ -142,19 +142,19 @@ class CustomerRepository extends BaseRepository
         $Parametreler = ['Uid' => $KullaniciId];
         
         if ($Arama !== '' && mb_strlen($Arama) >= 2) {
-            // SQL Server COLLATE ile Turkce karakter duyarsiz arama
+            
             $AramaKosulu = " AND (MusteriKodu COLLATE Turkish_CI_AI LIKE :arama OR Unvan COLLATE Turkish_CI_AI LIKE :arama2)";
             $Parametreler['arama'] = '%' . $Arama . '%';
             $Parametreler['arama2'] = '%' . $Arama . '%';
         }
         
-        // Total count
+        
         $CountSql = "SELECT COUNT(*) FROM {$this->Tablo} WHERE Sil = 0 AND EkleyenUserId = :Uid" . $AramaKosulu;
         $CountStmt = $this->Db->prepare($CountSql);
         $CountStmt->execute($Parametreler);
         $Total = (int) $CountStmt->fetchColumn();
         
-        // Data
+        
         $Sql = "SELECT * FROM {$this->Tablo} 
                 WHERE Sil = 0 AND EkleyenUserId = :Uid" . $AramaKosulu . "
                 ORDER BY Id DESC 

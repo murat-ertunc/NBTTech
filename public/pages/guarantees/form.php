@@ -1,8 +1,8 @@
 <?php
-/**
- * Teminat Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/guarantees/new veya /customer/{id}/guarantees/{guaranteeId}/edit
- */
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $TeminatId = $TeminatId ?? 0;
@@ -12,7 +12,7 @@ $pageTitle = $IsEdit ? 'Teminat Düzenle' : 'Yeni Teminat';
 $activeNav = 'customers';
 $currentPage = 'guarantee-form';
 
-// Form partial değişkenleri
+
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'teminatlar';
 $FormTitle = $pageTitle;

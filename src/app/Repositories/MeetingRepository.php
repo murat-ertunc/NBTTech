@@ -6,9 +6,9 @@ class MeetingRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_gorusme';
 
-    /**
-     * Tum aktif gorusmeleri musteri adi ile birlikte getir
-     */
+    
+
+
     public function tumAktifler(): array
     {
         $Sql = "SELECT g.*, m.Unvan AS MusteriUnvan, p.ProjeAdi AS ProjeAdi 

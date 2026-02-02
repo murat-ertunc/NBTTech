@@ -1,7 +1,7 @@
 <?php
-/**
- * Müşteri Modal - Ekle/Düzenle
- */
+
+
+
 ?>
 <!-- Müşteri Ekle/Düzenle Modal -->
 <div class="modal fade" id="customerModal" tabindex="-1">

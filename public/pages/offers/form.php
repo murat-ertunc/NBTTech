@@ -1,11 +1,11 @@
 <?php
-/**
- * Teklif Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/offers/new veya /customer/{id}/offers/{offerId}/edit
- * 
- * Modal yerine tam sayfa form.
- * Kaydetme sonrası müşteri detay sayfasındaki teklifler tabına yönlendirme.
- */
+
+
+
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $TeklifId = $TeklifId ?? 0;

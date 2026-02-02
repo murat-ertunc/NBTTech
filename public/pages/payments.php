@@ -1,8 +1,8 @@
 <?php
-/**
- * Ödemeler Listesi Sayfası - Server-Rendered
- * URL: /payments
- */
+
+
+
+
 
 $pageTitle = 'Ödemeler';
 $activeNav = 'islemler';

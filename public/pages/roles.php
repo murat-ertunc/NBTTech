@@ -1,10 +1,10 @@
 <?php
-/**
- * Rol Yonetimi Sayfasi
- * 
- * RBAC sisteminin UI'i - Rol listesi, ekleme, duzenleme, permission atama
- * URL: /roles
- */
+
+
+
+
+
+
 $pageTitle = 'Rol Yönetimi';
 $activeNav = 'sistem';
 $currentPage = 'roles';

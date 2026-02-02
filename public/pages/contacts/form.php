@@ -1,8 +1,8 @@
 <?php
-/**
- * Kişi Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/contacts/new veya /customer/{id}/contacts/{contactId}/edit
- */
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $KisiId = $KisiId ?? 0;
@@ -12,7 +12,7 @@ $pageTitle = $IsEdit ? 'Kişi Düzenle' : 'Yeni Kişi';
 $activeNav = 'customers';
 $currentPage = 'contact-form';
 
-// Form partial değişkenleri
+
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'kisiler';
 $FormTitle = $pageTitle;

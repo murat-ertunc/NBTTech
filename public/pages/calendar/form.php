@@ -1,8 +1,8 @@
 <?php
-/**
- * Takvim Form Sayfası - Ekle/Düzenle
- * URL: /customer/{id}/calendar/new veya /customer/{id}/calendar/{calendarId}/edit
- */
+
+
+
+
 
 $MusteriId = $MusteriId ?? 0;
 $TakvimId = $TakvimId ?? 0;
@@ -12,7 +12,7 @@ $pageTitle = $IsEdit ? 'Takvim Düzenle' : 'Yeni Takvim Kaydı';
 $activeNav = 'customers';
 $currentPage = 'calendar-form';
 
-// Form partial değişkenleri
+
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'takvim';
 $FormTitle = $pageTitle;

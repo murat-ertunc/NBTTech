@@ -36,9 +36,9 @@ class ContactController
         }
     }
 
-    /**
-     * Tek Kisi Detayi Getir
-     */
+    
+
+
     public static function show(array $Parametreler): void
     {
         $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;

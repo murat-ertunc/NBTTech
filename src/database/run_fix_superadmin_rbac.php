@@ -1,8 +1,8 @@
 #!/usr/bin/env php
 <?php
-/**
- * Superadmin RBAC Düzeltme Script Runner
- */
+
+
+
 
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
@@ -16,7 +16,7 @@ try {
     $SqlFile = SRC_PATH . 'sql/062_fix_superadmin_rbac.sql';
     $SqlContent = file_get_contents($SqlFile);
     
-    // GO ile ayrılmış parçaları çalıştır
+    
     $Parts = preg_split('/^\s*GO\s*$/mi', $SqlContent);
     
     foreach ($Parts as $Part) {

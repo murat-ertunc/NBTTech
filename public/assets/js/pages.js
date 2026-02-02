@@ -1,28 +1,21 @@
-/**
- * NbtProject - Sayfa Modulleri
- * =============================
- * Bu dosya, uygulamadaki tum sayfa modullerini icerir.
- * Her modul kendi CRUD islemlerini, tablo render islemlerini
- * ve event binding islemlerini bagimsiz olarak yonetir.
- * Moduller: Dashboard, Customer, Invoice, Payment, Project, Offer, Contract, Guarantee, Parameter vb.
- */
 
-// =============================================
-// GLOBAL STATE - Uygulama genelinde paylasilan veriler
-// =============================================
+
+
+
+
 const AppState = {
     customers: [],
     currentCustomer: null,
     currentCustomerTab: 'genel',
     alarms: [],
     calendarEvents: [],
-    calendarNeedsRefresh: false, // Takvim verisi degistiginde true olur
-    lastCalendarEventDate: null  // Son eklenen/guncellenen takvim kaydinin tarihi
+    calendarNeedsRefresh: false, 
+    lastCalendarEventDate: null  
 };
 
-// =============================================
-// DOSYA DOGRULAMA - PDF/DOC/DOCX
-// =============================================
+
+
+
 const NbtDocumentFile = {
     maxSize: 10 * 1024 * 1024,
     allowedExtensions: ['.pdf', '.doc', '.docx'],
@@ -46,9 +39,9 @@ const NbtDocumentFile = {
     }
 };
 
-// =============================================
-// GLOBAL CUSTOMER SIDEBAR - Her sayfada gosterilen musteri listesi
-// =============================================
+
+
+
 const GlobalCustomerSidebar = {
     customers: [],
     displayLimit: 20,
@@ -58,7 +51,7 @@ const GlobalCustomerSidebar = {
     currentCustomerId: null,
 
     async init() {
-        // Mevcut musteri ID'sini al (customer-detail sayfasindaysa)
+        
         const detailEl = document.getElementById('view-customer-detail');
         if (detailEl) {
             this.currentCustomerId = parseInt(detailEl.dataset.customerId) || null;
@@ -73,7 +66,7 @@ const GlobalCustomerSidebar = {
         if (!container) return;
 
         try {
-            // Arama varsa backend'den ara, yoksa ilk 20'yi getir
+            
             let url = '/api/customers?limit=' + this.displayLimit;
             if (query && query.length >= 2) {
                 url += '&search=' + encodeURIComponent(query);
@@ -88,9 +81,7 @@ const GlobalCustomerSidebar = {
         }
     },
 
-    /**
-     * Turkce ve buyuk/kucuk harf duyarsiz arama
-     */
+    
     filterCustomers(query) {
         if (!query || query.length < 2) {
             return this.customers;
@@ -105,19 +96,17 @@ const GlobalCustomerSidebar = {
         });
     },
 
-    /**
-     * Arama yap - debounce ile veya focusout ile cagrilir
-     */
+    
     doSearch() {
         const query = this.searchQuery;
         
-        // 2 karakterden az ise tum listeyi goster
+        
         if (!query || query.length < 2) {
             this.loadCustomers('');
             return;
         }
         
-        // Backend'den ara
+        
         this.loadCustomers(query);
     },
 
@@ -307,7 +296,7 @@ const DashboardModule = {
         if (!container) return;
         
         try {
-            // NbtCalendar'in mevcut tarihini kullan (navigasyon yapildiysa o tarihi korur)
+            
             const month = NbtCalendar.currentDate.getMonth() + 1;
             const year = NbtCalendar.currentDate.getFullYear();
             await NbtCalendar.loadEvents(null, month, year);
@@ -320,7 +309,7 @@ const DashboardModule = {
             onDayClick: (date, dayEvents) => this.openCalendarDayModal(date, dayEvents)
         });
         
-        // Refresh flag'ini sifirla
+        
         AppState.calendarNeedsRefresh = false;
     },
 
@@ -328,7 +317,7 @@ const DashboardModule = {
         const modal = document.getElementById('calendarDayModal');
         if (!modal) return;
         
-        // Tarih formatlama
+        
         const dateObj = new Date(date);
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         const formattedDate = dateObj.toLocaleDateString('tr-TR', options);
@@ -394,11 +383,11 @@ const DashboardModule = {
             }
         });
         
-        // Takvim verisi degistiginde takvimi yenile
+        
         window.addEventListener('calendarDataChanged', async (e) => {
             const container = document.getElementById('dashCalendar');
             if (container) {
-                // Eklenen/guncellenen kaydin tarihine git
+                
                 if (e.detail?.data?.TerminTarihi) {
                     NbtCalendar.currentDate = new Date(e.detail.data.TerminTarihi);
                 }
@@ -408,9 +397,9 @@ const DashboardModule = {
     }
 };
 
-// =============================================
-// MUSTERI MODULU
-// =============================================
+
+
+
 const CustomerModule = {
     searchQuery: '',
     _eventsBound: false,
@@ -418,11 +407,11 @@ const CustomerModule = {
     pageSize: window.APP_CONFIG?.PAGINATION_DEFAULT || 10,
     currentPage: 1,
     paginationInfo: null,
-    // Filtre icin ek property'ler
+    
     filteredData: null,
     filteredPage: 1,
     filteredPaginationInfo: null,
-    // Tum musterileri cache'le (filtreleme icin)
+    
     allCustomers: null,
     allCustomersLoading: false,
     
@@ -435,14 +424,14 @@ const CustomerModule = {
 
     async loadList(page = 1) {
         const container = document.getElementById('customersTableContainer');
-        if (!container) return; // Standalone sayfa degilse cik
+        if (!container) return; 
         try {
             container.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
             const response = await NbtApi.get(`/api/customers?page=${page}&limit=${this.pageSize}`);
             AppState.customers = response.data || [];
             this.paginationInfo = response.pagination || null;
             this.currentPage = page;
-            // Filtre state'lerini temizle
+            
             this.filteredData = null;
             this.filteredPaginationInfo = null;
             this.renderTable(AppState.customers);
@@ -452,7 +441,7 @@ const CustomerModule = {
     },
 
     initToolbar() {
-        // Card header'daki add butonuna event listener ekleme
+        
         const addBtn = document.querySelector('#panelCustomersList [data-action="add-customer"]');
         if (addBtn && !addBtn.hasAttribute('data-bound')) {
             addBtn.setAttribute('data-bound', 'true');
@@ -461,7 +450,7 @@ const CustomerModule = {
     },
 
     async applyFilters(page = 1) {
-        // Eger hic filtre yoksa normal listeye don
+        
         const hasFilters = this.searchQuery || Object.keys(this.columnFilters).length > 0;
         if (!hasFilters) {
             this.filteredData = null;
@@ -470,7 +459,7 @@ const CustomerModule = {
             return;
         }
         
-        // Tum musterileri yukle (filtreleme icin)
+        
         if (!this.allCustomers && !this.allCustomersLoading) {
             this.allCustomersLoading = true;
             const container = document.getElementById('customersTableContainer');
@@ -487,7 +476,7 @@ const CustomerModule = {
             this.allCustomersLoading = false;
         }
         
-        // Eger hala yukleniyorsa bekle
+        
         if (this.allCustomersLoading) {
             setTimeout(() => this.applyFilters(page), 100);
             return;
@@ -495,7 +484,7 @@ const CustomerModule = {
         
         let filtered = this.allCustomers || [];
         
-        // Turkce karakter normalizasyonu icin yardimci fonksiyon
+        
         const normalize = (str) => {
             return (str || '').toString()
                 .toLocaleLowerCase('tr-TR')
@@ -513,7 +502,7 @@ const CustomerModule = {
                 .replace(/Ç/g, 'c');
         };
         
-        // Tarih karsilastirma icin yardimci fonksiyon (YYYY-MM-DD formatinda)
+        
         const formatDateForCompare = (dateStr) => {
             if (!dateStr) return '';
             const date = new Date(dateStr);
@@ -524,7 +513,7 @@ const CustomerModule = {
             return `${year}-${month}-${day}`;
         };
         
-        // Global arama islemi
+        
         if (this.searchQuery) {
             const searchNorm = normalize(this.searchQuery);
             filtered = filtered.filter(c => 
@@ -532,30 +521,30 @@ const CustomerModule = {
             );
         }
         
-        // Kolon filtreleri
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (value) {
                 filtered = filtered.filter(c => {
                     let cellValue = c[field];
                     
-                    // Tarih alani icin ozel karsilastirma
+                    
                     if (field === 'EklemeZamani') {
                         const cellDate = formatDateForCompare(cellValue);
-                        return cellDate === value; // value zaten YYYY-MM-DD formatinda
+                        return cellDate === value; 
                     }
                     
-                    // Diger alanlar icin normalize edilmis karsilastirma
+                    
                     return normalize(cellValue).includes(normalize(value));
                 });
             }
         });
         
-        // Filtrelenmis verileri sakla
+        
         this.filteredData = filtered;
         this.filteredPage = page;
         
-        // Pagination hesapla
+        
         const total = filtered.length;
         const totalPages = Math.ceil(total / this.pageSize);
         const startIndex = (page - 1) * this.pageSize;
@@ -574,7 +563,7 @@ const CustomerModule = {
 
     renderTable(data, isFiltered = false) {
         const container = document.getElementById('customersTableContainer');
-        if (!container) return; // Standalone sayfa degilse cik
+        if (!container) return; 
         const columns = [
             { field: 'MusteriKodu', label: 'Kod' },
             { field: 'Unvan', label: 'Müşteri Adı' },
@@ -583,15 +572,15 @@ const CustomerModule = {
             { field: 'EklemeZamani', label: 'Kayıt Tarihi', render: (v) => NbtUtils.formatDate(v) }
         ];
 
-        // Header row
+        
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:110px;">İşlem</th>';
 
-        // Filter row - her kolon icin arama input'u
+        
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             if (c.field === 'EklemeZamani') {
-                // Tarih alani icin date input
+                
                 return `<th class="p-1"><input type="date" class="form-control form-control-sm" data-column-filter="${c.field}" data-table-id="customers" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
             }
             return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="customers" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
@@ -602,7 +591,7 @@ const CustomerModule = {
             </div>
         </th>`;
 
-        // Data rows
+        
         let rowsHtml = '';
         if (!data || data.length === 0) {
             rowsHtml = `<tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Müşteri bulunamadı</td></tr>`;
@@ -642,13 +631,13 @@ const CustomerModule = {
                 </table>
             </div>`;
 
-        // Pagination ekleme - filtrelenmis veriler icin de goster
+        
         if (isFiltered && this.filteredPaginationInfo) {
             const { page, totalPages, total, limit } = this.filteredPaginationInfo;
             if (totalPages > 1) {
                 container.innerHTML += this.renderFilteredPagination();
             } else if (total > 0) {
-                // Tek sayfa ise sadece bilgi goster
+                
                 container.innerHTML += `
                     <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
                         <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${total} kayıt gösteriliyor</small>
@@ -659,7 +648,7 @@ const CustomerModule = {
             container.innerHTML += this.renderPagination();
         }
 
-        // Bind events
+        
         this.bindTableEvents(container);
     },
 
@@ -718,7 +707,7 @@ const CustomerModule = {
     },
 
     bindTableEvents(container) {
-        // View buttons
+        
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.dataset.id;
@@ -726,7 +715,7 @@ const CustomerModule = {
             });
         });
 
-        // Pagination event binding
+        
         container.querySelectorAll('[data-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -737,7 +726,7 @@ const CustomerModule = {
             });
         });
 
-        // Filtered pagination event binding
+        
         container.querySelectorAll('[data-filtered-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -748,7 +737,7 @@ const CustomerModule = {
             });
         });
 
-        // Apply filters button - arama butonu
+        
         container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.columnFilters = {};
@@ -763,7 +752,7 @@ const CustomerModule = {
             });
         });
 
-        // Enter tusu ile arama
+        
         container.querySelectorAll('[data-column-filter][data-table-id="customers"]').forEach(input => {
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -772,21 +761,21 @@ const CustomerModule = {
             });
         });
 
-        // Clear filters button
+        
         container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.columnFilters = {};
                 this.searchQuery = '';
-                this.allCustomers = null; // Cache'i temizle
+                this.allCustomers = null; 
                 container.querySelectorAll('[data-column-filter][data-table-id="customers"]').forEach(input => {
                     input.value = '';
                 });
-                // Filtreler temizlenince normal listeye don
+                
                 this.loadList(1);
             });
         });
 
-        // Delete buttons
+        
         container.querySelectorAll('[data-action="delete"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = parseInt(btn.dataset.id);
@@ -1280,8 +1269,8 @@ const CustomerDetailModule = {
             btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
         });
 
-        // Müşteri düzenleme artık external sayfa ile yapılıyor (/customer/{id}/edit)
-        // btnEditCustomer event listener'ı kaldırıldı
+        
+        
     },
 
     switchTab(tab) {
@@ -1300,30 +1289,30 @@ const CustomerDetailModule = {
             btn.classList.toggle('active', btn.dataset.tab === tab);
         });
 
-        // Icerik render islemi
+        
         const container = document.getElementById('customerTabContent');
         container.innerHTML = this.renderTabContent(tab);
         this.bindTabEvents(container, tab);
         NbtPermission.applyToElements(container);
         
-        // Filtre select'lerini doldur (status ve currency)
+        
         this.populateFilterSelects(container);
     },
     
-    // Filtre select'lerini parametrelerden ve sabit degerlerden doldur
+    
     async populateFilterSelects(container) {
-        // Status select'lerini doldur
+        
         for (const select of container.querySelectorAll('select[data-status-type]')) {
             const statusType = select.dataset.statusType;
             const tableId = select.dataset.tableId;
             
-            // Parametreleri yukle (cache'de yoksa)
+            
             let statuses = await NbtParams.getStatuses(statusType);
             
-            // Mevcut secili degeri sakla
+            
             const currentValue = this.columnFilters[tableId]?.[select.dataset.columnFilter] || '';
             
-            // Secenekleri ekle
+            
             let options = '<option value="">Tümü</option>';
             (statuses || []).forEach(s => {
                 const selected = String(currentValue) === String(s.Kod) ? 'selected' : '';
@@ -1332,7 +1321,7 @@ const CustomerDetailModule = {
             select.innerHTML = options;
         }
         
-        // Currency (doviz) select'lerini parametrelerden doldur
+        
         const currencies = await NbtParams.getCurrencies();
         container.querySelectorAll('select[data-currency-select]').forEach(select => {
             const currentValue = this.columnFilters[select.dataset.tableId]?.[select.dataset.columnFilter] || '';
@@ -1403,7 +1392,7 @@ const CustomerDetailModule = {
         return ` data-can="${moduleName}.${action}"`;
     },
 
-    // ========== STANDART PANEL YAPISI ==========
+    
     renderPanel(config) {
         const { id, title, icon, filterFields, columns, data, addType, emptyMsg } = config;
         const moduleName = this.getModuleFromAddType(addType);
@@ -1445,14 +1434,14 @@ const CustomerDetailModule = {
         const deletePermissionAttr = this.getPermissionAttr(moduleName, 'delete');
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + '<th class="bg-light text-center px-3" style="width:130px;">İşlem</th>';
 
-        // Filter row - her kolon icin gelismis filtreler
+        
         const tableFilters = this.columnFilters[id] || {};
         const filterRow = columns.map(c => {
             const currentValue = tableFilters[c.field] || '';
             const startValue = tableFilters[c.field + '_start'] || '';
             const endValue = tableFilters[c.field + '_end'] || '';
             
-            // Tarih alanlari icin cift date input (baslangic-bitis) - yan yana
+            
             const isDateField = c.isDate || c.field.toLowerCase().includes('tarih') || c.field === 'TeklifTarihi' || c.field === 'TerminTarihi' || c.field === 'SozlesmeTarihi' || c.field === 'OlusturmaZamani';
             if (isDateField) {
                 return `<th class="p-1" style="min-width:200px;">
@@ -1463,7 +1452,7 @@ const CustomerDetailModule = {
                 </th>`;
             }
             
-            // Durum alanlari icin select (parametrelerden doldur)
+            
             if (c.field === 'Durum' && c.statusType) {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="${id}" data-status-type="${c.statusType}">
@@ -1472,7 +1461,7 @@ const CustomerDetailModule = {
                 </th>`;
             }
             
-            // Doviz alanlari icin select
+            
             if (c.field === 'ParaBirimi' || c.field === 'DovizCinsi') {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="${id}" data-currency-select="true">
@@ -1481,7 +1470,7 @@ const CustomerDetailModule = {
                 </th>`;
             }
             
-            // Tamamlandi alani icin select
+            
             if (c.field === 'Tamamlandi') {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="${id}">
@@ -1517,7 +1506,7 @@ const CustomerDetailModule = {
         
         const dataKey = this.getDataKeyFromTableId(id);
         
-        // Filtrelenmis veriler icin ayri pagination
+        
         let paginationInfo, currentPage, totalItems, totalPages, startIndex, endIndex;
         
         if (isFiltered && this.filteredPaginationInfo[id]) {
@@ -1543,7 +1532,7 @@ const CustomerDetailModule = {
                 return `<td data-field="${c.field}" class="px-3">${val ?? '-'}</td>`;
             }).join('');
             
-            // Dosya indirme butonu (DosyaYolu varsa goster)
+            
             const hasFile = row.DosyaYolu || row.DosyaId;
             const downloadBtn = hasFile ? `
                 <button class="btn btn-outline-info btn-sm" type="button" data-action="download" data-id="${row.Id}" data-file="${row.DosyaYolu || ''}" title="İndir"${viewPermissionAttr}>
@@ -1587,10 +1576,10 @@ const CustomerDetailModule = {
             ${paginationHtml}`;
     },
 
-    // Filtrelenmis veriler icin pagination
+    
     renderFilteredPaginationDetail(tableId, currentPage, totalPages, totalItems, startIndex, endIndex) {
         if (totalItems <= this.pageSize) {
-            // Tek sayfa - sadece bilgi goster
+            
             return `
                 <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top bg-light">
                     <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filtrelenmiş: ${totalItems} kayıt gösteriliyor</small>
@@ -1625,12 +1614,12 @@ const CustomerDetailModule = {
         const limit = paginationInfo ? paginationInfo.limit : this.pageSize;
         
         if (totalItems <= limit) {
-            return ''; // Tek sayfa varsa pagination gosterilmez
+            return ''; 
         }
         
         let pageButtons = '';
         
-        // Ilk ve onceki butonlar
+        
         pageButtons += `
             <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
                 <a class="page-link" href="#" data-page="1" data-table-id="${tableId}" title="İlk Sayfa"><i class="bi bi-chevron-double-left"></i></a>
@@ -1709,7 +1698,7 @@ const CustomerDetailModule = {
                 const data = this.data[dataKey] || [];
                 panelBody.innerHTML = this.renderDataTable(tableId, config.columns, data, config.emptyMsg);
                 
-                // Filtre select'lerini doldur
+                
                 await this.populateFilterSelects(panelBody);
                 
                 const container = document.getElementById('customerTabContent');
@@ -1756,12 +1745,12 @@ const CustomerDetailModule = {
         return mapping[tableId] || null;
     },
 
-    // ========== TAB RENDER FONKSIYONLARI ==========
+    
 
     renderBilgi() {
         const c = this.data.customer;
         
-        // Cari ozet verilerini async olarak yukle (DOM render sonrasi)
+        
         setTimeout(() => this.loadCariOzet(), 50);
         
         return `
@@ -1906,7 +1895,7 @@ const CustomerDetailModule = {
             const yilGruplari = {};
             let toplamFatura = 0;
             
-            // Doviz bazli toplamlar
+            
             const dovizToplamlar = {};
             
             data.forEach(item => {
@@ -1917,7 +1906,7 @@ const CustomerDetailModule = {
                 yilGruplari[yil].push(item);
                 toplamFatura += parseInt(item.FaturaAdedi) || 0;
                 
-                // Doviz bazli toplam hesapla
+                
                 const doviz = item.DovizCinsi || 'TL';
                 if (!dovizToplamlar[doviz]) {
                     dovizToplamlar[doviz] = { tutar: 0, odenen: 0, kalan: 0 };
@@ -1929,7 +1918,7 @@ const CustomerDetailModule = {
             
             if (badge) badge.textContent = `${toplamFatura} Fatura`;
             
-            // Yillari azalan sirada sirala
+            
             const yillar = Object.keys(yilGruplari).sort((a, b) => b - a);
             
             let html = `
@@ -1949,7 +1938,7 @@ const CustomerDetailModule = {
                 const items = yilGruplari[yil];
                 const faturaAdedi = items.reduce((sum, i) => sum + (parseInt(i.FaturaAdedi) || 0), 0);
                 
-                // Her doviz icin ayri satir
+                
                 items.forEach((item, idx) => {
                     const doviz = item.DovizCinsi || 'TL';
                     const dovizSimge = this.getDovizSimge(doviz);
@@ -2213,7 +2202,7 @@ const CustomerDetailModule = {
         });
     },
 
-    // ========== FATURA TAB - KALAN KIRMIZI VURGUSU ==========
+    
     renderFaturalar() {
         const data = this.data.invoices.map(inv => ({
             ...inv,
@@ -2250,7 +2239,7 @@ const CustomerDetailModule = {
         });
     },
 
-    // ========== ODEME TAB - FATURA ID DROPDOWN ==========
+    
     renderOdemeler() {
         return this.renderPanel({
             id: 'odemeler',
@@ -2305,16 +2294,16 @@ const CustomerDetailModule = {
         });
     },
 
-    // ========== YARDIMCI FONKSIYONLAR ==========
+    
 
     getStatusBadge(status, type) {
-        // Entity ismini API formatina donustur
+        
         const entityMap = { project: 'proje', offer: 'teklif', contract: 'sozlesme', guarantee: 'teminat' };
         const entity = entityMap[type] || type;
         const cacheKey = `durum_${entity}`;
         const statuses = NbtParams._cache.statuses[cacheKey] || [];
         
-        // Parametrelerden durum bul
+        
         const found = statuses.find(s => s.Kod == status);
         if (found) {
             const badge = found.Deger || 'secondary';
@@ -2322,7 +2311,7 @@ const CustomerDetailModule = {
             return `<span class="badge bg-${badge}${textClass}">${NbtUtils.escapeHtml(found.Etiket)}</span>`;
         }
         
-        // Fallback - eski sabit degerler (cache henuz yuklenmediyse)
+        
         const fallback = {
             project: { 1: ['Aktif', 'success'], 2: ['Tamamlandı', 'info'], 3: ['İptal', 'danger'] },
             offer: { 0: ['Taslak', 'secondary'], 1: ['Gönderildi', 'warning'], 2: ['Onaylandı', 'success'], 3: ['Reddedildi', 'danger'] },
@@ -2439,7 +2428,7 @@ const CustomerDetailModule = {
                 }
                 
                 const id = parseInt(actionEl.dataset.id);
-                // BUG FIX: closure 'tab' yerine aktif tab kullan
+                
                 this.handleTableAction(action, id, this.activeTab);
                 return;
             }
@@ -2831,17 +2820,17 @@ const CustomerDetailModule = {
         const table = document.getElementById(`table_${tableId}`);
         if (!table) return;
         
-        // Input'lari temizle
+        
         table.querySelectorAll('[data-column-filter]').forEach(input => {
             input.value = '';
         });
         
-        // Filtre state'lerini temizle
+        
         this.columnFilters[tableId] = {};
         this.allData[tableId] = null;
         this.filteredPaginationInfo[tableId] = null;
         
-        // Normal listeyi yeniden yukle
+        
         this.switchTab(this.activeTab);
     },
     
@@ -2991,35 +2980,35 @@ const CustomerDetailModule = {
         const config = typeMap[tab];
         if (!config) return;
 
-        // Dosya indirme
+        
         if (action === 'download') {
             try {
                 const dataArray = this.data[config.key];
                 const item = dataArray?.find(i => parseInt(i.Id, 10) === parseInt(id, 10));
                 const dosyaAdi = item?.DosyaAdi || item?.DosyaYolu?.split('/').pop() || 'dosya';
                 
-                // Tab'a gore dogru endpoint belirle
+                
                 let downloadUrl;
                 if (tab === 'damgavergisi') {
-                    // Damga vergisi icin dogrudan kendi endpoint'ini kullan
+                    
                     downloadUrl = `/api/stamp-taxes/${id}/download`;
                 } else if (tab === 'teklifler') {
-                    // Teklif icin dogrudan kendi endpoint'ini kullan
+                    
                     downloadUrl = `/api/offers/${id}/download`;
                 } else if (tab === 'sozlesmeler') {
-                    // Sözleşme icin dogrudan kendi endpoint'ini kullan
+                    
                     downloadUrl = `/api/contracts/${id}/download`;
                 } else if (tab === 'teminatlar') {
-                    // Teminat icin dogrudan kendi endpoint'ini kullan
+                    
                     downloadUrl = `/api/guarantees/${id}/download`;
                 } else if (tab === 'odemeler') {
-                    // Ödeme icin dogrudan kendi endpoint'ini kullan
+                    
                     downloadUrl = `/api/payments/${id}/download`;
                 } else if (tab === 'dosyalar') {
-                    // Dosyalar tab'i - files endpoint kullan
+                    
                     downloadUrl = `/api/files/${id}/download`;
                 } else {
-                    // Diger tablar icin DosyaId varsa files, yoksa kendi endpoint'i
+                    
                     const dosyaId = item?.DosyaId;
                     if (dosyaId) {
                         downloadUrl = `/api/files/${dosyaId}/download`;
@@ -3029,7 +3018,7 @@ const CustomerDetailModule = {
                     }
                 }
                 
-                // Auth header ile fetch kullanarak indir
+                
                 NbtToast.info('Dosya hazırlanıyor...');
                 const response = await fetch(downloadUrl, {
                     method: 'GET',
@@ -3065,7 +3054,7 @@ const CustomerDetailModule = {
         if (action === 'view') {
             const parsedId = parseInt(id, 10);
             
-            // Fatura icin ozel olarak API'den kalemlerle birlikte cek
+            
             if (config.type === 'invoice') {
                 try {
                     const invoice = await NbtApi.get(`/api/invoices/${parsedId}`);
@@ -3130,7 +3119,7 @@ const CustomerDetailModule = {
     },
 
     async openAddModal(type) {
-        // Tum moduller icin sayfa bazli form kullan (Modal yerine)
+        
         const pageRoutes = {
             offer: `/customer/${this.customerId}/offers/new`,
             contract: `/customer/${this.customerId}/contracts/new`,
@@ -3155,7 +3144,7 @@ const CustomerDetailModule = {
     },
 
     openEditModal(type, id) {
-        // Tum moduller icin sayfa bazli form kullan (Modal yerine)
+        
         const pageRoutes = {
             offer: `/customer/${this.customerId}/offers/${id}/edit`,
             contract: `/customer/${this.customerId}/contracts/${id}/edit`,
@@ -3372,12 +3361,12 @@ const InvoiceModule = {
         
         let filtered = this.allData || [];
         
-        // Kolon filtreleri - CustomerDetailModule mantigiyla
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (!value) return;
             
-            // Tarih araligi baslangic filtresi (_start ile bitiyor)
+            
             if (field.endsWith('_start')) {
                 const baseField = field.replace('_start', '');
                 filtered = filtered.filter(item => {
@@ -3389,7 +3378,7 @@ const InvoiceModule = {
                 return;
             }
             
-            // Tarih araligi bitis filtresi (_end ile bitiyor)
+            
             if (field.endsWith('_end')) {
                 const baseField = field.replace('_end', '');
                 filtered = filtered.filter(item => {
@@ -3401,7 +3390,7 @@ const InvoiceModule = {
                 return;
             }
             
-            // Select alanlari icin exact match (DovizCinsi vb.)
+            
             const selectFields = ['DovizCinsi', 'ParaBirimi'];
             if (selectFields.includes(field)) {
                 filtered = filtered.filter(item => {
@@ -3411,14 +3400,14 @@ const InvoiceModule = {
                 return;
             }
             
-            // Normal alanlar icin filtre
+            
             filtered = filtered.filter(item => {
                 let cellValue = item[field];
                 return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
             });
         });
         
-        // Pagination hesapla
+        
         this.filteredPage = page;
         const total = filtered.length;
         const totalPages = Math.ceil(total / this.pageSize);
@@ -3445,17 +3434,17 @@ const InvoiceModule = {
             }}
         ];
 
-        // Header row
+        
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:140px;">İşlem</th>';
 
-        // Filter row - CustomerDetailModule mantigiyla
+        
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             const startValue = this.columnFilters[c.field + '_start'] || '';
             const endValue = this.columnFilters[c.field + '_end'] || '';
             
-            // Tarih alanlari icin cift date input (baslangic-bitis) - yan yana
+            
             if (c.isDate) {
                 return `<th class="p-1" style="min-width:200px;">
                     <div class="d-flex gap-1">
@@ -3465,7 +3454,7 @@ const InvoiceModule = {
                 </th>`;
             }
             
-            // Doviz alanlari icin select - dinamik olarak doldurulacak
+            
             if (c.field === 'DovizCinsi' || c.isSelect) {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="invoices" data-currency-select="true">
@@ -3482,7 +3471,7 @@ const InvoiceModule = {
             </div>
         </th>`;
 
-        // Data rows
+        
         let rowsHtml = '';
         if (!data || data.length === 0) {
             rowsHtml = `<tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Fatura bulunamadı</td></tr>`;
@@ -3522,7 +3511,7 @@ const InvoiceModule = {
                 </table>
             </div>`;
 
-        // Pagination ekleme
+        
         if (isFiltered && this.filteredPaginationInfo) {
             const { page, totalPages, total, limit } = this.filteredPaginationInfo;
             if (totalPages > 1) {
@@ -3538,9 +3527,9 @@ const InvoiceModule = {
         this.populateFilterSelects(container);
     },
 
-    // Filtre select'lerini dinamik parametrelerden doldur
+    
     async populateFilterSelects(container) {
-        // Currency (doviz) select'lerini parametrelerden doldur
+        
         const currencies = await NbtParams.getCurrencies();
         container.querySelectorAll('select[data-currency-select]').forEach(select => {
             const currentValue = this.columnFilters[select.dataset.columnFilter] || '';
@@ -3555,12 +3544,12 @@ const InvoiceModule = {
     },
 
     bindTableEvents(container) {
-        // View buttons
+        
         container.querySelectorAll('[data-action="view"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = parseInt(btn.dataset.id);
                 try {
-                    // API'den fatura detayini kalemlerle birlikte al
+                    
                     const invoice = await NbtApi.get(`/api/invoices/${id}`);
                     if (invoice) {
                         await NbtDetailModal.show('invoice', invoice, null, null);
@@ -3568,7 +3557,7 @@ const InvoiceModule = {
                         NbtToast.error('Fatura kaydı bulunamadı');
                     }
                 } catch (err) {
-                    // Fallback: local data
+                    
                     const invoice = (this.allData || this.data).find(i => parseInt(i.Id, 10) === id);
                     if (invoice) {
                         await NbtDetailModal.show('invoice', invoice, null, null);
@@ -3579,7 +3568,7 @@ const InvoiceModule = {
             });
         });
 
-        // Pagination
+        
         container.querySelectorAll('[data-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -3590,7 +3579,7 @@ const InvoiceModule = {
             });
         });
 
-        // Filtered pagination
+        
         container.querySelectorAll('[data-filtered-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -3601,7 +3590,7 @@ const InvoiceModule = {
             });
         });
 
-        // Apply filters button
+        
         container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.columnFilters = {};
@@ -3614,7 +3603,7 @@ const InvoiceModule = {
             });
         });
 
-        // Enter key for filters
+        
         container.querySelectorAll('[data-column-filter]').forEach(input => {
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -3623,7 +3612,7 @@ const InvoiceModule = {
             });
         });
 
-        // Clear filters button
+        
         container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.columnFilters = {};
@@ -3695,15 +3684,15 @@ const InvoiceModule = {
         document.getElementById('invoiceModalTitle').innerHTML = id ? '<i class="bi bi-receipt me-2"></i>Fatura Düzenle' : '<i class="bi bi-receipt me-2"></i>Yeni Fatura';
         document.getElementById('invoiceId').value = id || '';
 
-        // Müşteri ID hidden input'a set edilecek
+        
         const musteriIdEl = document.getElementById('invoiceMusteriId');
 
         const projeSelect = document.getElementById('invoiceProjeId');
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
 
-        // Yeni alanlari sifirla
+        
         await NbtParams.populateStatusSelect(document.getElementById('calendarDurum'), 'takvim'); 
-        document.getElementById('calendarDurum').value = ''; // Ensure the status select is reset
+        document.getElementById('calendarDurum').value = ''; 
         const faturaNoEl = document.getElementById('invoiceFaturaNo');
         const supheliEl = document.getElementById('invoiceSupheliAlacak');
         const tevkifatAktifEl = document.getElementById('invoiceTevkifatAktif');
@@ -3714,12 +3703,12 @@ const InvoiceModule = {
         if (faturaNoEl) faturaNoEl.value = '';
         if (supheliEl) supheliEl.checked = false;
         if (tevkifatAktifEl) tevkifatAktifEl.checked = false;
-        // Tevkifat oranları default: 100,00 ve 0,00
+        
         if (tevkifatOran1El) tevkifatOran1El.value = '100,00';
         if (tevkifatOran2El) tevkifatOran2El.value = '0,00';
         if (tevkifatAlani) tevkifatAlani.style.display = 'none';
 
-        // Takvim hatırlatma alanlarını sıfırla
+        
         const takvimAktifEl = document.getElementById('invoiceTakvimAktif');
         const takvimSureEl = document.getElementById('invoiceTakvimSure');
         const takvimSureTipiEl = document.getElementById('invoiceTakvimSureTipi');
@@ -3729,10 +3718,10 @@ const InvoiceModule = {
         if (takvimSureTipiEl) takvimSureTipiEl.value = 'gun';
         if (takvimAlani) takvimAlani.style.display = 'none';
 
-        // Fatura kalemlerini sifirla
+        
         this.resetInvoiceItems();
 
-        // Projeleri yukle fonksiyonu (meeting/new ile ortak mantik)
+        
         const loadProjects = async (musteriId) => {
             if (window.NbtProjectSelect && projeSelect) {
                 await window.NbtProjectSelect.loadForCustomer(projeSelect, musteriId);
@@ -3759,16 +3748,16 @@ const InvoiceModule = {
             }
         };
 
-        // Customer detail sayfasından MusteriId'yi al
+        
         let musteriId = CustomerDetailModule.customerId || null;
         if (musteriIdEl) musteriIdEl.value = musteriId || '';
         
-        // Projeleri yükle
+        
         if (musteriId) {
             await loadProjects(musteriId);
         }
 
-        // Döviz seçeneklerini yükle
+        
         if (dovizSelect) {
             await NbtParams.populateCurrencySelect(dovizSelect);
         }
@@ -3780,9 +3769,9 @@ const InvoiceModule = {
                 invoice = CustomerDetailModule.data?.invoices?.find(i => parseInt(i.Id, 10) === parsedId);
             }
             if (invoice) {
-                // MusteriId hidden input'a set et
+                
                 if (musteriIdEl) musteriIdEl.value = invoice.MusteriId;
-                // Projeleri yukleme ve secili projeyi ayarlama
+                
                 await loadProjects(invoice.MusteriId);
                 document.getElementById('invoiceProjeId').value = invoice.ProjeId || '';
                 document.getElementById('invoiceTarih').value = invoice.Tarih?.split('T')[0] || '';
@@ -3790,15 +3779,15 @@ const InvoiceModule = {
                     dovizSelect.value = invoice.DovizCinsi || invoice.ParaBirimi || NbtParams.getDefaultCurrency();
                 }
                 
-                // Türkçe format helper (1234.56 -> 1.234,56)
+                
                 const formatTR = (num) => {
                     const val = parseFloat(num) || 0;
                     return val.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 };
                 
-                // Yeni alanlari doldur
+                
                 if (faturaNoEl && invoice.FaturaNo) faturaNoEl.value = invoice.FaturaNo;
-                // Checkbox'lar icin parseInt ile sayisal karsilastirma yap (string "0" veya "1" gelebilir)
+                
                 if (supheliEl) supheliEl.checked = parseInt(invoice.SupheliAlacak, 10) === 1;
                 if (parseInt(invoice.TevkifatAktif, 10) === 1) {
                     if (tevkifatAktifEl) tevkifatAktifEl.checked = true;
@@ -3807,7 +3796,7 @@ const InvoiceModule = {
                     if (tevkifatOran2El) tevkifatOran2El.value = formatTR(invoice.TevkifatOran2);
                 }
                 
-                // Takvim hatırlatma ayarlarını yükle
+                
                 if (parseInt(invoice.TakvimAktif, 10) === 1) {
                     if (takvimAktifEl) takvimAktifEl.checked = true;
                     if (takvimAlani) takvimAlani.style.display = 'block';
@@ -3818,20 +3807,20 @@ const InvoiceModule = {
                     if (takvimAlani) takvimAlani.style.display = 'none';
                 }
 
-                // Fatura kalemlerini API'den yukle (her zaman guncel veri icin)
+                
                 try {
                     const detailResponse = await NbtApi.get(`/api/invoices/${parsedId}`);
                     if (detailResponse && detailResponse.Kalemler && Array.isArray(detailResponse.Kalemler)) {
                         this.loadInvoiceItems(detailResponse.Kalemler);
                     }
-                    // Fatura dosyalarini yukle
+                    
                     if (detailResponse && detailResponse.Dosyalar && Array.isArray(detailResponse.Dosyalar)) {
                         this.loadInvoiceFiles(detailResponse.Dosyalar);
                     } else {
                         this.resetInvoiceFiles();
                     }
                 } catch (err) {
-                    // API hatasi durumunda local data'dan yukle
+                    
                     if (invoice.Kalemler && Array.isArray(invoice.Kalemler)) {
                         this.loadInvoiceItems(invoice.Kalemler);
                     }
@@ -3842,7 +3831,7 @@ const InvoiceModule = {
                 return;
             }
         } else {
-            // Yeni fatura - dosyalari sifirla
+            
             this.resetInvoiceFiles();
         }
 
@@ -3861,21 +3850,21 @@ const InvoiceModule = {
         
         const projeIdVal = document.getElementById('invoiceProjeId').value;
         
-        // Türkçe formatı parse et (1.234,56 -> 1234.56)
+        
         const parseTR = (str) => {
             if (!str) return 0;
             return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
         };
         
-        // Tutar'ı fatura kalemlerinin genel toplamından al (Türkçe formatlı)
+        
         const genelToplamEl = document.getElementById('invoiceItemsGenelToplam');
         const tutar = genelToplamEl ? parseTR(genelToplamEl.value) : 0;
         
-        // Tevkifat oranlarını Türkçe formatla parse et
+        
         const tevkifatOran1 = parseTR(document.getElementById('invoiceTevkifatOran1')?.value);
         const tevkifatOran2 = parseTR(document.getElementById('invoiceTevkifatOran2')?.value);
         
-        // Takvim hatırlatma değerlerini al
+        
         const takvimAktif = document.getElementById('invoiceTakvimAktif')?.checked ? 1 : 0;
         const takvimSureRaw = document.getElementById('invoiceTakvimSure')?.value || '';
         const takvimSure = parseInt(takvimSureRaw, 10) || null;
@@ -3905,7 +3894,7 @@ const InvoiceModule = {
             Tarih: document.getElementById('invoiceTarih').value,
             Tutar: tutar,
             DovizCinsi: doviz,
-            // Yeni alanlar
+            
             FaturaNo: document.getElementById('invoiceFaturaNo')?.value.trim() || null,
             SupheliAlacak: document.getElementById('invoiceSupheliAlacak')?.checked ? 1 : 0,
             TevkifatAktif: document.getElementById('invoiceTevkifatAktif')?.checked ? 1 : 0,
@@ -3947,12 +3936,12 @@ const InvoiceModule = {
                 NbtToast.success('Fatura güncellendi');
             } else {
                 const response = await NbtApi.post('/api/invoices', data);
-                // API response: {id: X} (kucuk harfle)
+                
                 faturaId = response.id || response.Id || response.data?.id || response.data?.Id;
                 NbtToast.success('Fatura eklendi');
             }
             
-            // Dosya islemleri
+            
             if (faturaId) {
                 await this.deleteMarkedFiles();
                 await this.uploadPendingFiles(faturaId);
@@ -3960,12 +3949,12 @@ const InvoiceModule = {
             
             NbtModal.close('invoiceModal');
             
-            // Customer detail sayfasindaysak once oraya yenile
+            
             if (CustomerDetailModule.customerId) {
                 await CustomerDetailModule.loadRelatedData('invoices', '/api/invoices');
                 CustomerDetailModule.switchTab(CustomerDetailModule.activeTab);
             } else {
-                // Standalone invoices sayfasindaysak liste yenile
+                
                 await this.loadList();
             }
         } catch (err) {
@@ -3976,16 +3965,16 @@ const InvoiceModule = {
         }
     },
 
-    // Fatura kalemleri yardimci fonksiyonlar - Dinamik yapi
+    
     resetInvoiceItems() {
-        // Modal'daki UI reset fonksiyonunu cagir
+        
         if (typeof window.resetInvoiceItemsUI === 'function') {
             window.resetInvoiceItemsUI();
         }
     },
 
     loadInvoiceItems(kalemler) {
-        // Modal'daki UI load fonksiyonunu cagir
+        
         if (typeof window.loadInvoiceItemsUI === 'function') {
             window.loadInvoiceItemsUI(kalemler);
         }
@@ -3995,7 +3984,7 @@ const InvoiceModule = {
         const kalemler = [];
         const rows = document.querySelectorAll('#invoiceItemsBody .invoice-item-row');
         
-        // Türkçe formatı parse et (1.234,56 -> 1234.56)
+        
         const parseTR = (str) => {
             if (!str) return 0;
             return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
@@ -4008,7 +3997,7 @@ const InvoiceModule = {
             const birimFiyat = parseFloat(row.querySelector('.item-birimfiyat').value) || 0;
             const tutar = parseTR(row.querySelector('.item-tutar').value);
             
-            // Sadece dolu kalemleri ekle (en az miktar veya aciklama olmali)
+            
             if (miktar > 0 || aciklama || birimFiyat > 0) {
                 kalemler.push({
                     Sira: index + 1,
@@ -4023,15 +4012,12 @@ const InvoiceModule = {
         return kalemler;
     },
 
-    // Dosya yonetimi - yeni dosyalar ve mevcut dosyalar
+    
     pendingFiles: [],
     existingFiles: [],
     filesToDelete: [],
 
-    /**
-     * Tum state'i sifirla - sayfa acildiginda veya modal kapandiginda cagrilir
-     * form.php'den InvoiceModule.resetState() olarak cagriliyor
-     */
+    
     resetState() {
         this.pendingFiles = [];
         this.existingFiles = [];
@@ -4158,14 +4144,14 @@ const InvoiceModule = {
                 const isExisting = btn.dataset.isExisting === 'true';
 
                 if (isExisting) {
-                    // Mevcut dosyayi silme listesine ekle
+                    
                     const file = this.existingFiles.find(f => f.Id == fileId);
                     if (file) {
                         this.filesToDelete.push(file.Id);
                         this.existingFiles = this.existingFiles.filter(f => f.Id != fileId);
                     }
                 } else {
-                    // Pending dosyayi kaldir
+                    
                     const idx = parseInt(fileId.replace('pending_', ''));
                     this.pendingFiles.splice(idx, 1);
                 }
@@ -4181,7 +4167,7 @@ const InvoiceModule = {
             this.pendingFiles.push(input.files[i]);
         }
         this.renderInvoiceFiles();
-        input.value = ''; // Input'u sifirla
+        input.value = ''; 
     },
 
     async uploadPendingFiles(faturaId) {
@@ -4197,7 +4183,7 @@ const InvoiceModule = {
                 await NbtApi.request('/api/files', {
                     method: 'POST',
                     body: formData,
-                    headers: {} // FormData icin Content-Type header'i otomatik
+                    headers: {} 
                 });
             } catch (err) {
                 NbtLogger.error('Dosya yükleme hatası:', err);
@@ -4217,12 +4203,12 @@ const InvoiceModule = {
 
     bindEvents() {
         if (this._eventsBound) return;
-        // Sayfa formu varsa modal bind'i yapma (double submit engeli)
+        
         if (document.getElementById('invoicePageForm')) return;
         this._eventsBound = true;
         document.getElementById('btnSaveInvoice')?.addEventListener('click', () => this.save());
         
-        // Dosya input event
+        
         const fileInput = document.getElementById('invoiceFileInput');
         if (fileInput) {
             fileInput.addEventListener('change', () => this.handleFileSelect(fileInput));
@@ -4231,9 +4217,9 @@ const InvoiceModule = {
     }
 };
 
-// =============================================
-// PROJE SELECT HELPER - Meeting/Invoice ortak mantik
-// =============================================
+
+
+
 window.NbtProjectSelect = {
     async loadForCustomer(selectEl, musteriId) {
         if (!selectEl) return;
@@ -4243,11 +4229,11 @@ window.NbtProjectSelect = {
             const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
             let projects = response.data || [];
 
-            // Pasif projeleri filtrele
+            
             const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
             projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
 
-            // Duplicate'leri temizle (Id bazli)
+            
             const uniq = new Map();
             projects.forEach(p => {
                 const key = String(p.Id);
@@ -4263,9 +4249,9 @@ window.NbtProjectSelect = {
     }
 };
 
-// =============================================
-// ODEME MODULU
-// =============================================
+
+
+
 const PaymentModule = {
     _eventsBound: false,
     removeExistingFile: false,
@@ -4275,7 +4261,7 @@ const PaymentModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
-    // Filtre icin ek property'ler
+    
     allData: null,
     allDataLoading: false,
     filteredPage: 1,
@@ -4283,7 +4269,7 @@ const PaymentModule = {
     
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
-        // Doviz parametrelerini onceden yukle (cache'e al)
+        
         await NbtParams.getCurrencies();
         await this.loadList();
         this.initToolbar();
@@ -4353,12 +4339,12 @@ const PaymentModule = {
         
         let filtered = this.allData || [];
         
-        // Kolon filtreleri - CustomerDetailModule mantigiyla
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (!value) return;
             
-            // Tarih araligi baslangic filtresi
+            
             if (field.endsWith('_start')) {
                 const baseField = field.replace('_start', '');
                 filtered = filtered.filter(item => {
@@ -4370,7 +4356,7 @@ const PaymentModule = {
                 return;
             }
             
-            // Tarih araligi bitis filtresi
+            
             if (field.endsWith('_end')) {
                 const baseField = field.replace('_end', '');
                 filtered = filtered.filter(item => {
@@ -4382,7 +4368,7 @@ const PaymentModule = {
                 return;
             }
             
-            // Select alanlari icin exact match
+            
             const selectFields = ['ParaBirimi'];
             if (selectFields.includes(field)) {
                 filtered = filtered.filter(item => {
@@ -4392,7 +4378,7 @@ const PaymentModule = {
                 return;
             }
             
-            // Normal alanlar icin filtre
+            
             filtered = filtered.filter(item => {
                 let cellValue = item[field];
                 return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
@@ -4426,13 +4412,13 @@ const PaymentModule = {
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:140px;">İşlem</th>';
 
-        // Filter row - CustomerDetailModule mantigiyla
+        
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             const startValue = this.columnFilters[c.field + '_start'] || '';
             const endValue = this.columnFilters[c.field + '_end'] || '';
             
-            // Tarih alanlari icin cift date input
+            
             if (c.isDate) {
                 return `<th class="p-1" style="min-width:200px;">
                     <div class="d-flex gap-1">
@@ -4442,7 +4428,7 @@ const PaymentModule = {
                 </th>`;
             }
             
-            // Doviz alanlari icin select - dinamik olarak doldurulacak
+            
             if (c.field === 'ParaBirimi' || c.isSelect) {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="payments" data-currency-select="true">
@@ -4513,7 +4499,7 @@ const PaymentModule = {
         this.populateFilterSelects(container);
     },
 
-    // Filtre select'lerini dinamik parametrelerden doldur
+    
     async populateFilterSelects(container) {
         const currencies = await NbtParams.getCurrencies();
         container.querySelectorAll('select[data-currency-select]').forEach(select => {
@@ -4658,24 +4644,24 @@ const PaymentModule = {
         if (!musteriId) return;
         
         try {
-            // Backend'den sadece kalan>0 olan faturaları al (sadece_odenmemis=1)
+            
             const response = await NbtApi.get(`/api/invoices?musteri_id=${musteriId}&sadece_odenmemis=1`);
-            // API zaten musteri_id ve kalan>0 ile filtreliyor
+            
             let faturalar = response.data || [];
             
-            // Edit modda: duzenlenen odemenin faturasini listeye ekle (kalan=0 olsa bile)
+            
             if (editingPayment && editingPayment.FaturaId) {
                 const editFaturaId = parseInt(editingPayment.FaturaId);
                 const existsInList = faturalar.some(f => parseInt(f.Id) === editFaturaId);
                 if (!existsInList) {
-                    // Düzenlenen ödemenin faturası listede yok, ayrıca çek
+                    
                     try {
                         const faturaRes = await NbtApi.get(`/api/invoices/${editFaturaId}`);
                         if (faturaRes && faturaRes.Id) {
                             faturalar.push(faturaRes);
                         }
                     } catch (e) {
-                        // Fatura bulunamazsa es geç
+                        
                     }
                 }
             }
@@ -4692,7 +4678,7 @@ const PaymentModule = {
                     ? parseFloat(f.Kalan) 
                     : parseFloat(f.Tutar) || 0;
                 
-                // Edit modda: duzenlenen odemenin faturasiysa, mevcut odeme tutarini kalan tutara ekle
+                
                 if (editingPayment && parseInt(f.Id) === parseInt(editingPayment.FaturaId)) {
                     kalan += parseFloat(editingPayment.Tutar) || 0;
                 }
@@ -4740,7 +4726,7 @@ const PaymentModule = {
             select.addEventListener('change', this._musteriChangeHandler);
         }
 
-        // Eger customer detail sayfasindaysak musteriyi auto-select et ve faturalarini yukle
+        
         if (CustomerDetailModule.customerId) {
             select.value = CustomerDetailModule.customerId;
             select.disabled = true;
@@ -4755,7 +4741,7 @@ const PaymentModule = {
             }
             if (payment) {
                 select.value = payment.MusteriId;
-                // Projeleri yukleme - edit modda secili projeyi de gonder
+                
                 await CustomerDetailModule.populateProjectSelect('paymentProjeId', payment.ProjeId);
                 document.getElementById('paymentTarih').value = payment.Tarih?.split('T')[0] || '';
                 document.getElementById('paymentTutar').value = NbtUtils.formatDecimal(payment.Tutar) || '';
@@ -4763,7 +4749,7 @@ const PaymentModule = {
                 document.getElementById('paymentBanka').value = payment.BankaHesap || '';
                 document.getElementById('paymentNotlar').value = payment.Notlar || '';
                 if (faturaSelect && payment.FaturaId) {
-                    // Edit modda mevcut odeme bilgisini gonder - kalan tutar hesaplamasi icin
+                    
                     await this.loadInvoicesForCustomer(payment.MusteriId, payment);
                     faturaSelect.value = payment.FaturaId;
                 }
@@ -4777,7 +4763,7 @@ const PaymentModule = {
                 return;
             }
         } else {
-            // Yeni kayit icin projeleri yukleme
+            
             await CustomerDetailModule.populateProjectSelect('paymentProjeId');
         }
 
@@ -4837,7 +4823,7 @@ const PaymentModule = {
             return;
         }
         
-        // Secili faturanin kalan tutarini kontrol et
+        
         const faturaSelect = document.getElementById('paymentFaturaId');
         const selectedOption = faturaSelect?.selectedOptions[0];
         if (selectedOption && selectedOption.dataset.kalan) {
@@ -4933,9 +4919,9 @@ const PaymentModule = {
     }
 };
 
-// =============================================
-// GORUSME MODULU (MEETING)
-// =============================================
+
+
+
 const MeetingModule = {
     _eventsBound: false,
 
@@ -4944,7 +4930,7 @@ const MeetingModule = {
         document.getElementById('meetingModalTitle').textContent = id ? 'Görüşme Düzenle' : 'Yeni Görüşme';
         document.getElementById('meetingId').value = id || '';
 
-        // Yeni kayit icin musteri id'sini set et
+        
         if (CustomerDetailModule.customerId) {
             document.getElementById('meetingMusteriId').value = CustomerDetailModule.customerId;
         }
@@ -4953,7 +4939,7 @@ const MeetingModule = {
             const meeting = CustomerDetailModule.data.meetings?.find(m => parseInt(m.Id, 10) === parseInt(id, 10));
             if (meeting) {
                 document.getElementById('meetingMusteriId').value = meeting.MusteriId;
-                // Projeleri yukleme - edit modda secili projeyi de gonder
+                
                 await CustomerDetailModule.populateProjectSelect('meetingProjeId', meeting.ProjeId);
                 document.getElementById('meetingTarih').value = meeting.Tarih?.split('T')[0] || '';
                 document.getElementById('meetingKonu').value = meeting.Konu || '';
@@ -4966,7 +4952,7 @@ const MeetingModule = {
                 return;
             }
         } else {
-            // Yeni kayit icin projeleri yukleme
+            
             await CustomerDetailModule.populateProjectSelect('meetingProjeId');
         }
 
@@ -5047,9 +5033,9 @@ const MeetingModule = {
     }
 };
 
-// =============================================
-// TAKVIM TAB MODULU (CUSTOMER DETAIL TAKVIM TABI)
-// =============================================
+
+
+
 const CalendarTabModule = {
     _eventsBound: false,
 
@@ -5058,12 +5044,12 @@ const CalendarTabModule = {
         document.getElementById('calendarModalTitle').textContent = id ? 'Takvim Düzenle' : 'Yeni Takvim Kaydı';
         document.getElementById('calendarId').value = id || '';
 
-        // Yeni kayit icin musteri id'sini set et
+        
         if (CustomerDetailModule.customerId) {
             document.getElementById('calendarMusteriId').value = CustomerDetailModule.customerId;
         }
 
-        // Ozet karakter sayaci
+        
         const ozetInput = document.getElementById('calendarOzet');
         const ozetCount = document.getElementById('calendarOzetCount');
         if (ozetInput && ozetCount) {
@@ -5078,7 +5064,7 @@ const CalendarTabModule = {
             const calendar = CustomerDetailModule.data.calendars?.find(c => parseInt(c.Id, 10) === parseInt(id, 10));
             if (calendar) {
                 document.getElementById('calendarMusteriId').value = calendar.MusteriId;
-                // Projeleri yukleme - edit modda secili projeyi de gonder
+                
                 await CustomerDetailModule.populateProjectSelect('calendarProjeId', calendar.ProjeId);
                 document.getElementById('calendarTerminTarihi').value = calendar.TerminTarihi?.split('T')[0] || '';
                 document.getElementById('calendarOzet').value = calendar.Ozet || '';
@@ -5089,7 +5075,7 @@ const CalendarTabModule = {
                 return;
             }
         } else {
-            // Yeni kayit icin projeleri yukleme
+            
             await CustomerDetailModule.populateProjectSelect('calendarProjeId');
         }
 
@@ -5153,14 +5139,14 @@ const CalendarTabModule = {
             await CustomerDetailModule.loadRelatedData('calendars', '/api/takvim');
             CustomerDetailModule.switchTab('takvim');
             
-            // Takvim verisi degisti - global state'i guncelle
-            AppState.calendarNeedsRefresh = true;
-            AppState.lastCalendarEventDate = data.TerminTarihi; // Hedef tarihi sakla
             
-            // Dashboard takvimini yenile (varsa, ayni sayfadaysa)
+            AppState.calendarNeedsRefresh = true;
+            AppState.lastCalendarEventDate = data.TerminTarihi; 
+            
+            
             const dashCalendarContainer = document.getElementById('dashCalendar');
             if (typeof NbtCalendar !== 'undefined' && dashCalendarContainer) {
-                // Eklenen kaydin termin tarihine gore NbtCalendar tarihini guncelle
+                
                 if (data.TerminTarihi) {
                     NbtCalendar.currentDate = new Date(data.TerminTarihi);
                 }
@@ -5168,7 +5154,7 @@ const CalendarTabModule = {
                 NbtCalendar.render(dashCalendarContainer, { events: NbtCalendar.events });
             }
             
-            // Custom event dispatch et - diger moduller dinleyebilir
+            
             window.dispatchEvent(new CustomEvent('calendarDataChanged', { detail: { action: id ? 'update' : 'create', data: data } }));
         } catch (err) {
             NbtModal.showError('calendarModal', err.message);
@@ -5184,9 +5170,9 @@ const CalendarTabModule = {
     }
 };
 
-// =============================================
-// KISI MODULU (CONTACT)
-// =============================================
+
+
+
 const ContactModule = {
     _eventsBound: false,
     
@@ -5195,7 +5181,7 @@ const ContactModule = {
         document.getElementById('contactModalTitle').textContent = id ? 'Kişi Düzenle' : 'Yeni Kişi';
         document.getElementById('contactId').value = id || '';
 
-        // Yeni kayit icin musteri id'sini set et
+        
         if (CustomerDetailModule.customerId) {
             document.getElementById('contactMusteriId').value = CustomerDetailModule.customerId;
         }
@@ -5204,7 +5190,7 @@ const ContactModule = {
             const contact = CustomerDetailModule.data.contacts?.find(c => parseInt(c.Id, 10) === parseInt(id, 10));
             if (contact) {
                 document.getElementById('contactMusteriId').value = contact.MusteriId;
-                // Projeleri yukleme - edit modda secili projeyi de gonder
+                
                 await CustomerDetailModule.populateProjectSelect('contactProjeId', contact.ProjeId);
                 document.getElementById('contactAdSoyad').value = contact.AdSoyad || '';
                 document.getElementById('contactUnvan').value = contact.Unvan || '';
@@ -5217,7 +5203,7 @@ const ContactModule = {
                 return;
             }
         } else {
-            // Yeni kayit icin projeleri yukleme
+            
             await CustomerDetailModule.populateProjectSelect('contactProjeId');
         }
 
@@ -5287,9 +5273,9 @@ const ContactModule = {
     }
 };
 
-// =============================================
-// DAMGA VERGISI MODULU (STAMP TAX)
-// =============================================
+
+
+
 const StampTaxModule = {
     _eventsBound: false,
     selectedFile: null,
@@ -5305,12 +5291,12 @@ const StampTaxModule = {
         document.getElementById('stampTaxDosya').value = '';
         document.getElementById('stampTaxCurrentFile')?.classList.add('d-none');
 
-        // Yeni kayit icin musteri id'sini set et
+        
         if (CustomerDetailModule.customerId) {
             document.getElementById('stampTaxMusteriId').value = CustomerDetailModule.customerId;
         }
         
-        // Doviz seceneklerini dinamik yukle
+        
         const dovizSelect = document.getElementById('stampTaxDovizCinsi');
         if (dovizSelect) {
             await NbtParams.populateCurrencySelect(dovizSelect);
@@ -5320,7 +5306,7 @@ const StampTaxModule = {
             const item = CustomerDetailModule.data.stampTaxes?.find(s => parseInt(s.Id, 10) === parseInt(id, 10));
             if (item) {
                 document.getElementById('stampTaxMusteriId').value = item.MusteriId;
-                // Projeleri yukleme - edit modda secili projeyi de gonder
+                
                 await CustomerDetailModule.populateProjectSelect('stampTaxProjeId', item.ProjeId);
                 document.getElementById('stampTaxTarih').value = item.Tarih?.split('T')[0] || '';
                 document.getElementById('stampTaxTutar').value = NbtUtils.formatDecimal(item.Tutar) || '';
@@ -5338,7 +5324,7 @@ const StampTaxModule = {
                 return;
             }
         } else {
-            // Yeni kayit icin projeleri yukleme
+            
             await CustomerDetailModule.populateProjectSelect('stampTaxProjeId');
         }
 
@@ -5365,7 +5351,7 @@ const StampTaxModule = {
             Tarih: document.getElementById('stampTaxTarih').value,
             Tutar: parseFloat(document.getElementById('stampTaxTutar').value) || 0,
             DovizCinsi: document.getElementById('stampTaxDovizCinsi').value || NbtParams.getDefaultCurrency(),
-            // BelgeNo kaldırıldı
+            
             Aciklama: document.getElementById('stampTaxAciklama').value.trim() || null,
             OdemeDurumu: document.getElementById('stampTaxOdemeDurumu').value || null,
             Notlar: document.getElementById('stampTaxNotlar').value.trim() || null
@@ -5424,8 +5410,8 @@ const StampTaxModule = {
                 if (this.removeExistingFile) formData.append('removeFile', '1');
                 
                 const url = id ? `/api/stamp-taxes/${id}` : '/api/stamp-taxes';
-                // PUT isteklerinde multipart/form-data PHP tarafindan parse edilmez
-                // Bu yuzden formData ile gonderirken POST kullaniyoruz
+                
+                
                 const method = 'POST';
                 if (id) formData.append('_method', 'PUT');
                 
@@ -5494,9 +5480,9 @@ const StampTaxModule = {
     }
 };
 
-// =============================================
-// DOSYA MODULU (FILE)
-// =============================================
+
+
+
 const FileModule = {
     _eventsBound: false,
     editingId: null,
@@ -5506,13 +5492,13 @@ const FileModule = {
         this.editingId = id;
         
         if (id) {
-            // Duzenleme modu
+            
             document.getElementById('fileModalTitle').textContent = 'Dosya Düzenle';
             const fileRow = document.getElementById('fileInput').closest('.row');
             if (fileRow) fileRow.style.display = '';
             document.getElementById('fileInput').required = false;
             
-            // Mevcut dosya bilgilerini yukle
+            
             const parsedId = parseInt(id, 10);
             let fileData = CustomerDetailModule.data?.files?.find(f => parseInt(f.Id, 10) === parsedId);
             
@@ -5520,24 +5506,24 @@ const FileModule = {
                 if (fileData.MusteriId) {
                     document.getElementById('fileMusteriId').value = fileData.MusteriId;
                 }
-                // Edit modda secili projeyi de gonder
+                
                 await CustomerDetailModule.populateProjectSelect('fileProjeId', fileData.ProjeId);
                 document.getElementById('fileAciklama').value = fileData.Aciklama || '';
             }
         } else {
-            // Yeni kayit modu
+            
             document.getElementById('fileModalTitle').textContent = 'Dosya Yükle';
             document.getElementById('fileInput').value = '';
             const fileRow = document.getElementById('fileInput').closest('.row');
             if (fileRow) fileRow.style.display = '';
             document.getElementById('fileInput').required = true;
             
-            // Yeni kayit icin musteri id'sini set et
+            
             if (CustomerDetailModule.customerId) {
                 document.getElementById('fileMusteriId').value = CustomerDetailModule.customerId;
             }
 
-            // Projeleri yukleme
+            
             await CustomerDetailModule.populateProjectSelect('fileProjeId');
         }
         
@@ -5578,7 +5564,7 @@ const FileModule = {
         }
 
         if (file) {
-            const maxSize = 10 * 1024 * 1024; // 10MB
+            const maxSize = 10 * 1024 * 1024; 
             if (file.size > maxSize) {
                 const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
                 NbtModal.showFieldError('fileModal', 'fileInput', `Dosya boyutu çok büyük (${sizeMB}MB). Maksimum 10MB yüklenebilir.`);
@@ -5586,7 +5572,7 @@ const FileModule = {
                 return;
             }
 
-            // Izin verilen dosya turleri kontrolu
+            
             const allowedTypes = [
                 'application/pdf', 
                 'application/msword', 
@@ -5619,7 +5605,7 @@ const FileModule = {
                     if (aciklama) formData.append('Aciklama', aciklama);
                     await NbtApi.postFormData(`/api/files/${this.editingId}`, formData, 'PUT');
                 } else {
-                    // Duzenleme: JSON ile PUT (sadece metadata)
+                    
                     const data = {
                         ProjeId: projeIdVal ? parseInt(projeIdVal) : null,
                         Aciklama: aciklama || null
@@ -5628,7 +5614,7 @@ const FileModule = {
                 }
                 NbtToast.success('Dosya güncellendi');
             } else {
-                // Yeni kayit: FormData ile POST
+                
                 const formData = new FormData();
                 formData.append('file', file);
                 formData.append('MusteriId', musteriId);
@@ -5676,9 +5662,9 @@ const FileModule = {
     }
 };
 
-// =============================================
-// PROJE MODULU
-// =============================================
+
+
+
 const ProjectModule = {
     _eventsBound: false,
     data: [],
@@ -5687,7 +5673,7 @@ const ProjectModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
-    // Filtre icin ek property'ler
+    
     allData: null,
     allDataLoading: false,
     filteredPage: 1,
@@ -5695,7 +5681,7 @@ const ProjectModule = {
     
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
-        // Durum parametrelerini onceden yukle (cache'e al)
+        
         await NbtParams.getStatuses('proje');
         await this.loadList();
         this.initToolbar();
@@ -5765,12 +5751,12 @@ const ProjectModule = {
         
         let filtered = this.allData || [];
         
-        // Kolon filtreleri - CustomerDetailModule mantigiyla
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (!value) return;
             
-            // Tarih araligi baslangic filtresi
+            
             if (field.endsWith('_start')) {
                 const baseField = field.replace('_start', '');
                 filtered = filtered.filter(item => {
@@ -5782,7 +5768,7 @@ const ProjectModule = {
                 return;
             }
             
-            // Tarih araligi bitis filtresi
+            
             if (field.endsWith('_end')) {
                 const baseField = field.replace('_end', '');
                 filtered = filtered.filter(item => {
@@ -5794,7 +5780,7 @@ const ProjectModule = {
                 return;
             }
             
-            // Durum icin exact match
+            
             if (field === 'Durum') {
                 filtered = filtered.filter(item => {
                     const cellValue = String(item[field] ?? '');
@@ -5803,7 +5789,7 @@ const ProjectModule = {
                 return;
             }
             
-            // Normal alanlar icin filtre
+            
             filtered = filtered.filter(item => {
                 let cellValue = item[field];
                 return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
@@ -5833,13 +5819,13 @@ const ProjectModule = {
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:140px;">İşlem</th>';
 
-        // Filter row - CustomerDetailModule mantigiyla
+        
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             const startValue = this.columnFilters[c.field + '_start'] || '';
             const endValue = this.columnFilters[c.field + '_end'] || '';
             
-            // Tarih alanlari icin cift date input
+            
             if (c.isDate) {
                 return `<th class="p-1" style="min-width:200px;">
                     <div class="d-flex gap-1">
@@ -5849,7 +5835,7 @@ const ProjectModule = {
                 </th>`;
             }
             
-            // Durum alani icin select - dinamik olarak doldurulacak
+            
             if (c.field === 'Durum') {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="projects" data-status-type="proje">
@@ -5920,9 +5906,9 @@ const ProjectModule = {
         this.populateFilterSelects(container);
     },
 
-    // Filtre select'lerini dinamik parametrelerden doldur
+    
     async populateFilterSelects(container) {
-        // Status select'lerini doldur
+        
         for (const select of container.querySelectorAll('select[data-status-type]')) {
             const statusType = select.dataset.statusType;
             const statuses = await NbtParams.getStatuses(statusType);
@@ -6065,13 +6051,13 @@ const ProjectModule = {
         CustomerDetailModule.populateCustomerSelect(select);
         select.disabled = false;
 
-        // Durum select'ini parametrelerden doldur
+        
         const statusSelect = document.getElementById('projectStatus');
         if (statusSelect) {
             await NbtParams.populateStatusSelect(statusSelect, 'proje');
         }
 
-        // Eger customer detail sayfasindaysak musteriyi auto-select et ve disable yap
+        
         if (CustomerDetailModule.customerId) {
             select.value = CustomerDetailModule.customerId;
             select.disabled = true;
@@ -6085,7 +6071,7 @@ const ProjectModule = {
             }
             if (project) {
                 select.value = project.MusteriId;
-                select.disabled = true; // Duzenlemede musteri kilitli
+                select.disabled = true; 
                 document.getElementById('projectName').value = project.ProjeAdi || '';
                 document.getElementById('projectStatus').value = project.Durum || '';
             } else {
@@ -6146,7 +6132,7 @@ const ProjectModule = {
         }
     },
 
-    // Durum badge'ini dinamik parametrelerden olustur
+    
     getStatusBadge(status, entity) {
         const cacheKey = `durum_${entity}`;
         const statuses = NbtParams._cache.statuses[cacheKey] || [];
@@ -6158,7 +6144,7 @@ const ProjectModule = {
             return `<span class="badge bg-${badge}${textClass}">${NbtUtils.escapeHtml(found.Etiket)}</span>`;
         }
         
-        // Fallback - cache henuz yuklenmediyse
+        
         const fallback = { 1: ['Aktif', 'success'], 2: ['Tamamlandı', 'info'], 3: ['İptal', 'danger'] };
         const config = fallback[status] || ['Bilinmiyor', 'secondary'];
         return `<span class="badge bg-${config[1]}">${config[0]}</span>`;
@@ -6171,9 +6157,9 @@ const ProjectModule = {
     }
 };
 
-// =============================================
-// LOG MODULU
-// =============================================
+
+
+
 const LogModule = {
     _eventsBound: false,
     data: [],
@@ -6181,12 +6167,12 @@ const LogModule = {
     currentPage: 1,
     paginationInfo: null,
     columnFilters: {},
-    // Filtre icin ek property'ler
+    
     allData: null,
     allDataLoading: false,
     filteredPage: 1,
     filteredPaginationInfo: null,
-    // Cift tiklama icin
+    
     lastClickTime: 0,
     lastClickedRow: null,
 
@@ -6238,7 +6224,7 @@ const LogModule = {
             return;
         }
         
-        // Tum verileri yukle
+        
         if (!this.allData && !this.allDataLoading) {
             this.allDataLoading = true;
             const container = document.getElementById('logsTableContainer');
@@ -6261,12 +6247,12 @@ const LogModule = {
         
         let filtered = this.allData || [];
         
-        // Kolon filtreleri
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (!value) return;
             
-            // Tarih araligi baslangic filtresi
+            
             if (field.endsWith('_start')) {
                 const baseField = field.replace('_start', '');
                 filtered = filtered.filter(item => {
@@ -6278,7 +6264,7 @@ const LogModule = {
                 return;
             }
             
-            // Tarih araligi bitis filtresi
+            
             if (field.endsWith('_end')) {
                 const baseField = field.replace('_end', '');
                 filtered = filtered.filter(item => {
@@ -6290,7 +6276,7 @@ const LogModule = {
                 return;
             }
             
-            // Islem alani icin exact match
+            
             if (field === 'Islem') {
                 filtered = filtered.filter(item => {
                     const cellValue = String(item[field] ?? '');
@@ -6299,7 +6285,7 @@ const LogModule = {
                 return;
             }
             
-            // Normal alanlar icin filtre
+            
             filtered = filtered.filter(item => {
                 let cellValue = item[field];
                 return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
@@ -6340,13 +6326,13 @@ const LogModule = {
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:80px;">İncele</th>';
 
-        // Filter row
+        
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             const startValue = this.columnFilters[c.field + '_start'] || '';
             const endValue = this.columnFilters[c.field + '_end'] || '';
             
-            // Tarih alanlari icin cift date input
+            
             if (c.isDate) {
                 return `<th class="p-1" style="min-width:200px;">
                     <div class="d-flex gap-1">
@@ -6356,7 +6342,7 @@ const LogModule = {
                 </th>`;
             }
             
-            // Islem alani icin select
+            
             if (c.field === 'Islem') {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="logs">
@@ -6370,7 +6356,7 @@ const LogModule = {
                 </th>`;
             }
             
-            // Detay alani icin arama yok
+            
             if (c.field === 'YeniDeger') {
                 return `<th class="p-1"><span class="text-muted small">-</span></th>`;
             }
@@ -6430,7 +6416,7 @@ const LogModule = {
     },
 
     bindTableEvents(container) {
-        // Inspect butonlari
+        
         container.querySelectorAll('[data-action="inspect"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const logId = btn.dataset.logId;
@@ -6441,7 +6427,7 @@ const LogModule = {
             });
         });
 
-        // Pagination
+        
         container.querySelectorAll('[data-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -6452,7 +6438,7 @@ const LogModule = {
             });
         });
 
-        // Filtered pagination
+        
         container.querySelectorAll('[data-filtered-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -6463,7 +6449,7 @@ const LogModule = {
             });
         });
 
-        // Apply filters button
+        
         container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.columnFilters = {};
@@ -6476,7 +6462,7 @@ const LogModule = {
             });
         });
 
-        // Enter key for filters
+        
         container.querySelectorAll('[data-column-filter]').forEach(input => {
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -6485,7 +6471,7 @@ const LogModule = {
             });
         });
 
-        // Clear filters button
+        
         container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.columnFilters = {};
@@ -6552,7 +6538,7 @@ const LogModule = {
         `;
     },
 
-    // Satira cift tiklama event binding kodu
+    
     bindEvents() {
         if (this._eventsBound) return;
         this._eventsBound = true;
@@ -6567,7 +6553,7 @@ const LogModule = {
             const now = Date.now();
             const id = row.dataset.id;
             
-            // Cift tiklama algilama (500ms icinde ayni satira tiklanirsa)
+            
             if (this.lastClickedRow === id && (now - this.lastClickTime) < 500) {
                 this.openDetailInNewTab(id);
                 this.lastClickTime = 0;
@@ -6579,19 +6565,19 @@ const LogModule = {
         });
     },
 
-    // Detayi yeni sekmede JSON olarak acma kodu
+    
     openDetailInNewTab(id) {
         const log = (this.allData || this.data).find(item => String(item.Id) === String(id));
         if (!log) return;
         
         let detailData = log.YeniDeger;
         
-        // JSON parse deneme
+        
         if (typeof detailData === 'string') {
             try {
                 detailData = JSON.parse(detailData);
             } catch (e) {
-                // Parse edilemezse string olarak birak
+                
             }
         }
         
@@ -6656,7 +6642,7 @@ const LogModule = {
         newTab.document.close();
     },
 
-    // JSON syntax highlighting kodu
+    
     syntaxHighlight(json) {
         json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
@@ -6699,9 +6685,9 @@ const LogModule = {
     }
 };
 
-// =============================================
-// PARAMETRE MODULU
-// =============================================
+
+
+
 const ParameterModule = {
     _eventsBound: false,
     data: {},
@@ -6763,12 +6749,12 @@ const ParameterModule = {
     selectTab(tab) {
         this.activeGroup = tab;
         
-        // Tab butonlarini guncelle
+        
         document.querySelectorAll('#parametersTabs .nav-link').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.paramTab === tab);
         });
 
-        // Icerik render
+        
         this.renderTabContent();
     },
 
@@ -6778,7 +6764,7 @@ const ParameterModule = {
 
         const group = this.groups[this.activeGroup];
         
-        // Sehir ve ilce icin ozel veri kaynaklari
+        
         let items = [];
         if (this.activeGroup === 'sehir') {
             items = this.cities || [];
@@ -6788,7 +6774,7 @@ const ParameterModule = {
             items = this.data[this.activeGroup] || [];
         }
 
-        // Card yapisi ile panel olustur
+        
         let html = `
             <div class="card shadow-sm">
                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
@@ -6812,7 +6798,7 @@ const ParameterModule = {
                     <p class="mb-0 fw-medium">Bu grupta kayıt bulunamadı</p>
                 </div>`;
         } else {
-            // Gruba gore farkli render
+            
             if (this.activeGroup === 'genel') {
                 html += this.renderGeneralContent(items);
             } else if (this.activeGroup === 'doviz') {
@@ -6830,31 +6816,31 @@ const ParameterModule = {
         container.innerHTML = html;
         this.bindTableEvents(container);
         
-        // Genel grup icin hatirlatma eventleri
+        
         if (this.activeGroup === 'genel') {
             this.bindHatirlatmaEvents(container);
         }
         
-        // Yeni ekle butonu event
+        
         const addBtn = container.querySelector('#btnAddParameter');
         if (addBtn) {
             addBtn.addEventListener('click', () => this.openModal());
         }
     },
 
-    // Eski renderSidebar yerine bos birak (geriye uyumluluk)
+    
     renderSidebar() {
-        // Artik kullanilmiyor - tab yapisi ile degistirildi
+        
     },
 
-    // Eski renderTable yerine renderTabContent kullaniliyor
+    
     renderTable() {
         this.renderTabContent();
     },
 
-    // Genel ayarlar icerigi (string dondurur)
+    
     renderGeneralContent(items) {
-        // Hatirlatma parametrelerini grupla
+        
         const hatirlatmaGunleri = {};
         const hatirlatmaAktifler = {};
         const digerItems = [];
@@ -6883,7 +6869,7 @@ const ParameterModule = {
                     </thead>
                     <tbody>`;
         
-        // Diger parametreleri render et
+        
         digerItems.forEach(item => {
             html += `
                 <tr data-id="${item.Id}">
@@ -6911,7 +6897,7 @@ const ParameterModule = {
         
         html += '</tbody></table></div>';
         
-        // Hatirlatma parametreleri icin ayri bir bolum
+        
         if (Object.keys(hatirlatmaGunleri).length > 0) {
             html += `
                 <div class="p-3 border-top">
@@ -6928,7 +6914,7 @@ const ParameterModule = {
                             </thead>
                             <tbody>`;
             
-            // Hatirlatma satirlarini render et
+            
             const hatirlatmaLabels = {
                 'gorusme': { label: 'Görüşme', icon: 'bi-chat-dots' },
                 'teklif_gecerlilik': { label: 'Teklif Geçerlilik', icon: 'bi-file-text' },
@@ -6991,7 +6977,7 @@ const ParameterModule = {
         return html;
     },
 
-    // Doviz icerigi (string dondurur)
+    
     renderCurrencyContent(items) {
         let html = `
             <div class="table-responsive">
@@ -7046,9 +7032,9 @@ const ParameterModule = {
         return html;
     },
 
-    // Durum icerigi (string dondurur)
+    
     renderStatusContent(items) {
-        // Pasif kolonu sadece durum_proje icin gosterilir
+        
         const showPasifColumn = this.activeGroup === 'durum_proje';
         
         let html = `
@@ -7112,7 +7098,7 @@ const ParameterModule = {
         return html;
     },
 
-    // Sehir (İl) icerigi
+    
     renderCityContent(items) {
         let html = `
             <div class="table-responsive">
@@ -7150,7 +7136,7 @@ const ParameterModule = {
         return html;
     },
 
-    // Ilce icerigi
+    
     renderDistrictContent(items) {
         let html = `
             <div class="table-responsive">
@@ -7188,7 +7174,7 @@ const ParameterModule = {
         return html;
     },
 
-    // Eski render fonksiyonlari - geriye uyumluluk icin birakiliyor (artik kullanilmiyor)
+    
     renderGeneralTable(container, items) {
         container.innerHTML = this.renderGeneralContent(items);
         this.bindTableEvents(container);
@@ -7205,9 +7191,9 @@ const ParameterModule = {
         this.bindTableEvents(container);
     },
 
-    // Hatirlatma toggle ve kaydetme eventleri
+    
     bindHatirlatmaEvents(container) {
-        // Aktif toggle - gun inputunu enable/disable et
+        
         container.querySelectorAll('.hatirlatma-aktif-toggle').forEach(checkbox => {
             checkbox.addEventListener('change', (e) => {
                 const key = e.target.dataset.key;
@@ -7218,7 +7204,7 @@ const ParameterModule = {
             });
         });
         
-        // Tek hatirlatma kaydet
+        
         container.querySelectorAll('[data-action="save-hatirlatma"]').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const key = e.target.closest('button').dataset.key;
@@ -7226,7 +7212,7 @@ const ParameterModule = {
             });
         });
         
-        // Tum hatirlmalari kaydet
+        
         const btnSaveAll = container.querySelector('#btnSaveAllHatirlatma');
         if (btnSaveAll) {
             btnSaveAll.addEventListener('click', async () => {
@@ -7249,12 +7235,12 @@ const ParameterModule = {
         try {
             const payload = { degerler: [] };
             
-            // Gun parametresini kaydet
+            
             if (gunId) {
                 payload.degerler.push({ id: parseInt(gunId), deger: gunDeger });
             }
             
-            // Aktif parametresini kaydet
+            
             if (aktifId) {
                 payload.degerler.push({ id: parseInt(aktifId), deger: aktifDeger });
             }
@@ -7299,7 +7285,7 @@ const ParameterModule = {
     },
 
     bindTableEvents(container) {
-        // Duzenleme butonu
+        
         container.querySelectorAll('[data-action="edit"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = parseInt(btn.dataset.id);
@@ -7307,7 +7293,7 @@ const ParameterModule = {
             });
         });
 
-        // Genel parametre kaydetme
+        
         container.querySelectorAll('[data-action="save-general"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.dataset.id;
@@ -7316,7 +7302,7 @@ const ParameterModule = {
                 
                 let value = input.value;
                 
-                // Pagination icin 5-100 validasyonu
+                
                 if (input.type === 'number') {
                     const numVal = parseInt(value);
                     if (isNaN(numVal) || numVal < 5 || numVal > 100) {
@@ -7330,12 +7316,12 @@ const ParameterModule = {
                     await NbtApi.put(`/api/parameters/${id}`, { Deger: value });
                     NbtToast.success('Parametre güncellendi');
                     
-                    // APP_CONFIG'i guncelle ve tum modullerin pageSize'ini guncelle
+                    
                     if (this.data.genel?.find(p => p.Id == id)?.Kod === 'pagination_default') {
                         const newSize = parseInt(value);
                         window.APP_CONFIG = window.APP_CONFIG || {};
                         window.APP_CONFIG.PAGINATION_DEFAULT = newSize;
-                        // NbtParams cache'ini de guncelle
+                        
                         if (NbtParams._cache.settings) {
                             NbtParams._cache.settings.pagination_default = newSize;
                         }
@@ -7346,7 +7332,7 @@ const ParameterModule = {
             });
         });
 
-        // Aktiflik toggle
+        
         container.querySelectorAll('[data-action="toggle-active"]').forEach(checkbox => {
             checkbox.addEventListener('change', async () => {
                 const id = checkbox.dataset.id;
@@ -7362,7 +7348,7 @@ const ParameterModule = {
             });
         });
 
-        // Pasifleştir toggle (sadece proje durumlari icin)
+        
         container.querySelectorAll('[data-action="toggle-pasif"]').forEach(checkbox => {
             checkbox.addEventListener('change', async () => {
                 const id = checkbox.dataset.id;
@@ -7371,7 +7357,7 @@ const ParameterModule = {
                     NbtToast.success(checkbox.checked ? 'Bu duruma sahip projeler select listelerinde görünmeyecek' : 'Pasifleştirme kaldırıldı');
                     await this.loadData();
                     this.renderTabContent();
-                    // NbtParams cache'ini temizle ki güncel durum alınsın
+                    
                     if (NbtParams._cache.statuses) {
                         NbtParams._cache.statuses = {};
                     }
@@ -7382,7 +7368,7 @@ const ParameterModule = {
             });
         });
 
-        // Varsayilan ayarlama
+        
         container.querySelectorAll('[data-action="set-default"]').forEach(radio => {
             radio.addEventListener('change', async () => {
                 if (!radio.checked) return;
@@ -7399,7 +7385,7 @@ const ParameterModule = {
             });
         });
 
-        // Silme
+        
         container.querySelectorAll('[data-action="delete"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.dataset.id;
@@ -7428,7 +7414,7 @@ const ParameterModule = {
             });
         });
 
-        // Sehir duzenle
+        
         container.querySelectorAll('[data-action="edit-city"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = parseInt(btn.dataset.id);
@@ -7436,7 +7422,7 @@ const ParameterModule = {
             });
         });
 
-        // Sehir sil
+        
         container.querySelectorAll('[data-action="delete-city"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.dataset.id;
@@ -7464,7 +7450,7 @@ const ParameterModule = {
             });
         });
 
-        // Ilce duzenle
+        
         container.querySelectorAll('[data-action="edit-district"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = parseInt(btn.dataset.id);
@@ -7472,7 +7458,7 @@ const ParameterModule = {
             });
         });
 
-        // Ilce sil
+        
         container.querySelectorAll('[data-action="delete-district"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.dataset.id;
@@ -7513,7 +7499,7 @@ const ParameterModule = {
         }
     },
 
-    // Sehir Modal
+    
     openCityModal(id = null) {
         const modalHtml = `
             <div class="modal fade" id="cityModal" tabindex="-1">
@@ -7555,7 +7541,7 @@ const ParameterModule = {
                 </div>
             </div>`;
         
-        // Mevcut modali kaldir
+        
         const existingModal = document.getElementById('cityModal');
         if (existingModal) existingModal.remove();
         
@@ -7576,7 +7562,7 @@ const ParameterModule = {
         document.getElementById('btnSaveCity').addEventListener('click', () => this.saveCity());
     },
 
-    // Sehir Kaydet
+    
     async saveCity() {
         const id = document.getElementById('cityId').value;
         const data = {
@@ -7608,9 +7594,9 @@ const ParameterModule = {
         }
     },
 
-    // Ilce Modal
+    
     openDistrictModal(id = null) {
-        // Sehir select optionlarini olustur
+        
         const cityOptions = this.cities.map(c => 
             `<option value="${c.Id}">${c.PlakaKodu} - ${c.Ad}</option>`
         ).join('');
@@ -7645,7 +7631,7 @@ const ParameterModule = {
                 </div>
             </div>`;
         
-        // Mevcut modali kaldir
+        
         const existingModal = document.getElementById('districtModal');
         if (existingModal) existingModal.remove();
         
@@ -7665,7 +7651,7 @@ const ParameterModule = {
         document.getElementById('btnSaveDistrict').addEventListener('click', () => this.saveDistrict());
     },
 
-    // Ilce Kaydet
+    
     async saveDistrict() {
         const id = document.getElementById('districtId').value;
         const data = {
@@ -7696,7 +7682,7 @@ const ParameterModule = {
         }
     },
 
-    // Doviz Modal
+    
     openCurrencyModal(id = null) {
         NbtModal.resetForm('currencyModal');
         document.getElementById('currencyModalTitle').textContent = id ? 'Döviz Düzenle' : 'Yeni Döviz';
@@ -7717,14 +7703,14 @@ const ParameterModule = {
         NbtModal.open('currencyModal');
     },
 
-    // Durum Modal
+    
     openStatusModal(id = null) {
         NbtModal.resetForm('statusModal');
         document.getElementById('statusModalTitle').textContent = id ? 'Durum Düzenle' : 'Yeni Durum';
         document.getElementById('statusId').value = id || '';
         document.getElementById('statusGrup').value = this.activeGroup;
 
-        // Badge onizleme guncellemesi
+        
         const updatePreview = () => {
             const selectedColor = document.querySelector('input[name="statusBadgeColor"]:checked')?.value || 'success';
             const etiket = document.getElementById('statusEtiket').value || 'Örnek Durum';
@@ -7736,7 +7722,7 @@ const ParameterModule = {
             preview.textContent = etiket;
         };
 
-        // Radio button events
+        
         document.querySelectorAll('input[name="statusBadgeColor"]').forEach(radio => {
             radio.addEventListener('change', updatePreview);
         });
@@ -7749,7 +7735,7 @@ const ParameterModule = {
                 document.getElementById('statusEtiket').value = item.Etiket || '';
                 document.getElementById('statusAktif').checked = item.Aktif;
                 document.getElementById('statusVarsayilan').checked = item.Varsayilan;
-                // Badge rengi sec
+                
                 const colorRadio = document.querySelector(`input[name="statusBadgeColor"][value="${item.Deger}"]`);
                 if (colorRadio) colorRadio.checked = true;
                 updatePreview();
@@ -7759,7 +7745,7 @@ const ParameterModule = {
         NbtModal.open('statusModal');
     },
 
-    // Doviz kaydetme
+    
     async saveCurrency() {
         const id = document.getElementById('currencyId').value;
         const data = {
@@ -7810,24 +7796,24 @@ const ParameterModule = {
         }
     },
 
-    // Durum kaydetme
+    
     async saveStatus() {
         const id = document.getElementById('statusId').value;
         const selectedColor = document.querySelector('input[name="statusBadgeColor"]:checked')?.value || 'success';
         const etiket = document.getElementById('statusEtiket').value.trim();
         const grup = document.getElementById('statusGrup').value;
         
-        // Kod'u sayisal olarak olustur (mevcut maksimum + 1)
+        
         let kod = '1';
         if (!id) {
-            // Yeni kayit icin: mevcut kodlarin maksimumunu bul
+            
             const existing = this.data[grup] || [];
             if (existing.length > 0) {
                 const maxKod = Math.max(...existing.map(p => parseInt(p.Kod) || 0));
                 kod = String(maxKod + 1);
             }
         } else {
-            // Guncelleme icin mevcut kodu koru
+            
             const existingItems = this.data[grup] || [];
             const current = existingItems.find(p => String(p.Id) === String(id));
             kod = current?.Kod || '1';
@@ -7875,7 +7861,7 @@ const ParameterModule = {
         if (this._eventsBound) return;
         this._eventsBound = true;
         
-        // Tab tiklama
+        
         document.getElementById('parametersTabs')?.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-param-tab]');
             if (btn) {
@@ -7884,7 +7870,7 @@ const ParameterModule = {
             }
         });
 
-        // Yenile butonu
+        
         document.getElementById('btnRefreshParameters')?.addEventListener('click', async () => {
             const btn = document.getElementById('btnRefreshParameters');
             btn.disabled = true;
@@ -7899,15 +7885,15 @@ const ParameterModule = {
             NbtToast.success('Parametreler yenilendi');
         });
         
-        // Modal kaydetme butonlari
+        
         document.getElementById('btnSaveCurrency')?.addEventListener('click', () => this.saveCurrency());
         document.getElementById('btnSaveStatus')?.addEventListener('click', () => this.saveStatus());
     }
 };
 
-// =============================================
-// KULLANICI MODULU
-// =============================================
+
+
+
 const UserModule = {
     _eventsBound: false,
     data: [],
@@ -7915,14 +7901,14 @@ const UserModule = {
     currentPage: 1,
     paginationInfo: null,
     columnFilters: {},
-    // Filtre icin ek property'ler
+    
     allData: null,
     allDataLoading: false,
     filteredPage: 1,
     filteredPaginationInfo: null,
-    // RBAC: Atanabilir roller cache
+    
     assignableRoles: null,
-    // Tum roller (filtre icin)
+    
     allRoles: null,
 
     async init() {
@@ -7933,9 +7919,7 @@ const UserModule = {
         this.bindEvents();
     },
 
-    /**
-     * Tum rolleri API'den yukler (filtre icin)
-     */
+    
     async loadAllRoles() {
         if (this.allRoles !== null) return this.allRoles;
         
@@ -7950,9 +7934,7 @@ const UserModule = {
         }
     },
 
-    /**
-     * Kullanicinin mevcut rollerini API'den yukler
-     */
+    
     async loadUserRoles(userId) {
         try {
             const response = await NbtApi.get(`/api/users/${userId}/roles`);
@@ -7963,9 +7945,7 @@ const UserModule = {
         }
     },
 
-    /**
-     * Rol checkbox listesini render eder
-     */
+    
     renderRoleCheckboxes(assignableRoles, selectedRoleIds = []) {
         if (!assignableRoles || assignableRoles.length === 0) {
             return '<div class="text-muted small py-2">Atayabileceğiniz rol bulunmuyor.</div>';
@@ -8020,7 +8000,7 @@ const UserModule = {
             return;
         }
         
-        // Tum verileri yukle
+        
         if (!this.allData && !this.allDataLoading) {
             this.allDataLoading = true;
             const container = document.getElementById('usersTableContainer');
@@ -8043,12 +8023,12 @@ const UserModule = {
         
         let filtered = this.allData || [];
         
-        // Kolon filtreleri
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (!value) return;
             
-            // RollerStr alani icin text arama (multi-role destegi)
+            
             if (field === 'RollerStr') {
                 filtered = filtered.filter(item => {
                     const cellValue = String(item.RollerStr ?? '');
@@ -8057,7 +8037,7 @@ const UserModule = {
                 return;
             }
             
-            // Aktif alani icin exact match (boolean olarak)
+            
             if (field === 'Aktif') {
                 filtered = filtered.filter(item => {
                     const isAktif = item[field] === true || item[field] === 1 || item[field] === '1';
@@ -8068,7 +8048,7 @@ const UserModule = {
                 return;
             }
             
-            // Normal alanlar icin filtre
+            
             filtered = filtered.filter(item => {
                 let cellValue = item[field];
                 return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
@@ -8094,13 +8074,13 @@ const UserModule = {
             { field: 'AdSoyad', label: 'Ad Soyad' },
             { field: 'KullaniciAdi', label: 'Kullanıcı Adı' },
             { field: 'Roller', label: 'Roller', render: (v, row) => {
-                // Yeni RBAC: Roller dizisi
+                
                 if (row.Roller && Array.isArray(row.Roller) && row.Roller.length > 0) {
                     return row.Roller.map(rol => {
                         return `<span class="badge bg-info me-1">${rol.RolAdi}</span>`;
                     }).join('');
                 }
-                // Eski sistem fallback: Tek Rol alani
+                
                 if (row.Rol) {
                     const roles = { superadmin: 'danger', admin: 'warning', user: 'info' };
                     return `<span class="badge bg-${roles[row.Rol] || 'secondary'}">${row.Rol}</span>`;
@@ -8116,11 +8096,11 @@ const UserModule = {
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:120px;">İşlemler</th>';
 
-        // Filter row
+        
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             
-            // Roller alani icin select (dinamik roller)
+            
             if (c.field === 'Roller') {
                 const currentValue = this.columnFilters['RollerStr'] || '';
                 let optionsHtml = '<option value="">Tümü</option>';
@@ -8137,7 +8117,7 @@ const UserModule = {
                 </th>`;
             }
             
-            // Aktif alani icin select
+            
             if (c.field === 'Aktif') {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="users">
@@ -8206,7 +8186,7 @@ const UserModule = {
     },
 
     bindTableEvents(container) {
-        // Edit butonlari
+        
         container.querySelectorAll('[data-action="edit"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = parseInt(btn.dataset.id);
@@ -8216,7 +8196,7 @@ const UserModule = {
             });
         });
 
-        // Delete butonlari
+        
         container.querySelectorAll('[data-action="delete"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.dataset.id;
@@ -8242,7 +8222,7 @@ const UserModule = {
             });
         });
 
-        // Pagination
+        
         container.querySelectorAll('[data-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -8253,7 +8233,7 @@ const UserModule = {
             });
         });
 
-        // Filtered pagination
+        
         container.querySelectorAll('[data-filtered-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -8264,7 +8244,7 @@ const UserModule = {
             });
         });
 
-        // Apply filters button
+        
         container.querySelectorAll('[data-action="apply-filters"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.columnFilters = {};
@@ -8277,7 +8257,7 @@ const UserModule = {
             });
         });
 
-        // Enter key for filters
+        
         container.querySelectorAll('[data-column-filter]').forEach(input => {
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -8286,7 +8266,7 @@ const UserModule = {
             });
         });
 
-        // Clear filters button
+        
         container.querySelectorAll('[data-action="clear-filters"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.columnFilters = {};
@@ -8358,7 +8338,7 @@ const UserModule = {
         document.getElementById('userModalTitle').textContent = id ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı';
         document.getElementById('userId').value = id || '';
         
-        // Rol container'ini yukleniyor durumuna al
+        
         const rolesContainer = document.getElementById('userRolesContainer');
         if (rolesContainer) {
             rolesContainer.innerHTML = '<div class="text-center text-muted py-2"><div class="spinner-border spinner-border-sm"></div> Roller yükleniyor...</div>';
@@ -8371,7 +8351,7 @@ const UserModule = {
                 document.getElementById('userKullaniciAdi').value = user.KullaniciAdi || '';
             }
             
-            // Kullanicinin rollerini ve atanabilir rolleri yukle
+            
             Promise.all([
                 this.loadAssignableRoles(),
                 this.loadUserRoles(id)
@@ -8382,7 +8362,7 @@ const UserModule = {
                 }
             });
         } else {
-            // Yeni kullanici: sadece atanabilir rolleri yukle
+            
             this.loadAssignableRoles().then(assignableRoles => {
                 if (rolesContainer) {
                     rolesContainer.innerHTML = this.renderRoleCheckboxes(assignableRoles, []);
@@ -8396,13 +8376,13 @@ const UserModule = {
     async save() {
         const id = document.getElementById('userId').value;
         
-        // Secili rol ID'lerini topla
+        
         const selectedRoleIds = [];
         document.querySelectorAll('.user-role-checkbox:checked').forEach(cb => {
             selectedRoleIds.push(parseInt(cb.value, 10));
         });
 
-        // Gecersiz/tekrarlayan rol ID'lerini temizle
+        
         const assignableIdSet = this.assignableRoles
             ? new Set(this.assignableRoles.map(r => parseInt(r.Id, 10)).filter(Number.isInteger))
             : null;
@@ -8412,7 +8392,7 @@ const UserModule = {
         
         const data = {
             AdSoyad: document.getElementById('userAdSoyad').value.trim(),
-            RolIdler: normalizedRoleIds // Yeni RBAC: rol ID listesi
+            RolIdler: normalizedRoleIds 
         };
         
         const sifre = document.getElementById('userSifre').value;
@@ -8446,10 +8426,10 @@ const UserModule = {
         NbtModal.setLoading('userModal', true);
         try {
             if (id) {
-                // Kullaniciyi guncelle
+                
                 await NbtApi.put(`/api/users/${id}`, data);
                 
-                // Rolleri ayri endpoint ile guncelle
+                
                 await NbtApi.post(`/api/users/${id}/roles`, { RolIdler: normalizedRoleIds });
                 
                 NbtToast.success('Kullanıcı güncellendi');
@@ -8473,9 +8453,9 @@ const UserModule = {
     }
 };
 
-// =============================================
-// HESABIM MODULU
-// =============================================
+
+
+
 const MyAccountModule = {
     _eventsBound: false,
 
@@ -8485,7 +8465,7 @@ const MyAccountModule = {
     },
 
     loadUserInfo() {
-        // localStorage'dan kullanici bilgilerini al
+        
         const user = NbtUtils.getUser();
         if (!user) {
             NbtLogger.warn('MyAccountModule: Kullanıcı bilgisi bulunamadı');
@@ -8552,13 +8532,13 @@ const MyAccountModule = {
     }
 };
 
-// =============================================
-// ALARMLAR MODULU
-// =============================================
+
+
+
 const AlarmsModule = {
     _eventsBound: false,
     alarms: [],
-    selectedTab: 'invoice', // invoice, doubtful, calendar, guarantee, offer
+    selectedTab: 'invoice', 
 
     async init() {
         await this.loadAlarms();
@@ -8586,12 +8566,12 @@ const AlarmsModule = {
             offer: { label: 'Geçerliliği Dolan Teklifler', icon: 'bi-file-earmark-text', color: 'primary', items: [], count: 0 }
         };
 
-        // API'dan gelen her alarm bir kategoriye ait ve icinde items dizisi var
+        
         this.alarms.forEach(alarm => {
             if (grouped[alarm.type]) {
                 grouped[alarm.type].items = alarm.items || [];
                 grouped[alarm.type].count = alarm.count || 0;
-                // Toplam bilgilerini de aktar
+                
                 if (alarm.total !== undefined) {
                     grouped[alarm.type].total = alarm.total;
                 }
@@ -8632,12 +8612,12 @@ const AlarmsModule = {
     selectTab(tab) {
         this.selectedTab = tab;
         
-        // Tab butonlarini guncelle
+        
         document.querySelectorAll('#alarmsTabs .nav-link').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.alarmTab === tab);
         });
 
-        // Icerik render
+        
         this.renderTabContent();
     },
 
@@ -8649,7 +8629,7 @@ const AlarmsModule = {
         const group = grouped[this.selectedTab];
         const items = group ? group.items : [];
 
-        // Card yapisi ile panel olustur
+        
         let html = `
             <div class="card shadow-sm">
                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
@@ -8678,7 +8658,7 @@ const AlarmsModule = {
     renderTable(items, group) {
         let html = '<div class="table-responsive p-2"><table class="table table-bordered table-hover table-sm mb-0 align-middle"><thead class="table-light"><tr>';
         
-        // Kolon basliklari
+        
         if (this.selectedTab === 'invoice') {
             html += `
                 <th class="text-nowrap">Müşteri</th>
@@ -8725,7 +8705,7 @@ const AlarmsModule = {
         html += '</tr></thead><tbody>';
 
         items.forEach(item => {
-            // Supheli alacak olan faturalar icin warning arka plan
+            
             const rowClass = (this.selectedTab === 'invoice' && item.supheliAlacak) ? 'table-warning' : '';
             html += `<tr class="${rowClass}">`;
             
@@ -8801,7 +8781,7 @@ const AlarmsModule = {
 
         html += '</tbody>';
         
-        // Toplam satiri ekle (invoice, doubtful ve guarantee icin)
+        
         if (group && group.totalByCurrency && Object.keys(group.totalByCurrency).length > 0) {
             const toplamStr = this.formatTotalsByCurrency(group.totalByCurrency);
             
@@ -8842,7 +8822,7 @@ const AlarmsModule = {
         return html;
     },
 
-    // Para birimi bazinda toplamlari formatla
+    
     formatTotalsByCurrency(totalByCurrency) {
         const parts = [];
         Object.keys(totalByCurrency).forEach(currency => {
@@ -8858,7 +8838,7 @@ const AlarmsModule = {
         if (this._eventsBound) return;
         this._eventsBound = true;
 
-        // Tab tiklama
+        
         document.getElementById('alarmsTabs')?.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-alarm-tab]');
             if (btn) {
@@ -8867,7 +8847,7 @@ const AlarmsModule = {
             }
         });
 
-        // Yenile butonu
+        
         document.getElementById('btnRefreshAlarms')?.addEventListener('click', async () => {
             const btn = document.getElementById('btnRefreshAlarms');
             btn.disabled = true;
@@ -8885,9 +8865,9 @@ const AlarmsModule = {
     }
 };
 
-// =============================================
-// TEKLIF MODULU
-// =============================================
+
+
+
 const OfferModule = {
     _eventsBound: false,
     data: [],
@@ -8896,17 +8876,17 @@ const OfferModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
-    // Filtre icin ek property'ler
+    
     allData: null,
     allDataLoading: false,
     filteredPage: 1,
     filteredPaginationInfo: null,
-    // Dosya islemleri icin
+    
     removeExistingFile: false,
 
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
-        // Durum ve doviz parametrelerini onceden yukle (cache'e al)
+        
         await Promise.all([
             NbtParams.getStatuses('teklif'),
             NbtParams.getCurrencies()
@@ -8979,12 +8959,12 @@ const OfferModule = {
         
         let filtered = this.allData || [];
         
-        // Kolon filtreleri - CustomerDetailModule mantigiyla
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (!value) return;
             
-            // Tarih araligi baslangic filtresi
+            
             if (field.endsWith('_start')) {
                 const baseField = field.replace('_start', '');
                 filtered = filtered.filter(item => {
@@ -8996,7 +8976,7 @@ const OfferModule = {
                 return;
             }
             
-            // Tarih araligi bitis filtresi
+            
             if (field.endsWith('_end')) {
                 const baseField = field.replace('_end', '');
                 filtered = filtered.filter(item => {
@@ -9008,7 +8988,7 @@ const OfferModule = {
                 return;
             }
             
-            // Durum ve doviz icin exact match
+            
             if (field === 'Durum' || field === 'ParaBirimi') {
                 filtered = filtered.filter(item => {
                     const cellValue = String(item[field] ?? '');
@@ -9017,7 +8997,7 @@ const OfferModule = {
                 return;
             }
             
-            // Normal alanlar icin filtre
+            
             filtered = filtered.filter(item => {
                 let cellValue = item[field];
                 return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
@@ -9050,13 +9030,13 @@ const OfferModule = {
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:140px;">İşlem</th>';
 
-        // Filter row - CustomerDetailModule mantigiyla
+        
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             const startValue = this.columnFilters[c.field + '_start'] || '';
             const endValue = this.columnFilters[c.field + '_end'] || '';
             
-            // Tarih alanlari icin cift date input
+            
             if (c.isDate) {
                 return `<th class="p-1" style="min-width:200px;">
                     <div class="d-flex gap-1">
@@ -9066,7 +9046,7 @@ const OfferModule = {
                 </th>`;
             }
             
-            // Doviz alani icin select - dinamik olarak doldurulacak
+            
             if (c.field === 'ParaBirimi' || c.isSelect) {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="offers" data-currency-select="true">
@@ -9075,7 +9055,7 @@ const OfferModule = {
                 </th>`;
             }
             
-            // Durum alani icin select - dinamik olarak doldurulacak
+            
             if (c.field === 'Durum') {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="offers" data-status-type="teklif">
@@ -9146,9 +9126,9 @@ const OfferModule = {
         this.populateFilterSelects(container);
     },
 
-    // Filtre select'lerini dinamik parametrelerden doldur
+    
     async populateFilterSelects(container) {
-        // Status select'lerini doldur
+        
         for (const select of container.querySelectorAll('select[data-status-type]')) {
             const statusType = select.dataset.statusType;
             const statuses = await NbtParams.getStatuses(statusType);
@@ -9162,7 +9142,7 @@ const OfferModule = {
             select.innerHTML = options;
         }
         
-        // Currency select'lerini doldur
+        
         const currencies = await NbtParams.getCurrencies();
         container.querySelectorAll('select[data-currency-select]').forEach(select => {
             const currentValue = this.columnFilters[select.dataset.columnFilter] || '';
@@ -9299,7 +9279,7 @@ const OfferModule = {
         document.getElementById('offerModalTitle').textContent = id ? 'Teklif Düzenle' : 'Yeni Teklif';
         document.getElementById('offerId').value = id || '';
         
-        // Dosya alanlarini sifirla
+        
         this.removeExistingFile = false;
         document.getElementById('offerDosya').value = '';
         document.getElementById('offerDosya').classList.remove('is-invalid');
@@ -9313,11 +9293,11 @@ const OfferModule = {
         const projeSelect = document.getElementById('offerProjeId');
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
 
-        // Durum ve doviz select'lerini parametrelerden doldur
+        
         await NbtParams.populateStatusSelect(document.getElementById('offerStatus'), 'teklif');
         await NbtParams.populateCurrencySelect(document.getElementById('offerCurrency'));
 
-        // Musteri degistiginde projeleri yukleme
+        
         select.onchange = async () => {
             projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
             const musteriId = select.value;
@@ -9326,7 +9306,7 @@ const OfferModule = {
                     const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
                     let projects = response.data || [];
                     
-                    // Pasif durumdaki projeleri filtrele
+                    
                     const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
                     projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
                     
@@ -9339,7 +9319,7 @@ const OfferModule = {
             }
         };
 
-        // Eger customer detail sayfasindaysak musteriyi auto-select et ve disable yap
+        
         if (CustomerDetailModule.customerId) {
             select.value = CustomerDetailModule.customerId;
             select.disabled = true;
@@ -9355,7 +9335,7 @@ const OfferModule = {
             if (offer) {
                 select.value = offer.MusteriId;
                 select.disabled = true;
-                // Projeleri yukleme ve secili projeyi ayarlama
+                
                 await select.onchange();
                 document.getElementById('offerProjeId').value = offer.ProjeId || '';
                 document.getElementById('offerSubject').value = offer.Konu || '';
@@ -9365,7 +9345,7 @@ const OfferModule = {
                 document.getElementById('offerValidDate').value = offer.GecerlilikTarihi?.split('T')[0] || '';
                 document.getElementById('offerStatus').value = offer.Durum ?? '';
                 
-                // Mevcut dosyayi goster
+                
                 if (offer.DosyaAdi && offer.DosyaYolu) {
                     document.getElementById('offerCurrentFileName').textContent = offer.DosyaAdi;
                     document.getElementById('offerCurrentFile').classList.remove('d-none');
@@ -9379,7 +9359,7 @@ const OfferModule = {
         NbtModal.open('offerModal');
     },
 
-    // PDF ve Word dosya dogrulama
+    
     validateOfferFile(file) {
         return NbtDocumentFile.validate(file);
     },
@@ -9428,7 +9408,7 @@ const OfferModule = {
             return;
         }
         
-        // Dosya dogrulama
+        
         const file = fileInput?.files?.[0];
         if (file) {
             const errors = this.validateOfferFile(file);
@@ -9442,7 +9422,7 @@ const OfferModule = {
 
         NbtModal.setLoading('offerModal', true);
         try {
-            // FormData kullan - hem dosya hem diger veriler icin
+            
             const formData = new FormData();
             formData.append('MusteriId', musteriId);
             if (projeIdVal) formData.append('ProjeId', projeIdVal);
@@ -9453,7 +9433,7 @@ const OfferModule = {
             formData.append('GecerlilikTarihi', gecerlilikTarihi);
             formData.append('Durum', document.getElementById('offerStatus').value);
             
-            // Dosya ekleme veya silme
+            
             if (file) {
                 formData.append('dosya', file);
             } else if (this.removeExistingFile) {
@@ -9481,7 +9461,7 @@ const OfferModule = {
         }
     },
 
-    // Durum badge'ini dinamik parametrelerden olustur
+    
     getStatusBadge(status, entity) {
         const cacheKey = `durum_${entity}`;
         const statuses = NbtParams._cache.statuses[cacheKey] || [];
@@ -9493,7 +9473,7 @@ const OfferModule = {
             return `<span class="badge bg-${badge}${textClass}">${NbtUtils.escapeHtml(found.Etiket)}</span>`;
         }
         
-        // Fallback - cache henuz yuklenmediyse
+        
         const fallback = { 0: ['Taslak', 'secondary'], 1: ['Gönderildi', 'warning'], 2: ['Onaylandı', 'success'], 3: ['Reddedildi', 'danger'] };
         const config = fallback[status] || ['Bilinmiyor', 'secondary'];
         return `<span class="badge bg-${config[1]}">${config[0]}</span>`;
@@ -9526,9 +9506,9 @@ const OfferModule = {
     }
 };
 
-// =============================================
-// SOZLESME MODULU
-// =============================================
+
+
+
 const ContractModule = {
     _eventsBound: false,
     data: [],
@@ -9537,17 +9517,17 @@ const ContractModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
-    // Filtre icin ek property'ler
+    
     allData: null,
     allDataLoading: false,
     filteredPage: 1,
     filteredPaginationInfo: null,
-    // Dosya islemleri icin
+    
     removeExistingFile: false,
 
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
-        // Durum ve doviz parametrelerini onceden yukle (cache'e al)
+        
         await Promise.all([
             NbtParams.getStatuses('sozlesme'),
             NbtParams.getCurrencies()
@@ -9620,12 +9600,12 @@ const ContractModule = {
         
         let filtered = this.allData || [];
         
-        // Kolon filtreleri - CustomerDetailModule mantigiyla
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (!value) return;
             
-            // Tarih araligi baslangic filtresi
+            
             if (field.endsWith('_start')) {
                 const baseField = field.replace('_start', '');
                 filtered = filtered.filter(item => {
@@ -9637,7 +9617,7 @@ const ContractModule = {
                 return;
             }
             
-            // Tarih araligi bitis filtresi
+            
             if (field.endsWith('_end')) {
                 const baseField = field.replace('_end', '');
                 filtered = filtered.filter(item => {
@@ -9649,7 +9629,7 @@ const ContractModule = {
                 return;
             }
             
-            // Durum ve doviz icin exact match
+            
             if (field === 'Durum' || field === 'ParaBirimi') {
                 filtered = filtered.filter(item => {
                     const cellValue = String(item[field] ?? '');
@@ -9658,7 +9638,7 @@ const ContractModule = {
                 return;
             }
             
-            // Normal alanlar icin filtre
+            
             filtered = filtered.filter(item => {
                 let cellValue = item[field];
                 return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
@@ -9690,13 +9670,13 @@ const ContractModule = {
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center px-3" style="width:140px;">İşlem</th>';
 
-        // Filter row - CustomerDetailModule mantigiyla
+        
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             const startValue = this.columnFilters[c.field + '_start'] || '';
             const endValue = this.columnFilters[c.field + '_end'] || '';
             
-            // Tarih alanlari icin cift date input
+            
             if (c.isDate) {
                 return `<th class="p-1" style="min-width:200px;">
                     <div class="d-flex gap-1">
@@ -9706,7 +9686,7 @@ const ContractModule = {
                 </th>`;
             }
             
-            // Doviz alani icin select - dinamik olarak doldurulacak
+            
             if (c.field === 'ParaBirimi' || c.isSelect) {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="contracts" data-currency-select="true">
@@ -9715,7 +9695,7 @@ const ContractModule = {
                 </th>`;
             }
             
-            // Durum alani icin select - dinamik olarak doldurulacak
+            
             if (c.field === 'Durum') {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="contracts" data-status-type="sozlesme">
@@ -9786,9 +9766,9 @@ const ContractModule = {
         this.populateFilterSelects(container);
     },
 
-    // Filtre select'lerini dinamik parametrelerden doldur
+    
     async populateFilterSelects(container) {
-        // Status select'lerini doldur
+        
         for (const select of container.querySelectorAll('select[data-status-type]')) {
             const statusType = select.dataset.statusType;
             const statuses = await NbtParams.getStatuses(statusType);
@@ -9802,7 +9782,7 @@ const ContractModule = {
             select.innerHTML = options;
         }
         
-        // Currency select'lerini doldur
+        
         const currencies = await NbtParams.getCurrencies();
         container.querySelectorAll('select[data-currency-select]').forEach(select => {
             const currentValue = this.columnFilters[select.dataset.columnFilter] || '';
@@ -9939,7 +9919,7 @@ const ContractModule = {
         document.getElementById('contractModalTitle').textContent = id ? 'Sözleşme Düzenle' : 'Yeni Sözleşme';
         document.getElementById('contractId').value = id || '';
         
-        // Dosya alanlarini sifirla
+        
         this.removeExistingFile = false;
         document.getElementById('contractDosya').value = '';
         document.getElementById('contractDosya').classList.remove('is-invalid');
@@ -9953,11 +9933,11 @@ const ContractModule = {
         const projeSelect = document.getElementById('contractProjeId');
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
 
-        // Durum ve doviz select'lerini parametrelerden doldur
+        
         await NbtParams.populateStatusSelect(document.getElementById('contractStatus'), 'sozlesme');
         await NbtParams.populateCurrencySelect(document.getElementById('contractCurrency'));
 
-        // Musteri degistiginde projeleri yukleme
+        
         select.onchange = async () => {
             projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
             const musteriId = select.value;
@@ -9966,7 +9946,7 @@ const ContractModule = {
                     const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
                     let projects = response.data || [];
                     
-                    // Pasif durumdaki projeleri filtrele
+                    
                     const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
                     projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
                     
@@ -9979,7 +9959,7 @@ const ContractModule = {
             }
         };
 
-        // Eger customer detail sayfasindaysak musteriyi auto-select et ve disable yap
+        
         if (CustomerDetailModule.customerId) {
             select.value = CustomerDetailModule.customerId;
             select.disabled = true;
@@ -9995,7 +9975,7 @@ const ContractModule = {
             if (contract) {
                 select.value = contract.MusteriId;
                 select.disabled = true;
-                // Projeleri yukleme ve secili projeyi ayarlama
+                
                 await select.onchange();
                 document.getElementById('contractProjeId').value = contract.ProjeId || '';
                 document.getElementById('contractStart').value = contract.SozlesmeTarihi?.split('T')[0] || '';
@@ -10003,7 +9983,7 @@ const ContractModule = {
                 document.getElementById('contractCurrency').value = contract.ParaBirimi || NbtParams.getDefaultCurrency();
                 document.getElementById('contractStatus').value = contract.Durum ?? '';
                 
-                // Mevcut dosyayi goster
+                
                 if (contract.DosyaAdi && contract.DosyaYolu) {
                     const fileNameEl = document.getElementById('contractCurrentFileName');
                     if (fileNameEl) {
@@ -10022,7 +10002,7 @@ const ContractModule = {
         NbtModal.open('contractModal');
     },
 
-    // PDF/Word dosya dogrulama
+    
     validatePdfFile(file) {
         return NbtDocumentFile.validate(file);
     },
@@ -10057,7 +10037,7 @@ const ContractModule = {
             return;
         }
         
-        // Dosya dogrulama
+        
         const file = fileInput?.files?.[0];
         if (file) {
             const errors = this.validatePdfFile(file);
@@ -10072,7 +10052,7 @@ const ContractModule = {
 
         NbtModal.setLoading('contractModal', true);
         try {
-            // FormData kullan - hem dosya hem diger veriler icin
+            
             const formData = new FormData();
             formData.append('MusteriId', musteriId);
             if (projeIdVal) formData.append('ProjeId', projeIdVal);
@@ -10081,7 +10061,7 @@ const ContractModule = {
             formData.append('ParaBirimi', document.getElementById('contractCurrency').value);
             formData.append('Durum', document.getElementById('contractStatus').value);
             
-            // Dosya ekleme veya silme
+            
             if (file) {
                 formData.append('dosya', file);
             } else if (this.removeExistingFile) {
@@ -10109,7 +10089,7 @@ const ContractModule = {
         }
     },
 
-    // Durum badge'ini dinamik parametrelerden olustur
+    
     getStatusBadge(status, entity) {
         const cacheKey = `durum_${entity}`;
         const statuses = NbtParams._cache.statuses[cacheKey] || [];
@@ -10121,7 +10101,7 @@ const ContractModule = {
             return `<span class="badge bg-${badge}${textClass}">${NbtUtils.escapeHtml(found.Etiket)}</span>`;
         }
         
-        // Fallback - cache henuz yuklenmediyse
+        
         const fallback = { 1: ['Aktif', 'success'], 2: ['Pasif', 'secondary'], 3: ['İptal', 'danger'] };
         const config = fallback[status] || ['Bilinmiyor', 'secondary'];
         return `<span class="badge bg-${config[1]}">${config[0]}</span>`;
@@ -10155,9 +10135,9 @@ const ContractModule = {
     }
 };
 
-// =============================================
-// TEMINAT MODULU
-// =============================================
+
+
+
 const GuaranteeModule = {
     _eventsBound: false,
     data: [],
@@ -10166,18 +10146,18 @@ const GuaranteeModule = {
     paginationInfo: null,
     searchQuery: '',
     columnFilters: {},
-    // Filtre icin ek property'ler
+    
     allData: null,
     allDataLoading: false,
     filteredPage: 1,
     filteredPaginationInfo: null,
-    // PDF dosya islemleri icin
+    
     selectedFile: null,
     removeExistingFile: false,
 
     async init() {
         this.pageSize = NbtParams.getPaginationDefault();
-        // Durum ve doviz parametrelerini onceden yukle (cache'e al)
+        
         await Promise.all([
             NbtParams.getStatuses('teminat'),
             NbtParams.getCurrencies()
@@ -10250,12 +10230,12 @@ const GuaranteeModule = {
         
         let filtered = this.allData || [];
         
-        // Kolon filtreleri - CustomerDetailModule mantigiyla
+        
         Object.keys(this.columnFilters).forEach(field => {
             const value = this.columnFilters[field];
             if (!value) return;
             
-            // Tarih araligi baslangic filtresi
+            
             if (field.endsWith('_start')) {
                 const baseField = field.replace('_start', '');
                 filtered = filtered.filter(item => {
@@ -10267,7 +10247,7 @@ const GuaranteeModule = {
                 return;
             }
             
-            // Tarih araligi bitis filtresi
+            
             if (field.endsWith('_end')) {
                 const baseField = field.replace('_end', '');
                 filtered = filtered.filter(item => {
@@ -10279,7 +10259,7 @@ const GuaranteeModule = {
                 return;
             }
             
-            // Durum ve doviz icin exact match
+            
             if (field === 'Durum' || field === 'ParaBirimi') {
                 filtered = filtered.filter(item => {
                     const cellValue = String(item[field] ?? '');
@@ -10288,7 +10268,7 @@ const GuaranteeModule = {
                 return;
             }
             
-            // Normal alanlar icin filtre
+            
             filtered = filtered.filter(item => {
                 let cellValue = item[field];
                 return NbtUtils.normalizeText(cellValue).includes(NbtUtils.normalizeText(value));
@@ -10323,13 +10303,13 @@ const GuaranteeModule = {
         const headers = columns.map(c => `<th class="bg-light">${c.label}</th>`).join('') + 
             '<th class="bg-light text-center" style="width:100px">İşlem</th>';
 
-        // Filter row - CustomerDetailModule mantigiyla
+        
         const filterRow = columns.map(c => {
             const currentValue = this.columnFilters[c.field] || '';
             const startValue = this.columnFilters[c.field + '_start'] || '';
             const endValue = this.columnFilters[c.field + '_end'] || '';
             
-            // Tarih alanlari icin cift date input
+            
             if (c.isDate) {
                 return `<th class="p-1" style="min-width:200px;">
                     <div class="d-flex gap-1">
@@ -10339,7 +10319,7 @@ const GuaranteeModule = {
                 </th>`;
             }
             
-            // Doviz alani icin select - dinamik parametrelerden doldurulacak
+            
             if (c.field === 'ParaBirimi' || c.isSelect) {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="guarantees" data-currency-select="true">
@@ -10348,7 +10328,7 @@ const GuaranteeModule = {
                 </th>`;
             }
             
-            // Durum alani icin select - dinamik parametrelerden doldurulacak
+            
             if (c.statusType || c.field === 'Durum') {
                 return `<th class="p-1">
                     <select class="form-select form-select-sm" data-column-filter="${c.field}" data-table-id="guarantees" data-status-type="${c.statusType || 'teminat'}">
@@ -10421,9 +10401,9 @@ const GuaranteeModule = {
         this.populateFilterSelects(container);
     },
 
-    // Filtre select'lerini dinamik parametrelerden doldur
+    
     async populateFilterSelects(container) {
-        // Status select'lerini doldur
+        
         for (const select of container.querySelectorAll('select[data-status-type]')) {
             const statusType = select.dataset.statusType;
             const statuses = await NbtParams.getStatuses(statusType);
@@ -10437,7 +10417,7 @@ const GuaranteeModule = {
             select.innerHTML = options;
         }
         
-        // Currency select'lerini doldur
+        
         const currencies = await NbtParams.getCurrencies();
         container.querySelectorAll('select[data-currency-select]').forEach(select => {
             const currentValue = this.columnFilters[select.dataset.columnFilter] || '';
@@ -10574,7 +10554,7 @@ const GuaranteeModule = {
         document.getElementById('guaranteeModalTitle').textContent = id ? 'Teminat Düzenle' : 'Yeni Teminat';
         document.getElementById('guaranteeId').value = id || '';
         
-        // PDF dosya degiskenlerini sifirla
+        
         this.selectedFile = null;
         this.removeExistingFile = false;
         document.getElementById('guaranteeDosya').value = '';
@@ -10584,7 +10564,7 @@ const GuaranteeModule = {
         select.innerHTML = '<option value="">Seçiniz...</option>';
         select.disabled = false;
         
-        // AppState.customers bossa ve CustomerDetailModule.customerId varsa, aktif musteriyi ekle
+        
         if (AppState.customers && AppState.customers.length > 0) {
             AppState.customers.forEach(c => {
                 select.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.Unvan)}</option>`;
@@ -10597,11 +10577,11 @@ const GuaranteeModule = {
         const projeSelect = document.getElementById('guaranteeProjeId');
         projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
 
-        // Durum ve doviz select'lerini parametrelerden doldur
+        
         await NbtParams.populateStatusSelect(document.getElementById('guaranteeStatus'), 'teminat');
         await NbtParams.populateCurrencySelect(document.getElementById('guaranteeCurrency'));
 
-        // Musteri degistiginde projeleri yukleme
+        
         select.onchange = async () => {
             projeSelect.innerHTML = '<option value="">Proje Seçiniz...</option>';
             const musteriId = select.value;
@@ -10610,7 +10590,7 @@ const GuaranteeModule = {
                     const response = await NbtApi.get(`/api/projects?musteri_id=${musteriId}`);
                     let projects = response.data || [];
                     
-                    // Pasif durumdaki projeleri filtrele
+                    
                     const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
                     projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
                     
@@ -10623,7 +10603,7 @@ const GuaranteeModule = {
             }
         };
 
-        // Eger customer detail sayfasindaysak musteriyi auto-select et ve disable yap
+        
         if (CustomerDetailModule.customerId) {
             select.value = CustomerDetailModule.customerId;
             select.disabled = true;
@@ -10639,7 +10619,7 @@ const GuaranteeModule = {
             if (guarantee) {
                 select.value = guarantee.MusteriId;
                 select.disabled = true;
-                // Projeleri yukleme ve secili projeyi ayarlama
+                
                 await select.onchange();
                 document.getElementById('guaranteeProjeId').value = guarantee.ProjeId || '';
                 document.getElementById('guaranteeType').value = guarantee.Tur || 'Nakit';
@@ -10649,7 +10629,7 @@ const GuaranteeModule = {
                 document.getElementById('guaranteeDate').value = guarantee.TerminTarihi?.split('T')[0] || '';
                 document.getElementById('guaranteeStatus').value = guarantee.Durum ?? '';
                 
-                // Mevcut dosya varsa goster
+                
                 if (guarantee.DosyaAdi) {
                     document.getElementById('guaranteeCurrentFileName').textContent = guarantee.DosyaAdi;
                     document.getElementById('guaranteeCurrentFile')?.classList.remove('d-none');
@@ -10704,7 +10684,7 @@ const GuaranteeModule = {
             return;
         }
         
-        // PDF dosya kontrolu
+        
         const fileInput = document.getElementById('guaranteeDosya');
         const file = fileInput?.files?.[0];
         if (file) {
@@ -10736,8 +10716,8 @@ const GuaranteeModule = {
                 if (this.removeExistingFile) formData.append('removeFile', '1');
                 
                 const url = id ? `/api/guarantees/${id}` : '/api/guarantees';
-                // PUT isteklerinde multipart/form-data PHP tarafindan parse edilmez
-                // Bu yuzden formData ile gonderirken POST kullaniyoruz
+                
+                
                 const method = 'POST';
                 if (id) formData.append('_method', 'PUT');
                 
@@ -10783,7 +10763,7 @@ const GuaranteeModule = {
         }
     },
 
-    // Durum badge'ini dinamik parametrelerden olustur
+    
     getStatusBadge(status, entity) {
         const cacheKey = `durum_${entity}`;
         const statuses = NbtParams._cache.statuses[cacheKey] || [];
@@ -10795,7 +10775,7 @@ const GuaranteeModule = {
             return `<span class="badge bg-${badge}${textClass}">${NbtUtils.escapeHtml(found.Etiket)}</span>`;
         }
         
-        // Fallback - cache henuz yuklenmediyse
+        
         const fallback = { 1: ['Bekliyor', 'warning'], 2: ['İade Edildi', 'info'], 3: ['Tahsil Edildi', 'success'], 4: ['Yandı', 'danger'] };
         const config = fallback[status] || ['Bilinmiyor', 'secondary'];
         return `<span class="badge bg-${config[1]}">${config[0]}</span>`;
@@ -10806,13 +10786,13 @@ const GuaranteeModule = {
         this._eventsBound = true;
         document.getElementById('btnSaveGuarantee')?.addEventListener('click', () => this.save());
         
-        // PDF dosya kaldirma butonu
+        
         document.getElementById('btnRemoveGuaranteeFile')?.addEventListener('click', () => {
             this.removeExistingFile = true;
             document.getElementById('guaranteeCurrentFile')?.classList.add('d-none');
         });
         
-        // Dosya secimi
+        
         document.getElementById('guaranteeDosya')?.addEventListener('change', (e) => {
             const file = e.target.files?.[0];
             if (file) {
@@ -10829,9 +10809,9 @@ const GuaranteeModule = {
     }
 };
 
-// =============================================
-// TEKLIF SAYFA FORMU - Modal yerine sayfa bazli form
-// =============================================
+
+
+
 const NbtOfferPageForm = {
     _eventsBound: false,
     musteriId: null,
@@ -10839,7 +10819,7 @@ const NbtOfferPageForm = {
     removeExistingFile: false,
 
     async init(musteriId = null, teklifId = null) {
-        // Sayfa formunun olup olmadigini kontrol et
+        
         const form = document.getElementById('offerPageForm');
         if (!form) return;
 
@@ -10847,19 +10827,19 @@ const NbtOfferPageForm = {
         this.teklifId = teklifId || parseInt(document.getElementById('offerId')?.value) || 0;
         this.removeExistingFile = false;
 
-        // Projeleri yukle
+        
         await this.loadProjects();
 
-        // Durum ve doviz select'lerini doldur
+        
         await NbtParams.populateStatusSelect(document.getElementById('offerStatus'), 'teklif');
         await NbtParams.populateCurrencySelect(document.getElementById('offerCurrency'));
 
-        // Eger edit modundaysak verileri yukle
+        
         if (this.teklifId > 0) {
             await this.loadOfferData();
         }
 
-        // Event binding
+        
         this.bindEvents();
     },
 
@@ -10872,7 +10852,7 @@ const NbtOfferPageForm = {
             const response = await NbtApi.get(`/api/projects?musteri_id=${this.musteriId}`);
             let projects = response.data || [];
             
-            // Pasif projeleri filtrele
+            
             const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
             projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
             
@@ -10901,10 +10881,10 @@ const NbtOfferPageForm = {
             document.getElementById('offerValidDate').value = offer.GecerlilikTarihi?.split('T')[0] || '';
             document.getElementById('offerStatus').value = offer.Durum ?? '';
 
-            // Mevcut dosyayi goster
+            
             if (offer.DosyaAdi && offer.DosyaYolu) {
                 document.getElementById('offerCurrentFileName').textContent = offer.DosyaAdi;
-                // Dosya tipine göre ikon
+                
                 const iconEl = document.getElementById('offerCurrentFileIcon');
                 if (iconEl) {
                     const ext = (offer.DosyaAdi || '').split('.').pop().toLowerCase();
@@ -10949,7 +10929,7 @@ const NbtOfferPageForm = {
         const projeIdVal = document.getElementById('offerProjeId').value;
         const fileInput = document.getElementById('offerDosya');
         
-        // Validation
+        
         if (!projeIdVal) {
             this.showError('Proje seçimi zorunludur');
             return;
@@ -10973,7 +10953,7 @@ const NbtOfferPageForm = {
             return;
         }
         
-        // Dosya dogrulama
+        
         const file = fileInput?.files?.[0];
         if (file) {
             const errors = this.validateOfferFile(file);
@@ -11014,7 +10994,7 @@ const NbtOfferPageForm = {
                 NbtToast.success('Teklif eklendi');
             }
             
-            // Basarili - listeye don
+            
             window.location.href = `/customer/${this.musteriId}?tab=teklifler`;
         } catch (err) {
             this.showError(err.message);
@@ -11049,9 +11029,9 @@ const NbtOfferPageForm = {
     }
 };
 
-// =============================================
-// SOZLESME SAYFA FORMU - Modal yerine sayfa bazli form
-// =============================================
+
+
+
 const NbtContractPageForm = {
     _eventsBound: false,
     musteriId: null,
@@ -11059,7 +11039,7 @@ const NbtContractPageForm = {
     removeExistingFile: false,
 
     async init(musteriId = null, sozlesmeId = null) {
-        // Sayfa formunun olup olmadigini kontrol et
+        
         const form = document.getElementById('contractPageForm');
         if (!form) return;
 
@@ -11067,19 +11047,19 @@ const NbtContractPageForm = {
         this.sozlesmeId = sozlesmeId || parseInt(document.getElementById('contractId')?.value) || 0;
         this.removeExistingFile = false;
 
-        // Projeleri yukle
+        
         await this.loadProjects();
 
-        // Durum ve doviz select'lerini doldur
+        
         await NbtParams.populateStatusSelect(document.getElementById('contractStatus'), 'sozlesme');
         await NbtParams.populateCurrencySelect(document.getElementById('contractCurrency'));
 
-        // Eger edit modundaysak verileri yukle
+        
         if (this.sozlesmeId > 0) {
             await this.loadContractData();
         }
 
-        // Event binding
+        
         this.bindEvents();
     },
 
@@ -11092,7 +11072,7 @@ const NbtContractPageForm = {
             const response = await NbtApi.get(`/api/projects?musteri_id=${this.musteriId}`);
             let projects = response.data || [];
             
-            // Pasif projeleri filtrele
+            
             const pasifKodlar = await NbtParams.getPasifDurumKodlari('proje', true);
             projects = projects.filter(p => !pasifKodlar.includes(String(p.Durum)));
             
@@ -11119,7 +11099,7 @@ const NbtContractPageForm = {
             document.getElementById('contractCurrency').value = contract.ParaBirimi || NbtParams.getDefaultCurrency();
             document.getElementById('contractStatus').value = contract.Durum ?? '';
 
-            // Mevcut dosyayi goster
+            
             if (contract.DosyaAdi && contract.DosyaYolu) {
                 const fileNameEl = document.getElementById('contractCurrentFileName');
                 const fileDownloadEl = document.getElementById('contractCurrentFileDownload');
@@ -11161,7 +11141,7 @@ const NbtContractPageForm = {
         const projeIdVal = document.getElementById('contractProjeId').value;
         const fileInput = document.getElementById('contractDosya');
         
-        // Validation
+        
         if (!projeIdVal) {
             this.showError('Proje seçimi zorunludur');
             return;
@@ -11173,7 +11153,7 @@ const NbtContractPageForm = {
             return;
         }
         
-        // Dosya dogrulama
+        
         const file = fileInput?.files?.[0];
         if (file) {
             const errors = this.validatePdfFile(file);
@@ -11213,7 +11193,7 @@ const NbtContractPageForm = {
                 NbtToast.success('Sözleşme eklendi');
             }
             
-            // Basarili - listeye don
+            
             window.location.href = `/customer/${this.musteriId}?tab=sozlesmeler`;
         } catch (err) {
             this.showError(err.message);
@@ -11249,9 +11229,9 @@ const NbtContractPageForm = {
     }
 };
 
-// =============================================
-// ROL SAYFA FORMU - Modal yerine sayfa bazli form
-// =============================================
+
+
+
 const NbtRolePageForm = {
     _eventsBound: false,
     rolId: null,
@@ -11403,9 +11383,9 @@ const NbtRolePageForm = {
     }
 };
 
-// =============================================
-// KULLANICI SAYFA FORMU - Modal yerine sayfa bazli form
-// =============================================
+
+
+
 const NbtUserPageForm = {
     _eventsBound: false,
     userId: null,
@@ -12465,7 +12445,7 @@ const NbtPageForm = {
                     }
                 }
 
-                // Diger alanlar
+                
                 for (const fieldId of config.fields) {
                     const apiField = config.fieldMappings[fieldId];
                     const element = document.getElementById(fieldId);
@@ -12513,7 +12493,7 @@ const NbtPageForm = {
                 NbtToast.success(config.successMessageCreate);
             }
 
-            // Basarili - listeye don
+            
             window.location.href = `/customer/${this.musteriId}?tab=${this.tabKey}`;
         } catch (err) {
             this.showError(err.message);
@@ -12526,10 +12506,10 @@ const NbtPageForm = {
     },
 
     bindEvents(config) {
-        // Kaydet butonu
+        
         document.getElementById(config.saveButtonId)?.addEventListener('click', () => this.save());
 
-        // Tutar alani icin format
+        
         if (config.amountField) {
             const tutarEl = document.getElementById(config.amountField);
             tutarEl?.addEventListener('blur', (e) => {
@@ -12538,7 +12518,7 @@ const NbtPageForm = {
             });
         }
 
-        // Karakter sayaci (takvim ozeti)
+        
         if (this.activeModule === 'calendar') {
             const ozetEl = document.getElementById('calendarOzet');
             const countEl = document.getElementById('calendarOzetCount');
@@ -12580,9 +12560,9 @@ const NbtPageForm = {
     }
 };
 
-// =============================================
-// SIFRE DEGISTIRME
-// =============================================
+
+
+
 const PasswordModule = {
     init() {
         document.getElementById('btnChangePassword')?.addEventListener('click', () => this.save());
@@ -12636,11 +12616,11 @@ const PasswordModule = {
     }
 };
 
-// =============================================
-// ROUTER SETUP - Server-Rendered Sayfa Mimarisi
-// =============================================
-// NOT: Artik SPA routing yok. Her sayfa server-side render ediliyor.
-// Bu fonksiyon sadece sayfa yuklendiginde ilgili modulu init etmek icin kullanilmaktadir.
+
+
+
+
+
 
 function setupRoutes() {
     const initIfPermitted = (viewId, permission, initFn) => {
@@ -12659,66 +12639,66 @@ function setupRoutes() {
         NbtPermission.waitForReady().then(run);
     };
 
-    // Dashboard modulu
+    
     NbtRouter.register('dashboard', () => {
         initIfPermitted('view-dashboard', 'dashboard.read', () => DashboardModule.init());
     });
 
-    // Musteri detay
+    
     NbtRouter.register('customer', (params) => {
         initIfPermitted('view-customer-detail', 'customers.read', () => {
-            // ID'yi data attribute'dan veya params'dan al
+            
             const detailEl = document.getElementById('view-customer-detail');
             const id = parseInt(params.id || detailEl?.dataset?.customerId);
             if (id) {
-                // Tab parametresini URL'den al (opsiyonel deep-link destegi)
+                
                 const tabParam = params.tab || null;
                 CustomerDetailModule.init(id, tabParam);
             }
         });
     });
 
-    // Faturalar
+    
     NbtRouter.register('invoices', () => {
         initIfPermitted('view-invoices', 'invoices.read', () => InvoiceModule.init());
     });
 
-    // Odemeler
+    
     NbtRouter.register('payments', () => {
         initIfPermitted('view-payments', 'payments.read', () => PaymentModule.init());
     });
 
-    // Projeler
+    
     NbtRouter.register('projects', () => {
         initIfPermitted('view-projects', 'projects.read', () => ProjectModule.init());
     });
 
-    // Teklifler
+    
     NbtRouter.register('offers', () => {
         initIfPermitted('view-offers', 'offers.read', () => OfferModule.init());
     });
 
-    // Sozlesmeler
+    
     NbtRouter.register('contracts', () => {
         initIfPermitted('view-contracts', 'contracts.read', () => ContractModule.init());
     });
 
-    // Teminatlar
+    
     NbtRouter.register('guarantees', () => {
         initIfPermitted('view-guarantees', 'guarantees.read', () => GuaranteeModule.init());
     });
 
-    // Kullanicilar
+    
     NbtRouter.register('users', () => {
         initIfPermitted('view-users', 'users.read', () => UserModule.init());
     });
 
-    // Loglar
+    
     NbtRouter.register('logs', () => {
         initIfPermitted('view-logs', 'logs.read', () => LogModule.init());
     });
 
-    // Hesabim
+    
     NbtRouter.register('my-account', () => {
         const view = document.getElementById('view-my-account');
         if (view) {
@@ -12727,22 +12707,22 @@ function setupRoutes() {
         }
     });
 
-    // Alarmlar
+    
     NbtRouter.register('alarms', () => {
         initIfPermitted('view-alarms', 'alarms.read', () => AlarmsModule.init());
     });
 
-    // Parametreler
+    
     NbtRouter.register('parameters', () => {
         initIfPermitted('view-parameters', 'parameters.read', () => ParameterModule.init());
     });
 }
 
-// =============================================
-// GLOBAL EVENT BINDINGS
-// =============================================
+
+
+
 function setupGlobalEvents() {
-    // Cikis
+    
     document.getElementById('logoutNav')?.addEventListener('click', async (e) => {
         e.preventDefault();
         try {
@@ -12752,19 +12732,19 @@ function setupGlobalEvents() {
         window.location.href = '/login';
     });
 
-    // Sifre degistir
+    
     document.querySelector('[data-action="change-password"]')?.addEventListener('click', () => {
         NbtModal.resetForm('passwordModal');
         NbtModal.open('passwordModal');
     });
 
-    // Navbar linkleri artik server navigation yapiyor (href kullaniyor)
-    // data-route attribute'lari artik sadece aktif durumu belirlemek icin
-    // Link interception KALDIRILDI - tum href'ler dogal sayfa yuklemesi yapar
+    
+    
+    
 
-    // Permission bazli menu gorunurlugu data-can ile otomatik uygulanir
+    
 
-    // Modul eventlerini bind et
+    
     CustomerModule.bindEvents();
     InvoiceModule.bindEvents();
     PaymentModule.bindEvents();
@@ -12780,43 +12760,43 @@ function setupGlobalEvents() {
     ParameterModule.bindEvents();
 }
 
-// =============================================
-// INIT - Server-Rendered Sayfa Mimarisi
-// =============================================
+
+
+
 document.addEventListener('DOMContentLoaded', async () => {
-    // Token kontrolu
+    
     if (!NbtUtils.getToken()) {
         window.location.href = '/login';
         return;
     }
 
-    // Permission bilgilerini onyukle (KRITIK: Sayfa acilmadan once permission cache doldurulmali)
+    
     await NbtPermission.load();
 
-    // Parametreleri onyukleme (performance icin)
+    
     await NbtParams.preload();
 
-    // Route'lari kaydet (modul init fonksiyonlari icin)
+    
     setupRoutes();
     
-    // Global eventleri baglama
+    
     setupGlobalEvents();
     
-    // Sifre modulunu init etme
+    
     PasswordModule.init();
     
-    // Global customer sidebar'i baslat
+    
     await GlobalCustomerSidebar.init();
 
-    // Sayfa bazli form modulleri
-    // NOT: Her form sayfasi kendi init'ini inline script ile cagirir
-    // Ornek: NbtPageForm.init('contact', musteriId, kisiId, 'kisiler');
-    // NbtOfferPageForm ve NbtContractPageForm geriye donuk uyumluluk icin korundu
+    
+    
+    
+    
     NbtOfferPageForm.init();
     NbtContractPageForm.init();
     NbtCustomerPageForm.init();
 
-    // Server-rendered mimaride: Sayfa init
-    // CURRENT_PAGE degerine gore ilgili modulu baslat
+    
+    
     NbtRouter.init();
 });

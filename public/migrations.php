@@ -76,10 +76,10 @@ function logException(string $Context, Throwable $Error): void
     error_log($Message . "\n" . $Error->getTraceAsString());
 }
 
-/**
- * Seeder'ı çalıştır (idempotent - duplicate üretmez)
- * @return array ['ok' => bool, 'message' => string, 'output' => string]
- */
+
+
+
+
 function runSeeder(): array
 {
     $SeederPath = SRC_PATH . 'database' . DIRECTORY_SEPARATOR . 'seeder.php';
@@ -98,7 +98,7 @@ function runSeeder(): array
         return ['ok' => false, 'message' => 'Seeder calistirilamadi: PHP CLI binary bulunamadi.', 'output' => ''];
     }
 
-    // Seeder'ı shell'de çalıştır (izole çalışması için)
+    
     $Command = escapeshellcmd($PhpBinary) . ' ' . escapeshellarg($SeederPath) . ' 2>&1';
     
     $Output = [];
@@ -501,7 +501,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ensureSchemaMigrations($Db);
             $Pending = array_filter($Statuses, fn ($S) => $S['status'] !== 'applied');
             if (empty($Pending)) {
-                // Migration bekleyen yok - sadece seeder çalıştır
+                
                 $SeederResult = runSeeder();
                 if ($SeederResult['ok']) {
                     $Message = 'Bekleyen migration yok. Seeder başarıyla çalıştırıldı.';
@@ -524,7 +524,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $Message = implode(' | ', $Errors);
                     $MessageType = 'error';
                 } else {
-                    // Migration başarılı - seeder çalıştır
+                    
                     $SeederResult = runSeeder();
                     if ($SeederResult['ok']) {
                         $Message = 'Tüm migrationlar ve seeder başarıyla çalıştırıldı.';
