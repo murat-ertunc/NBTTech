@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $pageTitle = 'İşlem Logları';
 $activeNav = 'sistem';
 $currentPage = 'logs';

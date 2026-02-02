@@ -1,7 +1,5 @@
 <?php
 
-
-
 ?>
 <!-- Müşteri Ekle/Düzenle Modal -->
 <div class="modal fade" id="customerModal" tabindex="-1">
@@ -14,7 +12,7 @@
       <div class="modal-body">
         <div class="alert alert-danger d-none modal-error" id="customerModalError"></div>
         <input type="hidden" id="customerId">
-        
+
         <!-- Temel Bilgiler -->
         <div class="row mb-3">
           <label class="col-4 col-form-label">Ünvan <span class="text-danger">*</span></label>
@@ -32,7 +30,7 @@
             <div class="invalid-feedback"></div>
           </div>
         </div>
-        
+
         <!-- Vergi Bilgileri -->
         <div class="row mb-3">
           <label class="col-4 col-form-label">Vergi Dairesi <span class="text-danger">*</span></label>
@@ -58,7 +56,7 @@
             <div class="invalid-feedback"></div>
           </div>
         </div>
-        
+
         <!-- İletişim Bilgileri -->
         <div class="row mb-3">
           <label class="col-4 col-form-label">Telefon</label>

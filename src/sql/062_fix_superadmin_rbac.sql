@@ -36,7 +36,7 @@ IF @SuperAdminRolId IS NULL
 BEGIN
     INSERT INTO tnm_rol (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, RolAdi, RolKodu, Aciklama, Seviye, SistemRolu, Aktif)
     VALUES (NEWID(), @Simdi, @SeedUserId, @Simdi, @SeedUserId, 0, 'Super Admin', 'superadmin', 'Tum sistem yetkilerine sahip yonetici', 100, 1, 1);
-    
+
     SELECT @SuperAdminRolId = Id FROM tnm_rol WHERE RolKodu = 'superadmin' AND Sil = 0;
     PRINT '  ✓ Superadmin rolü oluşturuldu (ID: ' + CAST(@SuperAdminRolId AS NVARCHAR) + ')';
 END
@@ -56,7 +56,7 @@ IF @AdminRolId IS NULL
 BEGIN
     INSERT INTO tnm_rol (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, RolAdi, RolKodu, Aciklama, Seviye, SistemRolu, Aktif)
     VALUES (NEWID(), @Simdi, @SeedUserId, @Simdi, @SeedUserId, 0, 'Yönetici', 'admin', 'Genel yonetim yetkileri', 80, 0, 1);
-    
+
     SELECT @AdminRolId = Id FROM tnm_rol WHERE RolKodu = 'admin' AND Sil = 0;
     PRINT '  ✓ Admin rolü oluşturuldu (ID: ' + CAST(@AdminRolId AS NVARCHAR) + ')';
 END
@@ -114,15 +114,15 @@ ELSE
 BEGIN
     -- Mevcut rol atamasını kontrol et
     DECLARE @MevcutAtama INT;
-    SELECT @MevcutAtama = Id FROM tnm_user_rol 
+    SELECT @MevcutAtama = Id FROM tnm_user_rol
     WHERE UserId = @SuperAdminUserId AND RolId = @SuperAdminRolId AND Sil = 0;
-    
+
     IF @MevcutAtama IS NULL
     BEGIN
         -- Yeni atama yap
         INSERT INTO tnm_user_rol (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, UserId, RolId)
         VALUES (NEWID(), @Simdi, @SeedUserId, @Simdi, @SeedUserId, 0, @SuperAdminUserId, @SuperAdminRolId);
-        
+
         PRINT '  ✓ Superadmin kullanıcısına (ID:' + CAST(@SuperAdminUserId AS NVARCHAR) + ') superadmin rolü atandı';
     END
     ELSE
@@ -170,14 +170,14 @@ PRINT 'Superadmin Kullanıcısı:';
 IF @SuperAdminUserId IS NOT NULL
 BEGIN
     PRINT '  - Kullanıcı ID: ' + CAST(@SuperAdminUserId AS NVARCHAR);
-    
+
     DECLARE @SuperAdminKullaniciRolSayisi INT;
-    SELECT @SuperAdminKullaniciRolSayisi = COUNT(*) 
-    FROM tnm_user_rol 
+    SELECT @SuperAdminKullaniciRolSayisi = COUNT(*)
+    FROM tnm_user_rol
     WHERE UserId = @SuperAdminUserId AND Sil = 0;
-    
+
     PRINT '  - Atanmış Rol Sayısı: ' + CAST(@SuperAdminKullaniciRolSayisi AS NVARCHAR);
-    
+
     IF @SuperAdminKullaniciRolSayisi > 0
         PRINT '  - Durum: ✓ ROL ATAMASI MEVCUT';
     ELSE

@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $KullaniciId = $KullaniciId ?? 0;
 $IsEdit = $KullaniciId > 0;
 

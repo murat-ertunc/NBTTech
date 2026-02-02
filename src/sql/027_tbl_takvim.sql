@@ -9,15 +9,15 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId INT NULL,
         Sil BIT NOT NULL DEFAULT 0,
-        
+
         -- İlişkiler
         MusteriId INT NOT NULL,
         ProjeId INT NULL,
-        
+
         -- Takvim Bilgileri
         TerminTarihi DATE NOT NULL,
         Ozet NVARCHAR(255) NOT NULL,
-        
+
         CONSTRAINT FK_takvim_musteri FOREIGN KEY (MusteriId) REFERENCES tbl_musteri(Id),
         CONSTRAINT FK_takvim_proje FOREIGN KEY (ProjeId) REFERENCES tbl_proje(Id)
     );
@@ -40,7 +40,7 @@ BEGIN
         KaynakId INT NOT NULL,
         BackupZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         BackupUserId INT NULL,
-        
+
         -- Orijinal tablo verileri
         Guid UNIQUEIDENTIFIER NULL,
         EklemeZamani DATETIME2(0) NULL,
@@ -48,11 +48,11 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NULL,
         DegistirenUserId INT NULL,
         Sil BIT NULL,
-        
+
         -- İlişkiler
         MusteriId INT NULL,
         ProjeId INT NULL,
-        
+
         -- Takvim Bilgileri
         TerminTarihi DATE NULL,
         Ozet NVARCHAR(255) NULL

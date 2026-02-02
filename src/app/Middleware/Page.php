@@ -5,166 +5,121 @@ namespace App\Middleware;
 use App\Core\Token;
 use App\Services\Authorization\AuthorizationService;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 class Page
 {
-    
-
-
-
 
     public static function auth(): bool
     {
         $TokenStr = $_COOKIE['nbt_token'] ?? null;
-        
+
         if (empty($TokenStr)) {
             self::redirectToLogin();
             return false;
         }
-        
+
         try {
             $Payload = Token::verify($TokenStr);
             if (!is_array($Payload) || !isset($Payload['userId'])) {
                 self::redirectToLogin();
                 return false;
             }
-            
-            
+
             $GLOBALS['AuthUserId'] = (int)$Payload['userId'];
             return true;
-            
+
         } catch (\Throwable $E) {
             self::redirectToLogin();
             return false;
         }
     }
-    
-    
-
-
-
-
 
     public static function can(string $PermissionKodu): bool
     {
         if (!self::auth()) {
             return false;
         }
-        
+
         $UserId = $GLOBALS['AuthUserId'] ?? null;
         if (!$UserId) {
             self::showForbidden($PermissionKodu);
             return false;
         }
-        
+
         $AuthService = AuthorizationService::getInstance();
         if (!$AuthService->can($UserId, $PermissionKodu)) {
             self::logForbidden($UserId, $PermissionKodu);
             self::showForbidden($PermissionKodu);
             return false;
         }
-        
+
         return true;
     }
-    
-    
-
-
-
-
 
     public static function canAny(array $PermissionKodlari): bool
     {
         if (!self::auth()) {
             return false;
         }
-        
+
         $UserId = $GLOBALS['AuthUserId'] ?? null;
         if (!$UserId) {
             self::showForbidden(implode(' | ', $PermissionKodlari));
             return false;
         }
-        
+
         $AuthService = AuthorizationService::getInstance();
         if (!$AuthService->izinlerdenBiriVarMi($UserId, $PermissionKodlari)) {
             self::logForbidden($UserId, implode(',', $PermissionKodlari));
             self::showForbidden(implode(' | ', $PermissionKodlari));
             return false;
         }
-        
+
         return true;
     }
-    
-    
-
-
-
-
 
     public static function canAll(array $PermissionKodlari): bool
     {
         if (!self::auth()) {
             return false;
         }
-        
+
         $UserId = $GLOBALS['AuthUserId'] ?? null;
         if (!$UserId) {
             self::showForbidden(implode(' & ', $PermissionKodlari));
             return false;
         }
-        
+
         $AuthService = AuthorizationService::getInstance();
         if (!$AuthService->tumIzinlerVarMi($UserId, $PermissionKodlari)) {
             self::logForbidden($UserId, implode(',', $PermissionKodlari));
             self::showForbidden(implode(' & ', $PermissionKodlari));
             return false;
         }
-        
+
         return true;
     }
-    
-    
-
-
-
-
 
     public static function canModule(string $ModulAdi): bool
     {
         if (!self::auth()) {
             return false;
         }
-        
+
         $UserId = $GLOBALS['AuthUserId'] ?? null;
         if (!$UserId) {
             self::showForbidden($ModulAdi . '.*');
             return false;
         }
-        
+
         $AuthService = AuthorizationService::getInstance();
         if (!$AuthService->modulErisimVarMi($UserId, $ModulAdi)) {
             self::logForbidden($UserId, $ModulAdi . '.*');
             self::showForbidden($ModulAdi . '.*');
             return false;
         }
-        
+
         return true;
     }
-    
-    
-
 
     private static function redirectToLogin(): void
     {
@@ -182,26 +137,20 @@ class Page
         header('Location: ' . $LoginPath . '?redirect=' . urlencode($ReturnUrl));
         exit;
     }
-    
-    
-
-
-
 
     private static function showForbidden(string $GerekliYetki): void
     {
         http_response_code(403);
-        
+
         $PageTitle = 'Erişim Reddedildi';
         $AppName = 'NbtProject';
-        
+
         try {
             $AppName = config('app.name', 'NbtProject');
         } catch (\Throwable $E) {
-            
+
         }
-        
-        
+
         ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -248,35 +197,16 @@ class Page
         exit;
     }
 
-    
-
-
-
-
-
     public static function forbid(string $GerekliYetki): void
     {
         self::showForbidden($GerekliYetki);
     }
-    
-    
-
-
-
-
 
     private static function logForbidden(int $UserId, string $GerekliYetki): void
     {
         $Uri = $_SERVER['REQUEST_URI'] ?? '/';
         error_log("[PAGE-RBAC] Yetkisiz sayfa erisimi: userId={$UserId} uri={$Uri} gerekliYetki={$GerekliYetki}");
     }
-    
-    
-
-
-
-
-
 
     public static function requireValidId(int $Id, string $EntityName = 'Kayıt'): bool
     {
@@ -286,12 +216,6 @@ class Page
         }
         return true;
     }
-    
-    
-
-
-
-
 
     public static function requireCustomer(int $MusteriId): bool
     {
@@ -299,25 +223,17 @@ class Page
             self::showNotFound('Müşteri', 'Geçersiz müşteri ID');
             return false;
         }
-        
+
         $Repo = new \App\Repositories\CustomerRepository();
         $Kayit = $Repo->bul($MusteriId);
-        
+
         if (!$Kayit) {
             self::showNotFound('Müşteri', 'Müşteri bulunamadı veya silinmiş');
             return false;
         }
-        
+
         return true;
     }
-    
-    
-
-
-
-
-
-
 
     public static function requireRecord(string $RepoClass, int $Id, string $EntityName = 'Kayıt'): bool
     {
@@ -325,64 +241,50 @@ class Page
             self::showNotFound($EntityName, 'Geçersiz ID');
             return false;
         }
-        
-        
+
         if (strpos($RepoClass, '\\') === false) {
             $RepoClass = 'App\\Repositories\\' . $RepoClass;
         }
-        
+
         if (!class_exists($RepoClass)) {
             error_log("[PAGE] Repository bulunamadi: {$RepoClass}");
             self::showNotFound($EntityName, 'Sistem hatası');
             return false;
         }
-        
+
         $Repo = new $RepoClass();
         $Kayit = $Repo->bul($Id);
-        
+
         if (!$Kayit) {
             self::showNotFound($EntityName, $EntityName . ' bulunamadı veya silinmiş');
             return false;
         }
-        
+
         return true;
     }
-    
-    
-
-
-
-
-
-
-
 
     private static function showNotFound(string $EntityName, string $Mesaj): void
     {
-        
+
         $FullMessage = $EntityName . ': ' . $Mesaj;
-        
-        
+
         $Referrer = $_SERVER['HTTP_REFERER'] ?? null;
-        
-        
+
         $CurrentUri = $_SERVER['REQUEST_URI'] ?? '/';
         if (empty($Referrer) || strpos($Referrer, $CurrentUri) !== false) {
             $RedirectUrl = '/dashboard';
         } else {
-            
+
             $ParsedUrl = parse_url($Referrer);
             $BasePath = $ParsedUrl['path'] ?? '/dashboard';
-            
-            
+
             parse_str($ParsedUrl['query'] ?? '', $QueryParams);
             $RedirectUrl = $BasePath . (!empty($QueryParams) ? '?' . http_build_query($QueryParams) : '');
         }
-        
-        
+
         $Separator = (strpos($RedirectUrl, '?') !== false) ? '&' : '?';
         $RedirectUrl .= $Separator . '_error=' . urlencode($FullMessage);
-        
+
         header('Location: ' . $RedirectUrl);
         exit;
     }

@@ -3,7 +3,7 @@
 
 -- SehirId kolonu ekle
 IF NOT EXISTS (
-    SELECT 1 FROM sys.columns 
+    SELECT 1 FROM sys.columns
     WHERE object_id = OBJECT_ID('tbl_musteri') AND name = 'SehirId'
 )
 BEGIN
@@ -13,7 +13,7 @@ GO
 
 -- IlceId kolonu ekle
 IF NOT EXISTS (
-    SELECT 1 FROM sys.columns 
+    SELECT 1 FROM sys.columns
     WHERE object_id = OBJECT_ID('tbl_musteri') AND name = 'IlceId'
 )
 BEGIN

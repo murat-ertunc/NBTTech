@@ -1,4 +1,8 @@
 <?php
+/**
+ * Meeting Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -18,7 +22,7 @@ class MeetingController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
+
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
         $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
@@ -36,9 +40,6 @@ class MeetingController
             Response::json(['data' => $Satirlar]);
         }
     }
-
-    
-
 
     public static function show(array $Parametreler): void
     {
@@ -96,7 +97,6 @@ class MeetingController
 
         $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
 
-        
         if (!empty($YuklenecekVeri['Tarih'])) {
             CalendarService::createOrUpdateReminder(
                 (int)$YuklenecekVeri['MusteriId'],
@@ -138,8 +138,7 @@ class MeetingController
 
         if (!empty($Guncellenecek)) {
             $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
-            
-            
+
             if (isset($Guncellenecek['Tarih'])) {
                 $Mevcut = $Repo->bul($Id);
                 if ($Mevcut) {
@@ -175,8 +174,7 @@ class MeetingController
         }
 
         $Repo->softSil($Id, $KullaniciId);
-        
-        
+
         CalendarService::deleteReminder('gorusme', $Id);
 
         Response::json(['status' => 'success']);

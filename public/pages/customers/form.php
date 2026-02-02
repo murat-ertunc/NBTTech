@@ -1,12 +1,5 @@
 <?php
 
-
-
-
-
-
-
-
 $MusteriId = $MusteriId ?? 0;
 $IsEdit = $MusteriId > 0;
 
@@ -49,9 +42,9 @@ require __DIR__ . '/../partials/header.php';
         <div class="card-body">
           <form id="customerPageForm">
             <div class="alert alert-danger d-none" id="customerFormError"></div>
-            
+
             <input type="hidden" id="customerId" value="<?= (int)$MusteriId ?>">
-            
+
             <!-- Temel Bilgiler -->
             <div class="row mb-3">
               <label class="col-4 col-form-label">Ünvan <span class="text-danger">*</span></label>
@@ -69,7 +62,7 @@ require __DIR__ . '/../partials/header.php';
                 <div class="invalid-feedback"></div>
               </div>
             </div>
-            
+
             <!-- Vergi Bilgileri -->
             <div class="row mb-3">
               <label class="col-4 col-form-label">Vergi Dairesi <span class="text-danger">*</span></label>
@@ -95,7 +88,7 @@ require __DIR__ . '/../partials/header.php';
                 <div class="invalid-feedback"></div>
               </div>
             </div>
-            
+
             <!-- İletişim Bilgileri -->
             <div class="row mb-3">
               <label class="col-4 col-form-label">Telefon</label>
@@ -121,7 +114,7 @@ require __DIR__ . '/../partials/header.php';
                 <div class="invalid-feedback"></div>
               </div>
             </div>
-            
+
             <!-- Adres Bilgileri -->
             <div class="row mb-3">
               <label class="col-4 col-form-label">İl</label>

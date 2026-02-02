@@ -15,7 +15,7 @@ $UygulamaAdi = 'NbtProject';
 <body>
     <i class="bi bi-question-circle decoration decoration-1 text-white"></i>
     <i class="bi bi-exclamation-circle decoration decoration-2 text-white"></i>
-    
+
     <div class="error-container">
         <div class="error-card">
             <div class="error-icon">
@@ -24,7 +24,7 @@ $UygulamaAdi = 'NbtProject';
             <div class="error-code">404</div>
             <h1 class="error-title">Sayfa Bulunamadı</h1>
             <p class="error-desc">
-                Aradığınız sayfa mevcut değil veya taşınmış olabilir. 
+                Aradığınız sayfa mevcut değil veya taşınmış olabilir.
                 Lütfen ana sayfaya dönüp tekrar deneyin.
             </p>
             <a href="/dashboard" class="btn-home">

@@ -1,15 +1,5 @@
 <?php
 
-
-
-
-
-
-
-
-
-
-
 $MusteriId = $MusteriId ?? 0;
 
 $pageTitle = 'Müşteri Detay';
@@ -17,7 +7,6 @@ $activeNav = 'customers';
 $currentPage = 'customer';
 
 require __DIR__ . '/partials/header.php';
-
 
 $TabPermissions = [
     'bilgi'        => 'customers.read',
@@ -34,7 +23,6 @@ $TabPermissions = [
     'dosyalar'     => 'files.read'
 ];
 
-
 $TabInfo = [
     'bilgi'        => ['icon' => 'bi-info-circle', 'label' => 'Bilgi'],
     'kisiler'      => ['icon' => 'bi-people', 'label' => 'Kişiler'],
@@ -50,14 +38,12 @@ $TabInfo = [
     'dosyalar'     => ['icon' => 'bi-folder', 'label' => 'Dosyalar']
 ];
 
-
 $AllowedTabs = [];
 foreach ($TabPermissions as $TabKey => $Permission) {
     if ($can($Permission)) {
         $AllowedTabs[] = $TabKey;
     }
 }
-
 
 $DefaultTab = !empty($AllowedTabs) ? $AllowedTabs[0] : null;
 ?>
@@ -92,9 +78,9 @@ $DefaultTab = !empty($AllowedTabs) ? $AllowedTabs[0] : null;
       <?php else: ?>
       <!-- Tab Menüsü -->
       <ul class="nav nav-tabs" id="customerTabs" role="tablist">
-        <?php 
+        <?php
         $IsFirst = true;
-        foreach ($AllowedTabs as $TabKey): 
+        foreach ($AllowedTabs as $TabKey):
             $Info = $TabInfo[$TabKey] ?? ['icon' => 'bi-circle', 'label' => ucfirst($TabKey)];
         ?>
         <li class="nav-item" role="presentation">
@@ -102,9 +88,9 @@ $DefaultTab = !empty($AllowedTabs) ? $AllowedTabs[0] : null;
             <i class="bi <?= htmlspecialchars($Info['icon'], ENT_QUOTES, 'UTF-8') ?> me-1"></i><?= htmlspecialchars($Info['label'], ENT_QUOTES, 'UTF-8') ?>
           </button>
         </li>
-        <?php 
+        <?php
             $IsFirst = false;
-        endforeach; 
+        endforeach;
         ?>
       </ul>
 

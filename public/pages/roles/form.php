@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $RolId = $RolId ?? 0;
 $IsEdit = $RolId > 0;
 

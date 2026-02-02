@@ -9,17 +9,17 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId INT NULL,
         Sil BIT NOT NULL DEFAULT 0,
-        
+
         -- İlişkiler
         MusteriId INT NOT NULL,
         ProjeId INT NULL,
         FaturaId INT NULL,
-        
+
         -- Ödeme Bilgileri
         Tarih DATE NOT NULL,
         Tutar DECIMAL(16,2) NOT NULL DEFAULT 0,
         Aciklama NVARCHAR(MAX) NULL,
-        
+
         CONSTRAINT FK_odeme_musteri FOREIGN KEY (MusteriId) REFERENCES tbl_musteri(Id),
         CONSTRAINT FK_odeme_proje FOREIGN KEY (ProjeId) REFERENCES tbl_proje(Id),
         CONSTRAINT FK_odeme_fatura FOREIGN KEY (FaturaId) REFERENCES tbl_fatura(Id)

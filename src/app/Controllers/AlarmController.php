@@ -1,4 +1,8 @@
 <?php
+/**
+ * Alarm Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -6,21 +10,8 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Core\Database;
 
-
-
-
-
-
-
-
-
-
-
 class AlarmController
 {
-    
-
-
 
     public function index(): void
     {
@@ -30,8 +21,7 @@ class AlarmController
         }
 
         $Alarmlar = [];
-        
-        
+
         $OdenmemisFaturalar = $this->odenmemisFaturalariGetir();
         if ($OdenmemisFaturalar['count'] > 0) {
             $Alarmlar[] = [
@@ -47,7 +37,6 @@ class AlarmController
             ];
         }
 
-        
         $YaklasanIsler = $this->yaklasanTakvimIsleriniGetir(7);
         if ($YaklasanIsler['count'] > 0) {
             $Alarmlar[] = [
@@ -61,7 +50,6 @@ class AlarmController
             ];
         }
 
-        
         $TerminTarihiGecenTeminatlar = $this->terminTarihiGecenTeminatlariGetir();
         if ($TerminTarihiGecenTeminatlar['count'] > 0) {
             $Alarmlar[] = [
@@ -77,7 +65,6 @@ class AlarmController
             ];
         }
 
-        
         $GecerililigiDolanTeklifler = $this->gecerliligiDolanTeklifleriGetir(7);
         if ($GecerililigiDolanTeklifler['count'] > 0) {
             $Alarmlar[] = [
@@ -91,7 +78,6 @@ class AlarmController
             ];
         }
 
-        
         $SupheliAlacaklar = $this->supheliAlacakFaturalariniGetir();
         if ($SupheliAlacaklar['count'] > 0) {
             $Alarmlar[] = [
@@ -114,17 +100,13 @@ class AlarmController
         ]);
     }
 
-    
-
-
     private function odenmemisFaturalariGetir(): array
     {
         try {
             $Db = Database::connection();
-            
-            
+
             $Sql = "
-                SELECT 
+                SELECT
                     f.Id,
                     f.MusteriId,
                     m.Unvan as MusteriUnvan,
@@ -136,50 +118,47 @@ class AlarmController
                     f.DovizCinsi,
                     f.SupheliAlacak,
                     ISNULL(
-                        (SELECT SUM(o.Tutar) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil = 0), 
+                        (SELECT SUM(o.Tutar) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil = 0),
                         0
                     ) as ToplamOdeme
                 FROM tbl_fatura f
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
                 LEFT JOIN tbl_proje p ON f.ProjeId = p.Id
-                WHERE f.Sil = 0 
+                WHERE f.Sil = 0
                   AND m.Sil = 0
                 ORDER BY f.Tarih ASC
             ";
-            
+
             $Stmt = $Db->query($Sql);
             $Faturalar = $Stmt->fetchAll();
-            
+
             $OdenmemisKalemler = [];
             $ToplamOdenmemis = 0;
-            
-            
+
             $ParaBirimiToplam = [];
-            
+
             $Bugun = new \DateTime();
-            
+
             foreach ($Faturalar as $Fatura) {
                 $FaturaTutari = (float)$Fatura['Tutar'];
                 $OdenenTutar = (float)$Fatura['ToplamOdeme'];
                 $Kalan = $FaturaTutari - $OdenenTutar;
                 $ParaBirimi = $Fatura['DovizCinsi'] ?? 'TRY';
-                
-                if ($Kalan > 0.01) { 
+
+                if ($Kalan > 0.01) {
                     $FaturaTarihi = new \DateTime($Fatura['Tarih']);
                     $Fark = $Bugun->diff($FaturaTarihi);
                     $GecikmeGun = $Fark->days;
-                    
-                    
+
                     if ($FaturaTarihi > $Bugun) {
-                        $GecikmeGun = -$GecikmeGun; 
+                        $GecikmeGun = -$GecikmeGun;
                     }
-                    
-                    
+
                     if (!isset($ParaBirimiToplam[$ParaBirimi])) {
                         $ParaBirimiToplam[$ParaBirimi] = 0;
                     }
                     $ParaBirimiToplam[$ParaBirimi] += $Kalan;
-                    
+
                     $OdenmemisKalemler[] = [
                         'id' => $Fatura['Id'],
                         'customerId' => $Fatura['MusteriId'],
@@ -197,12 +176,11 @@ class AlarmController
                     $ToplamOdenmemis += $Kalan;
                 }
             }
-            
-            
+
             usort($OdenmemisKalemler, function($a, $b) {
                 return $b['delayDays'] - $a['delayDays'];
             });
-            
+
             return [
                 'count' => count($OdenmemisKalemler),
                 'total' => $ToplamOdenmemis,
@@ -214,19 +192,14 @@ class AlarmController
         }
     }
 
-    
-
-
     private function yaklasanTakvimIsleriniGetir(int $Gun = 7): array
     {
         try {
             $Db = Database::connection();
-            
-            
-            
+
             $GunInt = (int)$Gun;
             $Sql = "
-                SELECT 
+                SELECT
                     t.Id,
                     t.MusteriId,
                     m.Unvan as MusteriUnvan,
@@ -243,18 +216,18 @@ class AlarmController
                   AND t.TerminTarihi <= DATEADD(day, {$GunInt}, GETDATE())
                 ORDER BY t.TerminTarihi ASC
             ";
-            
+
             $Stmt = $Db->query($Sql);
             $Takvimler = $Stmt->fetchAll();
-            
+
             $Kalemler = [];
             $Bugun = new \DateTime();
-            
+
             foreach ($Takvimler as $Takvim) {
                 $TerminTarihi = new \DateTime($Takvim['TerminTarihi']);
                 $Fark = $Bugun->diff($TerminTarihi);
                 $KalanGun = $TerminTarihi >= $Bugun ? $Fark->days : -$Fark->days;
-                
+
                 $Kalemler[] = [
                     'id' => $Takvim['Id'],
                     'type' => 'takvim',
@@ -267,7 +240,7 @@ class AlarmController
                     'daysRemaining' => $KalanGun
                 ];
             }
-            
+
             return [
                 'count' => count($Kalemler),
                 'items' => array_slice($Kalemler, 0, 10)
@@ -277,17 +250,13 @@ class AlarmController
         }
     }
 
-    
-
-
-
     private function terminTarihiGecenTeminatlariGetir(): array
     {
         try {
             $Db = Database::connection();
-            
+
             $Sql = "
-                SELECT 
+                SELECT
                     t.Id,
                     t.MusteriId,
                     m.Unvan as MusteriUnvan,
@@ -307,31 +276,29 @@ class AlarmController
                   AND t.TerminTarihi < GETDATE()
                 ORDER BY t.TerminTarihi ASC
             ";
-            
+
             $Stmt = $Db->query($Sql);
             $Teminatlar = $Stmt->fetchAll();
-            
+
             $Kalemler = [];
             $Bugun = new \DateTime();
             $ToplamTutar = 0;
-            
-            
+
             $ParaBirimiToplam = [];
-            
+
             foreach ($Teminatlar as $Teminat) {
                 $TerminTarihi = new \DateTime($Teminat['TerminTarihi']);
                 $Fark = $Bugun->diff($TerminTarihi);
                 $GecenGun = $Fark->days;
                 $Tutar = (float)$Teminat['Tutar'];
                 $ParaBirimi = $Teminat['ParaBirimi'] ?? 'TRY';
-                
-                
+
                 if (!isset($ParaBirimiToplam[$ParaBirimi])) {
                     $ParaBirimiToplam[$ParaBirimi] = 0;
                 }
                 $ParaBirimiToplam[$ParaBirimi] += $Tutar;
                 $ToplamTutar += $Tutar;
-                
+
                 $Kalemler[] = [
                     'id' => $Teminat['Id'],
                     'customerId' => $Teminat['MusteriId'],
@@ -345,7 +312,7 @@ class AlarmController
                     'daysOverdue' => $GecenGun
                 ];
             }
-            
+
             return [
                 'count' => count($Kalemler),
                 'total' => $ToplamTutar,
@@ -357,20 +324,14 @@ class AlarmController
         }
     }
 
-    
-
-
-
     private function gecerliligiDolanTeklifleriGetir(int $Gun = 7): array
     {
         try {
             $Db = Database::connection();
-            
-            
-            
+
             $GunInt = (int)$Gun;
             $Sql = "
-                SELECT 
+                SELECT
                     t.Id,
                     t.MusteriId,
                     m.Unvan as MusteriUnvan,
@@ -392,18 +353,18 @@ class AlarmController
                   AND t.Durum IN (0, 1)
                 ORDER BY t.GecerlilikTarihi ASC
             ";
-            
+
             $Stmt = $Db->query($Sql);
             $Teklifler = $Stmt->fetchAll();
-            
+
             $Kalemler = [];
             $Bugun = new \DateTime();
-            
+
             foreach ($Teklifler as $Teklif) {
                 $GecerlilikTarihi = new \DateTime($Teklif['GecerlilikTarihi']);
                 $Fark = $Bugun->diff($GecerlilikTarihi);
                 $KalanGun = $GecerlilikTarihi >= $Bugun ? $Fark->days : -$Fark->days;
-                
+
                 $Kalemler[] = [
                     'id' => $Teklif['Id'],
                     'customerId' => $Teklif['MusteriId'],
@@ -418,7 +379,7 @@ class AlarmController
                     'daysRemaining' => $KalanGun
                 ];
             }
-            
+
             return [
                 'count' => count($Kalemler),
                 'items' => array_slice($Kalemler, 0, 10)
@@ -428,16 +389,13 @@ class AlarmController
         }
     }
 
-    
-
-
     private function supheliAlacakFaturalariniGetir(): array
     {
         try {
             $Db = Database::connection();
-            
+
             $Sql = "
-                SELECT 
+                SELECT
                     f.Id,
                     f.MusteriId,
                     m.Unvan as MusteriUnvan,
@@ -448,42 +406,40 @@ class AlarmController
                     f.Tutar,
                     f.DovizCinsi,
                     ISNULL(
-                        (SELECT SUM(o.Tutar) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil = 0), 
+                        (SELECT SUM(o.Tutar) FROM tbl_odeme o WHERE o.FaturaId = f.Id AND o.Sil = 0),
                         0
                     ) as ToplamOdeme
                 FROM tbl_fatura f
                 LEFT JOIN tbl_musteri m ON f.MusteriId = m.Id
                 LEFT JOIN tbl_proje p ON f.ProjeId = p.Id
-                WHERE f.Sil = 0 
+                WHERE f.Sil = 0
                   AND m.Sil = 0
                   AND f.SupheliAlacak = 1
                 ORDER BY f.Tarih ASC
             ";
-            
+
             $Stmt = $Db->query($Sql);
             $Faturalar = $Stmt->fetchAll();
-            
+
             $Kalemler = [];
             $ToplamAlacak = 0;
             $ParaBirimiToplam = [];
             $Bugun = new \DateTime();
-            
+
             foreach ($Faturalar as $Fatura) {
                 $FaturaTutari = (float)$Fatura['Tutar'];
                 $OdenenTutar = (float)$Fatura['ToplamOdeme'];
                 $Kalan = $FaturaTutari - $OdenenTutar;
                 $ParaBirimi = $Fatura['DovizCinsi'] ?? 'TRY';
-                
-                
+
                 $FaturaTarihi = new \DateTime($Fatura['Tarih']);
                 $Fark = $Bugun->diff($FaturaTarihi);
                 $GecikmeGun = $Fark->days;
-                
+
                 if ($FaturaTarihi > $Bugun) {
                     $GecikmeGun = -$GecikmeGun;
                 }
-                
-                
+
                 if ($Kalan > 0.01) {
                     if (!isset($ParaBirimiToplam[$ParaBirimi])) {
                         $ParaBirimiToplam[$ParaBirimi] = 0;
@@ -491,7 +447,7 @@ class AlarmController
                     $ParaBirimiToplam[$ParaBirimi] += $Kalan;
                     $ToplamAlacak += $Kalan;
                 }
-                
+
                 $Kalemler[] = [
                     'id' => $Fatura['Id'],
                     'customerId' => $Fatura['MusteriId'],
@@ -506,12 +462,11 @@ class AlarmController
                     'currency' => $ParaBirimi
                 ];
             }
-            
-            
+
             usort($Kalemler, function($a, $b) {
                 return $b['delayDays'] - $a['delayDays'];
             });
-            
+
             return [
                 'count' => count($Kalemler),
                 'total' => $ToplamAlacak,

@@ -1,8 +1,4 @@
 
-
-
-
-
 const NBT = {
     TOKEN_KEY: 'nbt_token',
     ROLE_KEY: 'nbt_role',
@@ -12,13 +8,9 @@ const NBT = {
     DEBUG: false
 };
 
-
 if (window.APP_CONFIG && typeof window.APP_CONFIG.API_BASE === 'string') {
     NBT.API_BASE = window.APP_CONFIG.API_BASE;
 }
-
-
-
 
 const NbtLogger = {
     log(...args) {
@@ -28,26 +20,23 @@ const NbtLogger = {
         if (NBT.DEBUG) console.warn('[NBT]', ...args);
     },
     error(...args) {
-        
+
         console.error('[NBT]', ...args);
     }
 };
 
-
-
-
 const NbtUtils = {
-    
+
     generateUUID() {
-        
+
         if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
             try {
                 return crypto.randomUUID();
             } catch (e) {
-                
+
             }
         }
-        
+
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
             const r = Math.random() * 16 | 0;
             const v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -55,7 +44,6 @@ const NbtUtils = {
         });
     },
 
-    
     getTabId() {
         let id = sessionStorage.getItem(NBT.TAB_KEY);
         if (!id) {
@@ -65,12 +53,10 @@ const NbtUtils = {
         return id;
     },
 
-    
     getToken() {
         return localStorage.getItem(NBT.TOKEN_KEY);
     },
 
-    
     getCookie(name) {
         const value = `; ${document.cookie || ''}`;
         const parts = value.split(`; ${name}=`);
@@ -78,12 +64,10 @@ const NbtUtils = {
         return null;
     },
 
-    
     getRole() {
         return localStorage.getItem(NBT.ROLE_KEY) || 'user';
     },
 
-    
     getUser() {
         try {
             return JSON.parse(localStorage.getItem(NBT.USER_KEY));
@@ -92,7 +76,6 @@ const NbtUtils = {
         }
     },
 
-    
     setSession(token, user, permissions = null) {
         localStorage.setItem(NBT.TOKEN_KEY, token);
         if (user) {
@@ -101,13 +84,12 @@ const NbtUtils = {
                 localStorage.setItem(NBT.ROLE_KEY, user.role);
             }
         }
-        
+
         if (permissions) {
             localStorage.setItem('nbt_permissions', JSON.stringify(permissions));
         }
     },
 
-    
     clearSession() {
         localStorage.removeItem(NBT.TOKEN_KEY);
         localStorage.removeItem(NBT.ROLE_KEY);
@@ -116,7 +98,6 @@ const NbtUtils = {
         document.cookie = 'nbt_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     },
 
-    
     escapeHtml(text) {
         if (text == null) return '';
         const div = document.createElement('div');
@@ -124,7 +105,6 @@ const NbtUtils = {
         return div.innerHTML;
     },
 
-    
     formatDate(dateStr, format = 'short') {
         if (!dateStr) return '-';
         const date = new Date(dateStr);
@@ -138,15 +118,13 @@ const NbtUtils = {
         });
     },
 
-    
     formatMoney(amount, currency = 'TRY') {
         const num = parseFloat(amount) || 0;
-        
+
         const symbols = NbtParams.getCurrencySymbols();
         return num.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ' + (symbols[currency] || currency);
     },
 
-    
     debounce(fn, delay = 300) {
         let timer;
         return (...args) => {
@@ -155,7 +133,6 @@ const NbtUtils = {
         };
     },
 
-    
     formatDecimal(value, decimals = 2) {
         if (value === null || value === undefined || value === '') return (0).toFixed(decimals);
         const num = parseFloat(value);
@@ -163,7 +140,6 @@ const NbtUtils = {
         return num.toFixed(decimals);
     },
 
-    
     normalizeText(str) {
         return (str || '').toString()
             .toLocaleLowerCase('tr-TR')
@@ -181,7 +157,6 @@ const NbtUtils = {
             .replace(/Ç/g, 'c');
     },
 
-    
     formatDateForCompare(dateStr) {
         if (!dateStr) return '';
         const date = new Date(dateStr);
@@ -192,118 +167,93 @@ const NbtUtils = {
         return `${year}-${month}-${day}`;
     },
 
-    
     formatNumber(amount) {
         const num = parseFloat(amount) || 0;
         return num.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     },
 
-    
     normalizeMoneyValue(value) {
         if (value === null || value === undefined || value === '') return null;
-        
-        
+
         const strVal = String(value).replace(',', '.').trim();
-        
-        
+
         if (strVal === '' || strVal === '0' || strVal === '0.00' || strVal === '0.0') {
             return null;
         }
-        
+
         const num = parseFloat(strVal);
-        
-        
+
         if (isNaN(num) || num === 0) return null;
-        
+
         return num;
     },
 
-    
     getMoneyInputValue(input) {
         const value = typeof input === 'string' ? input : (input?.value || '');
         return this.normalizeMoneyValue(value);
     },
 
-    
     parseDecimal(value) {
         if (value === null || value === undefined || value === '') return 0;
-        
-        
+
         if (typeof value === 'number') return isNaN(value) ? 0 : value;
-        
-        
+
         let strVal = String(value).trim();
-        
-        
+
         if (strVal === '') return 0;
-        
-        
-        
-        
-        
+
         const lastComma = strVal.lastIndexOf(',');
         const lastDot = strVal.lastIndexOf('.');
-        
+
         if (lastComma > lastDot) {
-            
+
             strVal = strVal.replace(/\./g, '').replace(',', '.');
         } else if (lastDot > lastComma) {
-            
+
             strVal = strVal.replace(/,/g, '');
         } else if (lastComma === -1 && lastDot === -1) {
-            
-            
+
         } else if (lastComma !== -1 && lastDot === -1) {
-            
+
             strVal = strVal.replace(',', '.');
         }
-        
-        
+
         const num = parseFloat(strVal);
         return isNaN(num) ? 0 : num;
     }
 };
 
-
-
-
-
 document.addEventListener('DOMContentLoaded', function() {
-    
+
     document.addEventListener('input', function(e) {
         if (e.target && e.target.classList.contains('number__input')) {
             e.target.value = e.target.value.replace(/[^0-9]/g, '');
         }
-        
-        
+
         if (e.target && e.target.classList.contains('price__input')) {
             let value = e.target.value;
-            
-            
+
             value = value.replace(/[^0-9.]/g, '');
-            
-            
+
             const parts = value.split('.');
             if (parts.length > 2) {
                 value = parts[0] + '.' + parts.slice(1).join('');
             }
-            
-            
+
             if (parts.length === 2 && parts[1].length > 2) {
                 value = parts[0] + '.' + parts[1].substring(0, 2);
             }
-            
+
             e.target.value = value;
         }
     });
-    
-    
+
     document.addEventListener('blur', function(e) {
         if (e.target && e.target.classList.contains('price__input')) {
             if (e.target.value === '' || e.target.value === '.') {
                 e.target.value = '0.00';
             } else {
-                
+
                 const num = parseFloat(e.target.value);
                 if (!isNaN(num)) {
                     e.target.value = num.toFixed(2);
@@ -311,8 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }, true);
-    
-    
+
     document.addEventListener('focus', function(e) {
         if (e.target && e.target.classList.contains('price__input')) {
             if (e.target.value === '0.00') {
@@ -322,9 +271,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }, true);
 });
 
-
-
-
 const NbtParams = {
     _cache: {
         currencies: null,
@@ -332,10 +278,9 @@ const NbtParams = {
         settings: null,
         lastFetch: 0
     },
-    
+
     CACHE_TTL: 5 * 60 * 1000,
 
-    
     async getCurrencies(forceRefresh = false) {
         if (!forceRefresh && this._cache.currencies && Date.now() - this._cache.lastFetch < this.CACHE_TTL) {
             return this._cache.currencies;
@@ -347,7 +292,7 @@ const NbtParams = {
             return this._cache.currencies;
         } catch (err) {
             NbtLogger.error('Doviz parametreleri alinamadi:', err);
-            
+
             return [
                 { Kod: 'TRY', Etiket: 'Türk Lirası', Deger: '₺', Varsayilan: true },
                 { Kod: 'USD', Etiket: 'Amerikan Doları', Deger: '$', Varsayilan: false },
@@ -356,7 +301,6 @@ const NbtParams = {
         }
     },
 
-    
     async getDefaultCurrency() {
         try {
             const response = await NbtApi.get('/api/parameters/default-currency');
@@ -367,9 +311,8 @@ const NbtParams = {
         }
     },
 
-    
     getCurrencySymbols() {
-        
+
         if (this._cache.currencies) {
             const symbols = {};
             this._cache.currencies.forEach(c => symbols[c.Kod] = c.Deger);
@@ -378,7 +321,6 @@ const NbtParams = {
         return { TRY: '₺', USD: '$', EUR: '€', GBP: '£', TL: '₺' };
     },
 
-    
     getDefaultCurrency() {
         if (this._cache.currencies) {
             const def = this._cache.currencies.find(c => c.Varsayilan);
@@ -387,7 +329,6 @@ const NbtParams = {
         return 'TRY';
     },
 
-    
     async getStatuses(entity, forceRefresh = false) {
         const cacheKey = `durum_${entity}`;
         if (!forceRefresh && this._cache.statuses[cacheKey]) {
@@ -403,13 +344,11 @@ const NbtParams = {
         }
     },
 
-    
     async getPasifDurumKodlari(entity, forceRefresh = false) {
         const statuses = await this.getStatuses(entity, forceRefresh);
         return statuses.filter(s => s.Pasif === true).map(s => String(s.Kod));
     },
 
-    
     getStatusBadge(entity, kod) {
         const cacheKey = `durum_${entity}`;
         const statuses = this._cache.statuses[cacheKey] || [];
@@ -420,14 +359,13 @@ const NbtParams = {
         return '<span class="badge bg-secondary">Bilinmiyor</span>';
     },
 
-    
     async getSettings(forceRefresh = false) {
         if (!forceRefresh && this._cache.settings && Date.now() - this._cache.lastFetch < this.CACHE_TTL) {
             return this._cache.settings;
         }
         try {
             const response = await NbtApi.get('/api/parameters/settings');
-            
+
             this._cache.settings = {
                 pagination_default: response.paginationDefault || 25,
                 default_currency: response.defaultCurrency || 'TRY',
@@ -440,7 +378,6 @@ const NbtParams = {
         }
     },
 
-    
     getPaginationDefault() {
         if (this._cache.settings && this._cache.settings.pagination_default) {
             return parseInt(this._cache.settings.pagination_default);
@@ -448,7 +385,6 @@ const NbtParams = {
         return window.APP_CONFIG?.PAGINATION_DEFAULT || 25;
     },
 
-    
     async populateCurrencySelect(selectElement, selectedValue = null) {
         if (!selectElement) return;
         const currencies = await this.getCurrencies();
@@ -465,10 +401,9 @@ const NbtParams = {
         });
     },
 
-    
     async populateStatusSelect(selectElement, entity, selectedValue = null) {
         if (!selectElement) return;
-        
+
         const statuses = await this.getStatuses(entity, true);
         selectElement.innerHTML = '';
         if (!statuses || statuses.length === 0) {
@@ -486,12 +421,10 @@ const NbtParams = {
         });
     },
 
-    
     clearCache() {
         this._cache = { currencies: null, statuses: {}, settings: null, lastFetch: 0 };
     },
 
-    
     async preload() {
         try {
             await Promise.all([
@@ -510,15 +443,12 @@ const NbtParams = {
     }
 };
 
-
-
-
 const NbtPermission = {
     _cache: null,
     _permissions: [],
     _permSet: null,
     _cacheTime: 0,
-    _cacheTtl: 5 * 60 * 1000, 
+    _cacheTtl: 5 * 60 * 1000,
     _observer: null,
     _setPermissions(permData) {
         this._cache = permData || null;
@@ -529,8 +459,7 @@ const NbtPermission = {
         window.__PERMS__ = list;
         return list;
     },
-    
-    
+
     _getFromStorage() {
         try {
             const data = localStorage.getItem('nbt_permissions');
@@ -539,17 +468,16 @@ const NbtPermission = {
             return null;
         }
     },
-    
-    
+
     async load() {
         try {
             const resp = await NbtApi.get('/api/auth/permissions');
-            
+
             const permData = resp.data || resp;
             if (permData && (permData.permissionlar || permData.roller)) {
                 this._setPermissions(permData);
                 localStorage.setItem('nbt_permissions', JSON.stringify(permData));
-                
+
                 window.dispatchEvent(new CustomEvent('nbt:permissions:ready', { detail: permData }));
                 return permData;
             }
@@ -563,8 +491,7 @@ const NbtPermission = {
         }
         return stored;
     },
-    
-    
+
     async getData() {
         const token = NbtUtils?.getToken ? NbtUtils.getToken() : null;
         if (token) {
@@ -578,8 +505,7 @@ const NbtPermission = {
         }
         return null;
     },
-    
-    
+
     can(permission) {
         if (this._permSet && this._permSet.size > 0) {
             return this._permSet.has(permission);
@@ -587,26 +513,23 @@ const NbtPermission = {
         const list = Array.isArray(window.__PERMS__) ? window.__PERMS__ : [];
         return list.includes(permission);
     },
-    
-    
+
     canAny(permissions) {
         return permissions.some(p => this.can(p));
     },
-    
-    
+
     canAll(permissions) {
         return permissions.every(p => this.can(p));
     },
-    
-    
+
     waitForReady(timeout = 5000) {
         return new Promise((resolve) => {
-            
+
             if (this._cache || this._getFromStorage()) {
                 resolve(true);
                 return;
             }
-            
+
             let resolved = false;
             const handler = () => {
                 if (!resolved) {
@@ -614,10 +537,9 @@ const NbtPermission = {
                     resolve(true);
                 }
             };
-            
+
             window.addEventListener('nbt:permissions:ready', handler, { once: true });
-            
-            
+
             setTimeout(() => {
                 if (!resolved) {
                     resolved = true;
@@ -627,16 +549,13 @@ const NbtPermission = {
             }, timeout);
         });
     },
-    
-    
+
     canAccessModule(modul) {
         const data = this._cache || this._getFromStorage();
         if (!data) return false;
         return data.moduller && data.moduller[modul] && data.moduller[modul].length > 0;
     },
-    
-    
-    
+
     clearCache() {
         this._cache = null;
         this._cacheTime = 0;
@@ -645,8 +564,7 @@ const NbtPermission = {
         window.__PERMS__ = [];
         localStorage.removeItem('nbt_permissions');
     },
-    
-    
+
     applyToElements(root = document) {
         const elements = [];
 
@@ -696,7 +614,6 @@ const NbtPermission = {
         });
     },
 
-
     observe() {
         if (this._observer || !window.MutationObserver) return;
 
@@ -716,7 +633,7 @@ const NbtPermission = {
         if (!NbtUtils?.getToken) return;
         const token = NbtUtils.getToken();
         if (!token) return;
-        
+
         const ExpireDate = new Date();
         ExpireDate.setDate(ExpireDate.getDate() + 7);
         document.cookie = `nbt_token=${encodeURIComponent(token)}; path=/; expires=${ExpireDate.toUTCString()}; samesite=lax`;
@@ -727,18 +644,15 @@ const NbtPermission = {
     }
 };
 
-
-
-
 const NbtApi = {
-    
+
     async request(path, options = {}) {
         const headers = options.headers || {};
-        
+
         if (!headers['Content-Type'] && !(options.body instanceof FormData)) {
             headers['Content-Type'] = 'application/json';
         }
-        
+
         const token = NbtUtils.getToken();
         if (token) {
             headers['Authorization'] = 'Bearer ' + token;
@@ -780,7 +694,7 @@ const NbtApi = {
                 if (data?.error?.fields) {
                     err.fields = data.error.fields;
                 }
-                
+
                 if (data?.errors) {
                     err.response = { errors: data.errors, message: data.message || err.message };
                 }
@@ -791,7 +705,7 @@ const NbtApi = {
                 const errMsg = typeof data.error === 'object' ? (data.error?.message || JSON.stringify(data.error)) : (data.error || 'Sunucu hatasi');
                 throw new Error(errMsg);
             }
-            
+
             const fallbackMsg = typeof data.error === 'object' ? (data.error?.message || JSON.stringify(data.error)) : (data.error || 'Bir hata olustu');
             throw new Error(fallbackMsg);
         }
@@ -801,36 +715,30 @@ const NbtApi = {
 
     get: (path) => NbtApi.request(path),
     post: (path, data) => NbtApi.request(path, { method: 'POST', body: JSON.stringify(data) }),
-    
-    
+
     put: (path, data) => {
         const updatePath = path.endsWith('/update') ? path : `${path}/update`;
         return NbtApi.request(updatePath, { method: 'POST', body: JSON.stringify(data) });
     },
-    
-    
+
     delete: (path) => {
         const deletePath = path.endsWith('/delete') ? path : `${path}/delete`;
         return NbtApi.request(deletePath, { method: 'POST' });
     },
-    
-    
+
     postFormData: async (path, formData, method = 'POST') => {
-        
+
         let finalPath = path;
         if (method === 'PUT') {
             finalPath = path.endsWith('/update') ? path : `${path}/update`;
         }
-        return NbtApi.request(finalPath, { 
-            method: 'POST', 
-            body: formData 
-            
+        return NbtApi.request(finalPath, {
+            method: 'POST',
+            body: formData
+
         });
     }
 };
-
-
-
 
 const NbtToast = {
     container: null,
@@ -847,14 +755,14 @@ const NbtToast = {
 
     show(message, type = 'info', duration = 4000) {
         this.init();
-        
+
         const icons = {
             success: 'bi-check-circle-fill text-success',
             error: 'bi-exclamation-circle-fill text-danger',
             warning: 'bi-exclamation-triangle-fill text-warning',
             info: 'bi-info-circle-fill text-info'
         };
-        
+
         const bgColors = {
             success: 'border-start border-success border-4',
             error: 'border-start border-danger border-4',
@@ -876,7 +784,7 @@ const NbtToast = {
         `;
 
         this.container.appendChild(toast);
-        
+
         toast.querySelector('.btn-close').addEventListener('click', () => toast.remove());
 
         if (duration > 0) {
@@ -894,9 +802,6 @@ const NbtToast = {
     warning: (msg, dur) => NbtToast.show(msg, 'warning', dur),
     info: (msg, dur) => NbtToast.show(msg, 'info', dur)
 };
-
-
-
 
 const NbtFullscreen = {
     activeElement: null,
@@ -920,7 +825,7 @@ const NbtFullscreen = {
         element.style.overflow = 'auto';
         this.activeElement = element;
         document.body.style.overflow = 'hidden';
-        
+
         document.addEventListener('keydown', this._escHandler);
     },
 
@@ -944,9 +849,6 @@ const NbtFullscreen = {
     }
 };
 
-
-
-
 const NbtListToolbar = {
     create(options = {}) {
         const searchHtml = options.onSearch !== false ? `
@@ -957,7 +859,7 @@ const NbtListToolbar = {
                     <input type="text" class="form-control border-start-0" data-toolbar="search"
                            placeholder="${options.placeholder || 'Ara...'}" />
                 </div>` : '';
-        
+
         const addPermissionAttr = options.addPermission ? ` data-can="${options.addPermission}"` : '';
         return `
             <div class="d-flex align-items-center gap-2 p-2 bg-light border-bottom nbt-toolbar">
@@ -1084,7 +986,7 @@ const NbtDataTable = {
             const action = btn.dataset.action;
             const rawId = btn.dataset.id;
             const id = parseInt(rawId, 10);
-            
+
             if (isNaN(id) || id <= 0) {
                 return;
             }
@@ -1199,19 +1101,19 @@ const NbtModal = {
     resetForm(modalId) {
         const modal = document.getElementById(modalId);
         if (!modal) return;
-        
+
         const preserveFields = {};
         modal.querySelectorAll('input[type="hidden"]').forEach(el => {
             const elIdLower = el.id.toLowerCase();
             const hasPreserveAttr = el.hasAttribute('data-preserve-value');
-            
+
             if (hasPreserveAttr) {
                 preserveFields[el.id] = el.getAttribute('data-preserve-value');
             } else if (elIdLower.includes('musteri') && elIdLower.includes('id')) {
                 preserveFields[el.id] = el.value;
             }
         });
-        
+
         const form = modal.querySelector('form');
         if (form) {
             form.reset();
@@ -1232,14 +1134,14 @@ const NbtModal = {
                 }
             });
         }
-        
+
         Object.keys(preserveFields).forEach(fieldId => {
             const field = document.getElementById(fieldId);
             if (field && preserveFields[fieldId]) {
                 field.value = preserveFields[fieldId];
             }
         });
-        
+
         // Para/tutar inputlarina default 0 degerini ata (nbt-money-input class'ina sahip olanlar)
         // HTML5 number input'lari icin sayi degeri kullanilmali
         modal.querySelectorAll('input.nbt-money-input').forEach(el => {
@@ -1249,10 +1151,10 @@ const NbtModal = {
                 el.value = '0,00';
             }
         });
-        
+
         this.clearError(modalId);
     },
-    
+
     /**
      * Save butonunu disable/enable et + spinner goster
      */
@@ -1261,7 +1163,7 @@ const NbtModal = {
         if (!modal) return;
         const btn = modal.querySelector('[id^="btnSave"], .btn-primary');
         if (!btn) return;
-        
+
         if (loading) {
             btn.disabled = true;
             btn._originalHtml = btn.innerHTML;
@@ -1282,28 +1184,28 @@ const NbtModal = {
      */
     showValidationErrors(modalId, errors, fieldMapping = {}) {
         if (!errors || typeof errors !== 'object') return;
-        
+
         this.clearFieldErrors(modalId);
-        
+
         let firstErrorField = null;
-        
+
         Object.keys(errors).forEach(field => {
             const message = Array.isArray(errors[field]) ? errors[field][0] : errors[field];
             const fieldId = fieldMapping[field] || field;
-            
+
             // Modal prefix ile alan ara
             const possibleIds = [
                 fieldId,
                 modalId.replace('Modal', '') + fieldId,
                 modalId.replace('Modal', '') + field.charAt(0).toUpperCase() + field.slice(1)
             ];
-            
+
             let targetField = null;
             for (const id of possibleIds) {
                 targetField = document.querySelector(`#${modalId} #${id}`);
                 if (targetField) break;
             }
-            
+
             if (targetField) {
                 this.showFieldError(modalId, targetField.id, message);
                 if (!firstErrorField) {
@@ -1311,7 +1213,7 @@ const NbtModal = {
                 }
             }
         });
-        
+
         // İlk hatalı alana focus
         if (firstErrorField) {
             setTimeout(() => {
@@ -1330,57 +1232,57 @@ const NbtModal = {
     validateForm(modalId, rules) {
         const errors = {};
         let firstErrorField = null;
-        
+
         this.clearFieldErrors(modalId);
-        
+
         Object.keys(rules).forEach(fieldId => {
             const field = document.querySelector(`#${modalId} #${fieldId}`);
             if (!field) return;
-            
+
             const rule = rules[fieldId];
             const value = field.value ? field.value.trim() : '';
             const label = rule.label || fieldId;
-            
+
             // Required check
             if (rule.required && !value) {
                 errors[fieldId] = `${label} zorunludur`;
                 return;
             }
-            
+
             // Skip other checks if empty and not required
             if (!value) return;
-            
+
             // Min length
             if (rule.min && value.length < rule.min) {
                 errors[fieldId] = `${label} en az ${rule.min} karakter olmalı`;
                 return;
             }
-            
+
             // Max length
             if (rule.max && value.length > rule.max) {
                 errors[fieldId] = `${label} en fazla ${rule.max} karakter olabilir`;
                 return;
             }
-            
+
             // Pattern (regex)
             if (rule.pattern && !rule.pattern.test(value)) {
                 errors[fieldId] = rule.patternMessage || `${label} formatı geçersiz`;
                 return;
             }
-            
+
             // Email
             if (rule.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
                 errors[fieldId] = `Geçerli bir e-posta adresi giriniz`;
                 return;
             }
-            
+
             // Numeric
             if (rule.numeric && isNaN(parseFloat(value))) {
                 errors[fieldId] = `${label} sayısal olmalıdır`;
                 return;
             }
         });
-        
+
         // Show errors and focus first
         Object.keys(errors).forEach(fieldId => {
             this.showFieldError(modalId, fieldId, errors[fieldId]);
@@ -1388,13 +1290,13 @@ const NbtModal = {
                 firstErrorField = document.querySelector(`#${modalId} #${fieldId}`);
             }
         });
-        
+
         if (firstErrorField) {
             setTimeout(() => {
                 firstErrorField.focus();
             }, 50);
         }
-        
+
         return {
             valid: Object.keys(errors).length === 0,
             errors
@@ -1408,7 +1310,7 @@ const NbtModal = {
     focusFirstError(modalId) {
         const modal = document.getElementById(modalId);
         if (!modal) return;
-        
+
         const firstError = modal.querySelector('.is-invalid');
         if (firstError) {
             firstError.focus();
@@ -1446,7 +1348,7 @@ const NbtDetailModal = {
         if (statusEntityMap[entityType]) {
             await NbtParams.getStatuses(statusEntityMap[entityType]);
         }
-        
+
         this._currentEntity = entityType;
         this._currentId = data.Id;
         this._currentData = data;
@@ -1570,7 +1472,7 @@ const NbtDetailModal = {
                 pageBtn.classList.remove('d-none');
                 pageBtn.onclick = () => {
                     NbtModal.close('entityDetailModal');
-                    
+
                     window.location.href = `/customer/${this._currentId}`;
                 };
             } else {
@@ -1593,7 +1495,6 @@ const NbtDetailModal = {
         NbtModal.open('entityDetailModal');
     },
 
-    
     _buildContent(entityType, data) {
         const formatters = {
             date: (v) => NbtUtils.formatDate(v),
@@ -1735,11 +1636,11 @@ const NbtDetailModal = {
         };
 
         const config = configs[entityType] || [];
-        
+
         let html = '<div class="row g-3">';
         config.forEach(item => {
             let value = data[item.field];
-            
+
             if (item.render) {
                 value = item.render(value, data);
             } else if (item.format === 'date') {
@@ -1750,9 +1651,9 @@ const NbtDetailModal = {
             } else if (item.format === 'status' && item.statusEntity) {
                 value = NbtParams.getStatusBadge(item.statusEntity, value);
             }
-            
+
             value = value || '<span class="text-muted">-</span>';
-            
+
             html += `
                 <div class="col-md-6">
                     <div class="border rounded p-2 h-100">
@@ -1763,8 +1664,7 @@ const NbtDetailModal = {
             `;
         });
         html += '</div>';
-        
-        
+
         if (entityType === 'invoice' && data.Kalemler && Array.isArray(data.Kalemler) && data.Kalemler.length > 0) {
             html += `
                 <div class="mt-3">
@@ -1798,7 +1698,7 @@ const NbtDetailModal = {
                 </div>
             `;
         }
-        
+
         // Fatura dosyalari tablosu (invoice icin)
         if (entityType === 'invoice' && data.Dosyalar && Array.isArray(data.Dosyalar) && data.Dosyalar.length > 0) {
             html += `
@@ -1832,8 +1732,7 @@ const NbtDetailModal = {
                     </div>
                 </div>
             `;
-            
-            
+
             setTimeout(() => {
                 document.querySelectorAll('.btn-download-file').forEach(btn => {
                     btn.onclick = async () => {
@@ -1849,12 +1748,12 @@ const NbtDetailModal = {
                                         'X-Tab-Id': NbtUtils.getTabId()
                                     }
                                 });
-                                
+
                                 if (!response.ok) {
                                     const errorData = await response.json().catch(() => ({}));
                                     throw new Error(errorData.error || 'Dosya indirilemedi');
                                 }
-                                
+
                                 const blob = await response.blob();
                                 const url = window.URL.createObjectURL(blob);
                                 const link = document.createElement('a');
@@ -1864,7 +1763,7 @@ const NbtDetailModal = {
                                 link.click();
                                 document.body.removeChild(link);
                                 window.URL.revokeObjectURL(url);
-                                
+
                                 NbtToast.success('Dosya indiriliyor...');
                             } catch (err) {
                                 NbtToast.error(err.message || 'Dosya indirilemedi');
@@ -1874,88 +1773,69 @@ const NbtDetailModal = {
                 });
             }, 100);
         }
-        
+
         return html;
     }
 };
-
-
-
-
-
-
 
 const NbtRouter = {
     routes: {},
     defaultRoute: 'dashboard',
 
-    
     register(path, handler) {
         this.routes[path] = handler;
     },
 
-    
     navigate(path, params = {}) {
-        
+
         let targetUrl = path;
-        
+
         if (!path.startsWith('/')) {
             targetUrl = '/' + path;
         }
-        
-        
+
         if (path.includes('customer') && params.id) {
             targetUrl = `/customer/${params.id}`;
         } else if (params.id) {
             targetUrl = `/${path}/${params.id}`;
         }
-        
-        
-        
-        
-        
+
         window.location.href = targetUrl;
     },
 
-    
     init() {
         const currentPage = window.APP_CONFIG?.CURRENT_PAGE || 'dashboard';
-        
+
         if (this.routes[currentPage]) {
             const params = this._getUrlParams();
             this.routes[currentPage](params);
         }
     },
 
-    
     _getUrlParams() {
         const params = {};
         const searchParams = new URLSearchParams(window.location.search);
         searchParams.forEach((value, key) => {
             params[key] = value;
         });
-        
-        
+
         const pathParts = window.location.pathname.split('/').filter(Boolean);
         if (pathParts[0] === 'customer' && pathParts[1]) {
             params.id = pathParts[1];
         }
-        
+
         return params;
     }
 };
 
-
-
-
 const NbtCalendar = {
     currentDate: new Date(),
-    viewMode: 'month', 
+    viewMode: 'month',
     events: [],
     onEventClick: null,
     onDayClick: null,
     container: null,
-    _eventsBound: false, 
+    _eventsBound: false,
 
     render(container, options = {}) {
         this.container = container;
@@ -1967,7 +1847,7 @@ const NbtCalendar = {
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth();
         const today = new Date();
-        
+
         const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
                            'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
         const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
@@ -2011,11 +1891,9 @@ const NbtCalendar = {
 
         html += '</div>';
         container.innerHTML = html;
-        
-        
+
         this._initTooltips(container);
-        
-        
+
         if (!this._eventsBound) {
             this._bindEvents(container);
             this._eventsBound = true;
@@ -2028,12 +1906,11 @@ const NbtCalendar = {
         const startDay = firstDay.getDay() || 7;
 
         let html = `<div class="d-grid" style="grid-template-columns: repeat(7, 1fr);">`;
-        
+
         dayNames.forEach(d => {
             html += `<div class="text-center small text-muted py-1 border-bottom fw-semibold">${d}</div>`;
         });
 
-        
         const prevMonthDays = new Date(year, month, 0).getDate();
         for (let i = startDay - 2; i >= 0; i--) {
             html += `<div class="text-center text-muted p-1 border-bottom border-end opacity-50" style="min-height:60px;"><small>${prevMonthDays - i}</small></div>`;
@@ -2042,34 +1919,34 @@ const NbtCalendar = {
         for (let day = 1; day <= lastDay.getDate(); day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
-            
+
             const dayEvents = this.events.filter(e => {
                 if (!e.date) return false;
-                const eventDate = e.date.split('T')[0].split(' ')[0]; 
+                const eventDate = e.date.split('T')[0].split(' ')[0];
                 return eventDate === dateStr && !e.completed;
             });
-            
+
             let bgClass = isToday ? 'bg-primary-subtle' : 'bg-white';
-            
+
             html += `
                 <div class="p-1 border-bottom border-end ${bgClass} position-relative" style="min-height:60px;cursor:pointer;" data-date="${dateStr}">
                     <span class="calendar-day-label ${isToday ? 'badge bg-primary rounded-circle' : ''}">${day}</span>
                     <div class="calendar-day-events position-absolute start-0 end-0 px-1">
             `;
-            
+
             dayEvents.slice(0, 2).forEach(event => {
                 const typeColor = this._getEventColor(event.type);
-                
+
                 const displayText = event.customerCode || event.customer || event.title;
-                
+
                 const tooltipContent = this._buildTooltipContent(event);
                 html += `<div class="text-truncate small px-1 mb-1 rounded ${typeColor} calendar-event-tooltip" style="font-size:10px;cursor:pointer;" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="top" title="${NbtUtils.escapeHtml(tooltipContent)}" data-event-id="${event.id}">${NbtUtils.escapeHtml(displayText)}</div>`;
             });
-            
+
             if (dayEvents.length > 2) {
                 html += `<div class="text-muted small" style="font-size:10px;">+${dayEvents.length - 2} daha</div>`;
             }
-            
+
             html += `</div></div>`;
         }
 
@@ -2087,7 +1964,7 @@ const NbtCalendar = {
         const hours = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
 
         let html = `<div class="d-grid" style="grid-template-columns: 60px repeat(7, 1fr);">`;
-        
+
         html += `<div class="border-end border-bottom"></div>`;
         for (let i = 0; i < 7; i++) {
             const d = new Date(weekStart);
@@ -2113,7 +1990,7 @@ const NbtCalendar = {
                     const eventDate = e.date.split('T')[0].split(' ')[0];
                     return eventDate === dateStr && e.time && e.time.startsWith(hour.split(':')[0]);
                 });
-                
+
                 html += `<div class="border-end border-bottom p-1" style="min-height:40px;" data-date="${dateStr}" data-hour="${hour}">`;
                 hourEvents.forEach(event => {
                     const typeColor = this._getEventColor(event.type);
@@ -2128,7 +2005,7 @@ const NbtCalendar = {
     },
 
     _buildTooltipContent(event) {
-        
+
         const typeLabels = {
             'fatura': 'Fatura',
             'odeme': 'Ödeme',
@@ -2139,48 +2016,43 @@ const NbtCalendar = {
             'damgavergisi': 'Damga Vergisi',
             'takvim': 'Takvim'
         };
-        
+
         let content = '';
-        
-        
+
         const typeLabel = typeLabels[event.type] || 'Etkinlik';
         content += `<strong>${typeLabel}</strong><br>`;
-        
-        
+
         if (event.title) {
             content += `${event.title}<br>`;
         }
-        
-        
+
         if (event.customer) {
             content += `<small>Müşteri: ${event.customer}</small><br>`;
         }
-        
-        
+
         if (event.amount) {
             const currency = event.currency || 'TRY';
             content += `<small>Tutar: ${NbtUtils.formatMoney(event.amount, currency)}</small><br>`;
         }
-        
-        
+
         if (event.description) {
             content += `<small>${event.description}</small>`;
         }
-        
+
         return content;
     },
 
     _initTooltips(container) {
-        
+
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             const tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
             tooltipElements.forEach(el => {
-                
+
                 const existingTooltip = bootstrap.Tooltip.getInstance(el);
                 if (existingTooltip) {
                     existingTooltip.dispose();
                 }
-                
+
                 new bootstrap.Tooltip(el, {
                     container: 'body',
                     trigger: 'hover'
@@ -2226,22 +2098,22 @@ const NbtCalendar = {
                 if (this.viewMode === 'week') {
                     this.currentDate.setDate(this.currentDate.getDate() - 7);
                 } else {
-                    
+
                     const newDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
                     this.currentDate = newDate;
                 }
-                
+
                 await this.loadEvents(null, this.currentDate.getMonth() + 1, this.currentDate.getFullYear());
                 this.render(container, { events: this.events });
             } else if (nextBtn) {
                 if (this.viewMode === 'week') {
                     this.currentDate.setDate(this.currentDate.getDate() + 7);
                 } else {
-                    
+
                     const newDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
                     this.currentDate = newDate;
                 }
-                
+
                 await this.loadEvents(null, this.currentDate.getMonth() + 1, this.currentDate.getFullYear());
                 this.render(container, { events: this.events });
             } else if (todayBtn) {
@@ -2296,7 +2168,7 @@ const NbtCalendar = {
     },
 
     async refresh() {
-        
+
         if (this.container && document.contains(this.container)) {
             const month = this.currentDate.getMonth() + 1;
             const year = this.currentDate.getFullYear();
@@ -2304,8 +2176,7 @@ const NbtCalendar = {
             this.render(this.container, { events: this.events });
         }
     },
-    
-    
+
     async refreshForDate(targetDate) {
         if (targetDate) {
             this.currentDate = new Date(targetDate);
@@ -2314,16 +2185,13 @@ const NbtCalendar = {
     }
 };
 
-
-
-
 document.addEventListener('DOMContentLoaded', () => {
-    
+
     const urlParams = new URLSearchParams(window.location.search);
     const flashError = urlParams.get('_error');
     if (flashError) {
         NbtToast.error(decodeURIComponent(flashError), 5000);
-        
+
         urlParams.delete('_error');
         const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
         window.history.replaceState({}, '', newUrl);
@@ -2368,15 +2236,14 @@ document.addEventListener('DOMContentLoaded', () => {
         footerUser.textContent = 'Kullanıcı: ' + user.name;
     }
 
-    
     document.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-panel-fullscreen]');
         if (!btn) return;
-        
+
         const panelId = btn.dataset.panelFullscreen;
         const panel = document.getElementById(panelId);
         if (!panel) return;
-        
+
         NbtFullscreen.toggle(panel);
         const icon = btn.querySelector('i');
         if (icon) {
@@ -2384,19 +2251,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    
-    
     document.addEventListener('blur', (e) => {
         if (e.target.type === 'number' && e.target.step && parseFloat(e.target.step) < 1) {
             const val = parseFloat(e.target.value);
             if (!isNaN(val) && val > 0 && val < 1) {
-                
+
                 e.target.value = val.toFixed(2);
             }
         }
     }, true);
 });
-
 
 window.NBT = NBT;
 window.NbtUtils = NbtUtils;

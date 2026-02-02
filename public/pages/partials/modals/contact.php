@@ -1,7 +1,5 @@
 <?php
 
-
-
 ?>
 <!-- Kişi Modal -->
 <div class="modal fade" id="contactModal" tabindex="-1">

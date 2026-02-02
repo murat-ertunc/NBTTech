@@ -1,16 +1,5 @@
 <?php
 
-
-
-
-
-
-
-
-
-
-
-
 $FormMusteriId = $FormMusteriId ?? 0;
 $FormTabKey = $FormTabKey ?? 'bilgi';
 $FormSaveButtonId = $FormSaveButtonId ?? 'btnSaveForm';

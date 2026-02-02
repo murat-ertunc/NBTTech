@@ -9,11 +9,11 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId INT NULL,
         Sil BIT NOT NULL DEFAULT 0,
-        
+
         -- İlişkiler
         MusteriId INT NOT NULL,
         ProjeId INT NULL,
-        
+
         -- Kişi Bilgileri
         AdSoyad NVARCHAR(255) NOT NULL,
         Unvan NVARCHAR(255) NULL,
@@ -21,7 +21,7 @@ BEGIN
         DahiliNo NVARCHAR(50) NULL,
         Email NVARCHAR(255) NULL,
         Notlar NVARCHAR(MAX) NULL,
-        
+
         CONSTRAINT FK_kisi_musteri FOREIGN KEY (MusteriId) REFERENCES tbl_musteri(Id),
         CONSTRAINT FK_kisi_proje FOREIGN KEY (ProjeId) REFERENCES tbl_proje(Id)
     );

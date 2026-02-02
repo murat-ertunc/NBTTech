@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $pageTitle = 'Ödemeler';
 $activeNav = 'islemler';
 $currentPage = 'payments';

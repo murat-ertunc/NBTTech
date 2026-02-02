@@ -1,4 +1,8 @@
 <?php
+/**
+ * District Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -7,9 +11,6 @@ use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\DistrictRepository;
 use App\Repositories\CityRepository;
-
-
-
 
 class DistrictController
 {
@@ -22,16 +23,15 @@ class DistrictController
         }
 
         $Repo = new DistrictRepository();
-        
-        
+
         $SehirId = isset($_GET['sehir_id']) ? (int)$_GET['sehir_id'] : 0;
-        
+
         if ($SehirId > 0) {
             $Satirlar = $Repo->sehireGore($SehirId);
         } else {
             $Satirlar = $Repo->tumAktifler();
         }
-        
+
         Response::json(['data' => $Satirlar]);
     }
 
@@ -62,7 +62,7 @@ class DistrictController
     public static function store(): void
     {
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        
+
         if (empty($Girdi['SehirId'])) {
             Response::error('SehirId alani zorunludur.', 422);
             return;
@@ -78,7 +78,6 @@ class DistrictController
             return;
         }
 
-        
         $CityRepo = new CityRepository();
         $Sehir = $CityRepo->bul((int)$Girdi['SehirId']);
         if (!$Sehir) {
@@ -87,8 +86,7 @@ class DistrictController
         }
 
         $Repo = new DistrictRepository();
-        
-        
+
         $Mevcut = $Repo->sehirVeAdIleBul((int)$Girdi['SehirId'], trim($Girdi['Ad']));
         if ($Mevcut) {
             Response::error('Bu sehirde bu isimde bir ilce zaten mevcut.', 422);
@@ -114,7 +112,7 @@ class DistrictController
         }
 
         $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
-        
+
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);

@@ -1,4 +1,8 @@
 <?php
+/**
+ * Customer Repository için veri erişim işlemlerini yürütür.
+ * Sorgu ve kalıcılık katmanını soyutlar.
+ */
 
 namespace App\Repositories;
 
@@ -20,10 +24,10 @@ class CustomerRepository extends BaseRepository
 
     public function tumAktiflerSiraliKullaniciBilgisiIle(): array
     {
-        $Sql = "SELECT m.*, u.AdSoyad AS EkleyenAdSoyad, u.KullaniciAdi AS EkleyenKullaniciAdi 
-                FROM {$this->Tablo} m 
-                LEFT JOIN tnm_user u ON m.EkleyenUserId = u.Id 
-                WHERE m.Sil = 0 
+        $Sql = "SELECT m.*, u.AdSoyad AS EkleyenAdSoyad, u.KullaniciAdi AS EkleyenKullaniciAdi
+                FROM {$this->Tablo} m
+                LEFT JOIN tnm_user u ON m.EkleyenUserId = u.Id
+                WHERE m.Sil = 0
                 ORDER BY m.Id DESC";
         $Stmt = $this->Db->query($Sql);
         $Sonuclar = $Stmt->fetchAll();
@@ -48,18 +52,13 @@ class CustomerRepository extends BaseRepository
         return $Kayit ?: null;
     }
 
-    
-
-
-
     public function kullanicininMusterileriniSil(int $KullaniciId, int $SilenKullaniciId): int
     {
         $Musteriler = $this->kullaniciyaGoreAktifler($KullaniciId);
         foreach ($Musteriler as $Musteri) {
             $this->yedekle((int) $Musteri['Id'], 'bck_tbl_musteri', $SilenKullaniciId);
         }
-        
-        
+
         $StandartAlanlar = BaseModel::softDeleteIcinStandartAlanlar($SilenKullaniciId);
         $SetParcalari = [];
         $Yukleme = ['EkleyenUserId' => $KullaniciId];
@@ -68,46 +67,40 @@ class CustomerRepository extends BaseRepository
             $Yukleme[$Anahtar] = $Deger;
         }
         $Sql = "UPDATE {$this->Tablo} SET " . implode(', ', $SetParcalari) . " WHERE EkleyenUserId = :EkleyenUserId AND Sil = 0";
-        
+
         $Etkilenen = 0;
         Transaction::wrap(function () use ($Sql, $Yukleme, &$Etkilenen) {
             $Stmt = $this->Db->prepare($Sql);
             $Stmt->execute($Yukleme);
             $Etkilenen = $Stmt->rowCount();
         });
-        
+
         return $Etkilenen;
     }
-
-    
-
-
 
     public function tumAktiflerSiraliPaginated(int $Page = 1, int $Limit = 10, string $Arama = ''): array
     {
         $Offset = ($Page - 1) * $Limit;
         $AramaKosulu = '';
         $Parametreler = [];
-        
+
         if ($Arama !== '' && mb_strlen($Arama) >= 2) {
-            
+
             $AramaKosulu = " AND (MusteriKodu COLLATE Turkish_CI_AI LIKE :arama OR Unvan COLLATE Turkish_CI_AI LIKE :arama2)";
             $Parametreler['arama'] = '%' . $Arama . '%';
             $Parametreler['arama2'] = '%' . $Arama . '%';
         }
-        
-        
+
         $CountSql = "SELECT COUNT(*) FROM {$this->Tablo} WHERE Sil = 0" . $AramaKosulu;
         $CountStmt = $this->Db->prepare($CountSql);
         $CountStmt->execute($Parametreler);
         $Total = (int) $CountStmt->fetchColumn();
-        
-        
-        $Sql = "SELECT m.*, u.AdSoyad AS EkleyenAdSoyad, u.KullaniciAdi AS EkleyenKullaniciAdi 
-                FROM {$this->Tablo} m 
-                LEFT JOIN tnm_user u ON m.EkleyenUserId = u.Id 
+
+        $Sql = "SELECT m.*, u.AdSoyad AS EkleyenAdSoyad, u.KullaniciAdi AS EkleyenKullaniciAdi
+                FROM {$this->Tablo} m
+                LEFT JOIN tnm_user u ON m.EkleyenUserId = u.Id
                 WHERE m.Sil = 0" . str_replace(['MusteriKodu', 'Unvan'], ['m.MusteriKodu', 'm.Unvan'], $AramaKosulu) . "
-                ORDER BY m.Id DESC 
+                ORDER BY m.Id DESC
                 OFFSET :Offset ROWS FETCH NEXT :Limit ROWS ONLY";
         $Stmt = $this->Db->prepare($Sql);
         foreach ($Parametreler as $key => $val) {
@@ -117,9 +110,9 @@ class CustomerRepository extends BaseRepository
         $Stmt->bindValue(':Limit', $Limit, \PDO::PARAM_INT);
         $Stmt->execute();
         $Sonuclar = $Stmt->fetchAll();
-        
+
         $this->logSelect(['Sil' => 0, 'page' => $Page, 'limit' => $Limit, 'arama' => $Arama], $Sonuclar);
-        
+
         return [
             'data' => $Sonuclar,
             'pagination' => [
@@ -131,33 +124,27 @@ class CustomerRepository extends BaseRepository
         ];
     }
 
-    
-
-
-
     public function kullaniciyaGoreAktiflerPaginated(int $KullaniciId, int $Page = 1, int $Limit = 10, string $Arama = ''): array
     {
         $Offset = ($Page - 1) * $Limit;
         $AramaKosulu = '';
         $Parametreler = ['Uid' => $KullaniciId];
-        
+
         if ($Arama !== '' && mb_strlen($Arama) >= 2) {
-            
+
             $AramaKosulu = " AND (MusteriKodu COLLATE Turkish_CI_AI LIKE :arama OR Unvan COLLATE Turkish_CI_AI LIKE :arama2)";
             $Parametreler['arama'] = '%' . $Arama . '%';
             $Parametreler['arama2'] = '%' . $Arama . '%';
         }
-        
-        
+
         $CountSql = "SELECT COUNT(*) FROM {$this->Tablo} WHERE Sil = 0 AND EkleyenUserId = :Uid" . $AramaKosulu;
         $CountStmt = $this->Db->prepare($CountSql);
         $CountStmt->execute($Parametreler);
         $Total = (int) $CountStmt->fetchColumn();
-        
-        
-        $Sql = "SELECT * FROM {$this->Tablo} 
+
+        $Sql = "SELECT * FROM {$this->Tablo}
                 WHERE Sil = 0 AND EkleyenUserId = :Uid" . $AramaKosulu . "
-                ORDER BY Id DESC 
+                ORDER BY Id DESC
                 OFFSET :Offset ROWS FETCH NEXT :Limit ROWS ONLY";
         $Stmt = $this->Db->prepare($Sql);
         foreach ($Parametreler as $key => $val) {
@@ -167,9 +154,9 @@ class CustomerRepository extends BaseRepository
         $Stmt->bindValue(':Limit', $Limit, \PDO::PARAM_INT);
         $Stmt->execute();
         $Sonuclar = $Stmt->fetchAll();
-        
+
         $this->logSelect(['Sil' => 0, 'EkleyenUserId' => $KullaniciId, 'page' => $Page, 'limit' => $Limit, 'arama' => $Arama], $Sonuclar);
-        
+
         return [
             'data' => $Sonuclar,
             'pagination' => [

@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $pageTitle = 'Kullanıcılar';
 $activeNav = 'sistem';
 $currentPage = 'users';

@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $pageTitle = 'Faturalar';
 $activeNav = 'islemler';
 $currentPage = 'invoices';

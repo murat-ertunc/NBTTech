@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $pageTitle = 'Sözleşmeler';
 $activeNav = 'islemler';
 $currentPage = 'contracts';

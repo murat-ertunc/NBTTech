@@ -1,8 +1,5 @@
 <?php
 
-
-
-
 ?>
 <div class="modal fade" id="calendarDayModal" tabindex="-1">
   <div class="modal-dialog modal-lg">

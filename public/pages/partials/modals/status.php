@@ -10,13 +10,13 @@
         <div class="alert alert-danger d-none mb-3" id="statusModalError"></div>
         <input type="hidden" id="statusId">
         <input type="hidden" id="statusGrup">
-        
+
         <div class="row g-3">
           <div class="col-12">
             <label class="form-label">Durum Adı <span class="text-danger">*</span></label>
             <input type="text" class="form-control" id="statusEtiket" placeholder="Aktif, Pasif, Beklemede...">
           </div>
-          
+
           <div class="col-12">
             <label class="form-label">Badge Rengi <span class="text-danger">*</span></label>
             <div class="row g-2" id="badgeColorOptions">
@@ -86,14 +86,14 @@
               </div>
             </div>
           </div>
-          
+
           <div class="col-12">
             <label class="form-label">Önizleme</label>
             <div class="p-3 bg-light rounded text-center">
               <span class="badge bg-success fs-6" id="statusBadgePreview">Örnek Durum</span>
             </div>
           </div>
-          
+
           <div class="col-md-6">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" id="statusAktif" checked>

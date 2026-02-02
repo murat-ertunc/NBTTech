@@ -1,4 +1,8 @@
 <?php
+/**
+ * Invoice Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -80,8 +84,7 @@ class InvoiceController
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
         $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
-        
-        
+
         $SadeceOdenmemis = isset($_GET['sadece_odenmemis']) && $_GET['sadece_odenmemis'] === '1';
 
         if ($MusteriId > 0) {
@@ -93,7 +96,7 @@ class InvoiceController
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            
+
             if (isset($_GET['page']) || isset($_GET['limit'])) {
                 $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
                 Response::json($Sonuc);
@@ -125,10 +128,8 @@ class InvoiceController
             return;
         }
 
-        
         $Fatura['Kalemler'] = $Repo->getKalemler($Id);
-        
-        
+
         $Fatura['Dosyalar'] = $Repo->getDosyalar($Id);
 
         Response::json($Fatura);
@@ -144,20 +145,19 @@ class InvoiceController
                 return;
             }
         }
-        
+
         $MusteriId = (int)$Girdi['MusteriId'];
         $ProjeId = isset($Girdi['ProjeId']) && $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
         $Tutar = (float)$Girdi['Tutar'];
-        $Tarih = trim((string)$Girdi['Tarih']); 
+        $Tarih = trim((string)$Girdi['Tarih']);
         $Doviz = isset($Girdi['DovizCinsi']) ? trim((string)$Girdi['DovizCinsi']) : 'TL';
-        
-        
+
         $FaturaNo = isset($Girdi['FaturaNo']) ? trim((string)$Girdi['FaturaNo']) : null;
         $SupheliAlacak = isset($Girdi['SupheliAlacak']) ? (int)$Girdi['SupheliAlacak'] : 0;
         $TevkifatAktif = isset($Girdi['TevkifatAktif']) ? (int)$Girdi['TevkifatAktif'] : 0;
         $TevkifatOran1 = isset($Girdi['TevkifatOran1']) ? (float)$Girdi['TevkifatOran1'] : null;
         $TevkifatOran2 = isset($Girdi['TevkifatOran2']) ? (float)$Girdi['TevkifatOran2'] : null;
-        
+
         $TakvimAktif = !empty($Girdi['TakvimAktif']) ? 1 : 0;
         $TakvimSure = isset($Girdi['TakvimSure']) ? (int)$Girdi['TakvimSure'] : null;
         $TakvimSure = $TakvimSure > 0 ? $TakvimSure : null;
@@ -193,13 +193,11 @@ class InvoiceController
                 'TakvimSure' => $TakvimSure,
                 'TakvimSureTipi' => $TakvimSureTipi
             ], $KullaniciId);
-            
-            
+
             if (!empty($Kalemler)) {
                 $Repo->kaydetKalemler($FaturaId, $Kalemler, $KullaniciId);
             }
 
-            
             if (!empty($Tarih)) {
                 $FaturaAciklama = !empty($FaturaNo) ? 'Fatura No: ' . $FaturaNo : 'Fatura';
                 CalendarService::createOrUpdateReminder(
@@ -212,7 +210,6 @@ class InvoiceController
                 );
             }
 
-            
             if ($TakvimAktif === 1 && $TakvimSure !== null && $TakvimSureTipi !== null && !empty($Tarih)) {
                 $EkTarih = self::takvimTarihEkle($Tarih, $TakvimSure, $TakvimSureTipi);
                 $TakvimRepo = new CalendarRepository();
@@ -229,7 +226,7 @@ class InvoiceController
                     'KaynakId' => $FaturaId
                 ], $KullaniciId);
             }
-            
+
             return $FaturaId;
         });
 
@@ -269,8 +266,6 @@ class InvoiceController
             return;
         }
 
-        
-
         $FaturaTarihi = isset($Girdi['Tarih']) ? $Girdi['Tarih'] : ($Mevcut['Tarih'] ?? null);
         $FaturaNo = isset($Girdi['FaturaNo']) ? $Girdi['FaturaNo'] : ($Mevcut['FaturaNo'] ?? '');
         $MusteriId = (int)($Mevcut['MusteriId'] ?? 0);
@@ -284,8 +279,7 @@ class InvoiceController
             if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
             if (isset($Girdi['DovizCinsi'])) $Guncellenecek['DovizCinsi'] = $Girdi['DovizCinsi'];
             if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
-            
-            
+
             if (isset($Girdi['FaturaNo'])) $Guncellenecek['FaturaNo'] = $Girdi['FaturaNo'];
             if (isset($Girdi['SupheliAlacak'])) $Guncellenecek['SupheliAlacak'] = (int)$Girdi['SupheliAlacak'];
             if (isset($Girdi['TevkifatAktif'])) $Guncellenecek['TevkifatAktif'] = (int)$Girdi['TevkifatAktif'];
@@ -298,13 +292,11 @@ class InvoiceController
             if (!empty($Guncellenecek)) {
                 $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
             }
-            
-            
+
             if (isset($Girdi['Kalemler']) && is_array($Girdi['Kalemler'])) {
                 $Repo->kaydetKalemler($Id, $Girdi['Kalemler'], $KullaniciId);
             }
 
-            
             if (isset($Girdi['Tarih']) && !empty($FaturaTarihi)) {
                 $FaturaAciklama = !empty($FaturaNo) ? 'Fatura No: ' . $FaturaNo : 'Fatura';
                 CalendarService::createOrUpdateReminder(
@@ -317,7 +309,6 @@ class InvoiceController
                 );
             }
 
-            
             if ($TakvimAktif === 1 && $TakvimSure !== null && $TakvimSureTipi !== null && !empty($FaturaTarihi)) {
                 $EkTarih = self::takvimTarihEkle($FaturaTarihi, $TakvimSure, $TakvimSureTipi);
                 $TakvimRepo = new CalendarRepository();
@@ -365,7 +356,6 @@ class InvoiceController
             ActionLogger::delete('tbl_fatura', ['Id' => $Id]);
         });
 
-        
         CalendarService::deleteReminder('fatura', $Id);
 
         Response::json(['status' => 'success']);

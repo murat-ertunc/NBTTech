@@ -1,12 +1,5 @@
 <?php
 
-
-
-
-
-
-
-
 $pageTitle = 'Tanımlamalar';
 $activeNav = 'sistem';
 $currentPage = 'parameters';

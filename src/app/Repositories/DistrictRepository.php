@@ -1,20 +1,17 @@
 <?php
+/**
+ * District Repository için veri erişim işlemlerini yürütür.
+ * Sorgu ve kalıcılık katmanını soyutlar.
+ */
 
 namespace App\Repositories;
 
 use App\Core\Transaction;
 use App\Services\Logger\ActionLogger;
 
-
-
-
-
 class DistrictRepository extends BaseRepository
 {
     protected string $Tablo = 'tnm_ilce';
-
-    
-
 
     public function tumAktifler(): array
     {
@@ -30,9 +27,6 @@ class DistrictRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    
-
-
     public function sehireGore(int $SehirId): array
     {
         $Sql = "SELECT Id, Guid, SehirId, Ad, EklemeZamani, DegisiklikZamani
@@ -43,9 +37,6 @@ class DistrictRepository extends BaseRepository
         $Stmt->execute(['SehirId' => $SehirId]);
         return $Stmt->fetchAll();
     }
-
-    
-
 
     public function bul(int $Id): ?array
     {
@@ -59,9 +50,6 @@ class DistrictRepository extends BaseRepository
         $Sonuc = $Stmt->fetch();
         return $Sonuc ?: null;
     }
-
-    
-
 
     public function ekle(array $Veri, ?int $KullaniciId = null): int
     {
@@ -83,9 +71,6 @@ class DistrictRepository extends BaseRepository
         });
     }
 
-    
-
-
     public function guncelle(int $Id, array $Veri, ?int $KullaniciId = null, array $EkKosul = []): void
     {
         Transaction::wrap(function () use ($Id, $Veri, $KullaniciId) {
@@ -105,9 +90,6 @@ class DistrictRepository extends BaseRepository
         });
     }
 
-    
-
-
     public function softSil(int $Id, ?int $KullaniciId = null, array $EkKosul = []): void
     {
         Transaction::wrap(function () use ($Id, $KullaniciId) {
@@ -117,9 +99,6 @@ class DistrictRepository extends BaseRepository
             ActionLogger::delete($this->Tablo, ['Id' => $Id]);
         });
     }
-
-    
-
 
     public function sehirVeAdIleBul(int $SehirId, string $Ad): ?array
     {

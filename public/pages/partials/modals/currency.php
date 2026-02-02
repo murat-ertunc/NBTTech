@@ -10,7 +10,7 @@
         <div class="alert alert-danger d-none mb-3" id="currencyModalError"></div>
         <input type="hidden" id="currencyId">
         <input type="hidden" id="currencyGrup" value="doviz">
-        
+
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Döviz Kodu <span class="text-danger">*</span></label>

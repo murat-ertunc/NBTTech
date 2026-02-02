@@ -1,11 +1,6 @@
 <?php
 
-
-
-
-
 require dirname(__DIR__) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
-
 
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
@@ -141,18 +136,18 @@ $Logo = config('app.logo', '/assets/logo.png');
     async function TokenKontrol() {
       const Token = localStorage.getItem(AnahtarToken);
       if (!Token) return;
-      
+
       try {
         const ApiBase = ApiBaseAl();
         const Yanit = await fetch(ApiBase + '/api/refresh', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Authorization': 'Bearer ' + Token,
             'Content-Type': 'application/json',
             'X-Tab-Id': SekmeIdAl()
           }
         });
-        
+
         if (Yanit.ok) {
           window.location.href = '/';
         } else {
@@ -170,7 +165,7 @@ $Logo = config('app.logo', '/assets/logo.png');
         document.cookie = 'nbt_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       }
     }
-    
+
     TokenKontrol();
 
     document.getElementById('btnLogin').addEventListener('click', GirisYap);

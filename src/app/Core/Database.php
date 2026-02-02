@@ -24,9 +24,6 @@ class Database
         return self::$instance;
     }
 
-    
-
-
     public function getConnection(): PDO
     {
         return $this->pdo;
@@ -64,9 +61,6 @@ class Database
         }
     }
 
-    
-
-
     public function execute(string $sql, array $params = []): bool
     {
         try {
@@ -77,9 +71,6 @@ class Database
             return false;
         }
     }
-
-    
-
 
     public function fetchOne(string $sql, array $params = []): ?array
     {
@@ -94,9 +85,6 @@ class Database
         }
     }
 
-    
-
-
     public function fetchAll(string $sql, array $params = []): array
     {
         try {
@@ -108,9 +96,6 @@ class Database
             return [];
         }
     }
-
-    
-
 
     public function lastInsertId(): ?int
     {

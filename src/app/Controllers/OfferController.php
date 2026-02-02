@@ -1,4 +1,8 @@
 <?php
+/**
+ * Offer Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -20,7 +24,7 @@ class OfferController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
+
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
         $ProjeId = isset($_GET['proje_id']) ? (int)$_GET['proje_id'] : 0;
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
@@ -38,7 +42,7 @@ class OfferController
             $Satirlar = $Repo->projeTeklifleri($ProjeId);
             Response::json(['data' => $Satirlar]);
         } else {
-            
+
             if (isset($_GET['page']) || isset($_GET['limit'])) {
                 $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
                 Response::json($Sonuc);
@@ -48,9 +52,6 @@ class OfferController
             }
         }
     }
-
-    
-
 
     public static function show(array $Parametreler): void
     {
@@ -79,15 +80,15 @@ class OfferController
 
     public static function store(): void
     {
-        
+
         $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         } else {
-            
+
             $Girdi = $_POST;
         }
-        
+
         $Zorunlu = ['MusteriId'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
@@ -102,17 +103,16 @@ class OfferController
             return;
         }
 
-        
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
-            $MaksimumBoyut = 10 * 1024 * 1024; 
+            $MaksimumBoyut = 10 * 1024 * 1024;
             $Hata = UploadValidator::validateDocument($_FILES['dosya'], $MaksimumBoyut);
             if ($Hata !== null) {
                 Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
                 return;
             }
-            
+
             $YuklemeKlasoru = STORAGE_PATH . 'uploads' . DIRECTORY_SEPARATOR;
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
@@ -122,7 +122,7 @@ class OfferController
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
             $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
-            
+
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
                 $DosyaAdi = $OrijinalAd;
                 $DosyaYolu = 'storage/uploads/' . $GuvenliAd;
@@ -147,7 +147,6 @@ class OfferController
             return $Repo->ekle($YuklenecekVeri, $KullaniciId);
         });
 
-        
         if (!empty($YuklenecekVeri['GecerlilikTarihi'])) {
             CalendarService::createOrUpdateReminder(
                 (int)$YuklenecekVeri['MusteriId'],
@@ -170,7 +169,6 @@ class OfferController
             return;
         }
 
-        
         $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -181,7 +179,7 @@ class OfferController
         } else {
             $Girdi = $_POST;
         }
-        
+
         $Repo = new OfferRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -198,9 +196,8 @@ class OfferController
         if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
         if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = (int)$Girdi['ProjeId'];
 
-        
         if (!empty($Girdi['removeFile'])) {
-            
+
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
@@ -212,16 +209,14 @@ class OfferController
             $Guncellenecek['DosyaYolu'] = null;
         }
 
-        
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
-            $MaksimumBoyut = 10 * 1024 * 1024; 
+            $MaksimumBoyut = 10 * 1024 * 1024;
             $Hata = UploadValidator::validateDocument($_FILES['dosya'], $MaksimumBoyut);
             if ($Hata !== null) {
                 Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
                 return;
             }
-            
-            
+
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
@@ -239,7 +234,7 @@ class OfferController
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
             $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
-            
+
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
                 $Guncellenecek['DosyaAdi'] = $OrijinalAd;
                 $Guncellenecek['DosyaYolu'] = 'storage/uploads/' . $GuvenliAd;
@@ -252,7 +247,6 @@ class OfferController
             });
         }
 
-        
         if (isset($Girdi['GecerlilikTarihi'])) {
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut) {
@@ -290,7 +284,6 @@ class OfferController
             $Repo->softSil($Id, $KullaniciId);
         });
 
-        
         CalendarService::deleteReminder('teklif', $Id);
 
         Response::json(['status' => 'success']);
@@ -306,7 +299,7 @@ class OfferController
 
         $Repo = new OfferRepository();
         $Kayit = $Repo->bul($Id);
-        
+
         if (!$Kayit) {
             Response::error('Kayit bulunamadi.', 404);
             return;
@@ -318,7 +311,7 @@ class OfferController
         }
 
         $FilePath = SRC_PATH . $Kayit['DosyaYolu'];
-        
+
         if (!file_exists($FilePath)) {
             Response::error('Dosya bulunamadi.', 404);
             return;

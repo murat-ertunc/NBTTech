@@ -1,18 +1,6 @@
 <?php
 
-
-
-
-
-
-
-
-
-
-
-
 $IsCli = php_sapi_name() === 'cli';
-
 
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
@@ -42,7 +30,6 @@ function getBasicAuthCredentials(): array
 
     return ['', ''];
 }
-
 
 if (!$IsCli) {
     $AuthUser = env('MIG_USER', env('MIGRATION_BASIC_USER', 'migrate'));
@@ -129,7 +116,6 @@ output("  NbtProject - Migration Runner", $IsCli);
 output("  Tarih: " . date('Y-m-d H:i:s'), $IsCli);
 output("===========================================", $IsCli);
 output("", $IsCli);
-
 
 $SqlDir = SRC_PATH . 'sql';
 $Files = glob($SqlDir . '/*.sql') ?: [];

@@ -1,7 +1,5 @@
 <?php
 
-
-
 ?>
 <!-- Sözleşme Modal -->
 <div class="modal fade" id="contractModal" tabindex="-1">

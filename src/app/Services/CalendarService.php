@@ -1,19 +1,15 @@
 <?php
+/**
+ * Calendar Service iş kurallarını uygular.
+ * Servis seviyesinde işlem akışlarını sağlar.
+ */
 
 namespace App\Services;
 
 use App\Core\Database;
 
-
-
-
-
-
-
 class CalendarService
 {
-    
-
 
     public static function getDefaultTakvimDurum(): int
     {
@@ -23,8 +19,6 @@ class CalendarService
         );
         return $Sonuc ? (int)$Sonuc['Kod'] : 1;
     }
-    
-
 
     private static $KaynakTurleri = [
         'gorusme' => [
@@ -71,24 +65,17 @@ class CalendarService
         ]
     ];
 
-    
-
-
     private static function getParameter(string $ParametreAdi, $Varsayilan = null)
     {
         $Db = Database::getInstance();
-        
-        
+
         $Sonuc = $Db->fetchOne(
             "SELECT Deger FROM tbl_parametre WHERE Kod = :kod AND Grup = 'genel' AND Sil = 0",
             ['kod' => $ParametreAdi]
         );
-        
+
         return $Sonuc ? $Sonuc['Deger'] : $Varsayilan;
     }
-
-    
-
 
     public static function isReminderActive(string $KaynakTuru): bool
     {
@@ -101,9 +88,6 @@ class CalendarService
         return $Aktif === '1' || $Aktif === 1 || $Aktif === true;
     }
 
-    
-
-
     public static function getReminderDays(string $KaynakTuru): int
     {
         if (!isset(self::$KaynakTurleri[$KaynakTuru])) {
@@ -114,13 +98,6 @@ class CalendarService
         $Gun = self::getParameter($Konfig['gunParam'], $Konfig['defaultGun']);
         return (int)$Gun;
     }
-
-    
-
-
-
-
-
 
     public static function calculateReminderDate(string $KaynakTuru, string $HedefTarih): ?string
     {
@@ -138,17 +115,6 @@ class CalendarService
         return $Tarih->format('Y-m-d');
     }
 
-    
-
-
-
-
-
-
-
-
-
-
     public static function createOrUpdateReminder(
         int $MusteriId,
         string $KaynakTuru,
@@ -157,20 +123,18 @@ class CalendarService
         ?string $OzelIcerik = null,
         ?int $KullaniciId = null
     ): ?int {
-        
+
         if (!self::isReminderActive($KaynakTuru)) {
-            
+
             self::deleteReminder($KaynakTuru, $KaynakId);
             return null;
         }
 
-        
         $HatirlatmaTarihi = self::calculateReminderDate($KaynakTuru, $HedefTarih);
         if (!$HatirlatmaTarihi) {
             return null;
         }
 
-        
         $Konfig = self::$KaynakTurleri[$KaynakTuru] ?? null;
         if (!$Konfig) {
             return null;
@@ -181,7 +145,6 @@ class CalendarService
 
         $Db = Database::getInstance();
 
-        
         $Mevcut = $Db->fetchOne(
             "SELECT Id, Durum FROM tbl_takvim WHERE KaynakTuru = :turu AND KaynakId = :id AND Sil = 0",
             ['turu' => $KaynakTuru, 'id' => $KaynakId]
@@ -190,9 +153,9 @@ class CalendarService
         $VarsayilanDurum = self::getDefaultTakvimDurum();
 
         if ($Mevcut) {
-            
+
             $Db->execute(
-                "UPDATE tbl_takvim SET 
+                "UPDATE tbl_takvim SET
                     MusteriId = :musteriId,
                     TerminTarihi = :tarih,
                     Ozet = :ozet,
@@ -211,7 +174,7 @@ class CalendarService
             );
             return $Mevcut['Id'];
         } else {
-            
+
             $Guid = strtoupper(sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X',
                 mt_rand(0, 65535), mt_rand(0, 65535),
                 mt_rand(0, 65535),
@@ -219,7 +182,7 @@ class CalendarService
                 mt_rand(32768, 49151),
                 mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535)
             ));
-            
+
             $Db->execute(
                 "INSERT INTO tbl_takvim (Guid, MusteriId, TerminTarihi, Ozet, Durum, KaynakTuru, KaynakId, Sil, EkleyenUserId, EklemeZamani)
                 VALUES (:guid, :musteriId, :tarih, :ozet, :durum, :kaynakTuru, :kaynakId, 0, :userId, GETDATE())",
@@ -234,19 +197,11 @@ class CalendarService
                     'userId' => $KullaniciId
                 ]
             );
-            
-            
+
             $SonId = $Db->fetchOne("SELECT SCOPE_IDENTITY() as id");
             return $SonId ? (int)$SonId['id'] : null;
         }
     }
-
-    
-
-
-
-
-
 
     public static function deleteReminder(string $KaynakTuru, int $KaynakId): bool
     {
@@ -257,13 +212,6 @@ class CalendarService
         );
     }
 
-    
-
-
-
-
-
-
     public static function deleteRemindersByCustomer(int $MusteriId, string $KaynakTuru): bool
     {
         $Db = Database::getInstance();
@@ -272,11 +220,6 @@ class CalendarService
             ['musteriId' => $MusteriId, 'turu' => $KaynakTuru]
         );
     }
-
-    
-
-
-
 
     public static function getAllReminderSettings(): array
     {

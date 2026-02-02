@@ -6,7 +6,7 @@ BEGIN
         KaynakId INT NOT NULL,
         BackupZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         BackupUserId INT NULL,
-        
+
         -- Orijinal tablo verileri
         Guid UNIQUEIDENTIFIER NULL,
         EklemeZamani DATETIME2(0) NULL,
@@ -14,10 +14,10 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NULL,
         DegistirenUserId INT NULL,
         Sil BIT NULL,
-        
+
         -- İlişkiler
         MusteriId INT NOT NULL,
-        
+
         -- Proje Bilgileri
         ProjeAdi NVARCHAR(255) NOT NULL,
         Butce DECIMAL(16,2) NULL,

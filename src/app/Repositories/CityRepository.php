@@ -1,20 +1,17 @@
 <?php
+/**
+ * City Repository için veri erişim işlemlerini yürütür.
+ * Sorgu ve kalıcılık katmanını soyutlar.
+ */
 
 namespace App\Repositories;
 
 use App\Core\Transaction;
 use App\Services\Logger\ActionLogger;
 
-
-
-
-
 class CityRepository extends BaseRepository
 {
     protected string $Tablo = 'tnm_sehir';
-
-    
-
 
     public function tumAktifler(): array
     {
@@ -28,9 +25,6 @@ class CityRepository extends BaseRepository
         return $Sonuclar;
     }
 
-    
-
-
     public function bul(int $Id): ?array
     {
         $Sql = "SELECT Id, Guid, PlakaKodu, Ad, Bolge, EklemeZamani, DegisiklikZamani
@@ -41,9 +35,6 @@ class CityRepository extends BaseRepository
         $Sonuc = $Stmt->fetch();
         return $Sonuc ?: null;
     }
-
-    
-
 
     public function ekle(array $Veri, ?int $KullaniciId = null): int
     {
@@ -66,9 +57,6 @@ class CityRepository extends BaseRepository
         });
     }
 
-    
-
-
     public function guncelle(int $Id, array $Veri, ?int $KullaniciId = null, array $EkKosul = []): void
     {
         Transaction::wrap(function () use ($Id, $Veri, $KullaniciId) {
@@ -88,9 +76,6 @@ class CityRepository extends BaseRepository
         });
     }
 
-    
-
-
     public function softSil(int $Id, ?int $KullaniciId = null, array $EkKosul = []): void
     {
         Transaction::wrap(function () use ($Id, $KullaniciId) {
@@ -100,9 +85,6 @@ class CityRepository extends BaseRepository
             ActionLogger::delete($this->Tablo, ['Id' => $Id]);
         });
     }
-
-    
-
 
     public function adIleBul(string $Ad): ?array
     {

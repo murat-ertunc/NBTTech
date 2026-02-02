@@ -5,10 +5,6 @@ namespace App\Core;
 class Router
 {
     private array $Rotalar = [];
-    
-    
-
-
 
     private bool $DebugMode = false;
 
@@ -16,38 +12,31 @@ class Router
     {
         $this->Rotalar[] = [
             'Metod' => strtoupper($Metod),
-            'Desen' => $Desen,                    
-            'DesenDerli' => $this->derle($Desen), 
+            'Desen' => $Desen,
+            'DesenDerli' => $this->derle($Desen),
             'Isleyici' => $Isleyici,
         ];
     }
 
     public function dispatch(string $Metod, string $Yol): void
     {
-        
+
         $GercekMetod = strtoupper($Metod);
-        
+
         if ($this->DebugMode) {
             error_log("[ROUTER-DEBUG] dispatch: Metod={$GercekMetod} Yol={$Yol}");
             error_log("[ROUTER-DEBUG] Toplam rota sayisi: " . count($this->Rotalar));
         }
-        
-        
-        
-        
-        
-        
-        
+
         foreach ($this->Rotalar as $Index => $Rota) {
             if ($Rota['Metod'] !== $GercekMetod) {
                 continue;
             }
-            
-            
+
             if (strpos($Rota['Desen'], '{') !== false) {
                 continue;
             }
-            
+
             if (preg_match($Rota['DesenDerli'], $Yol, $Eslesmeler)) {
                 if ($this->DebugMode) {
                     error_log("[ROUTER-DEBUG] ESLESME (STATIK): Index={$Index} Desen={$Rota['Desen']} DesenDerli={$Rota['DesenDerli']}");
@@ -57,18 +46,16 @@ class Router
                 return;
             }
         }
-        
-        
+
         foreach ($this->Rotalar as $Index => $Rota) {
             if ($Rota['Metod'] !== $GercekMetod) {
                 continue;
             }
-            
-            
+
             if (strpos($Rota['Desen'], '{') === false) {
                 continue;
             }
-            
+
             if (preg_match($Rota['DesenDerli'], $Yol, $Eslesmeler)) {
                 if ($this->DebugMode) {
                     error_log("[ROUTER-DEBUG] ESLESME (PARAMETRELI): Index={$Index} Desen={$Rota['Desen']} DesenDerli={$Rota['DesenDerli']}");
@@ -79,12 +66,11 @@ class Router
                 return;
             }
         }
-        
+
         if ($this->DebugMode) {
             error_log("[ROUTER-DEBUG] HIC ESLESME YOK: Yol={$Yol}");
         }
 
-        
         if (strpos($Yol, '/api/') === 0) {
             Response::json(['error' => 'Not Found'], 404);
         } else {
@@ -93,29 +79,17 @@ class Router
         }
     }
 
-    
-
-
-
-
-
-
-
-
     private function derle(string $Desen): string
     {
         $Kacisli = preg_replace('#\/#', '\\/', $Desen);
-        
-        
-        
-        
+
         $ParametreliDesen = preg_replace_callback(
             '#\{([a-zA-Z0-9_]+)\}#',
             function ($Match) {
                 $ParamAdi = $Match[1];
-                
-                if ($ParamAdi === 'id' || 
-                    substr($ParamAdi, -2) === 'Id' || 
+
+                if ($ParamAdi === 'id' ||
+                    substr($ParamAdi, -2) === 'Id' ||
                     substr($ParamAdi, -3) === '_id') {
                     return '(?P<' . $ParamAdi . '>[0-9]+)';
                 }
@@ -123,25 +97,14 @@ class Router
             },
             $Kacisli
         );
-        
+
         return '#^' . $ParametreliDesen . '$#';
     }
-    
-    
-
-
-
-
 
     public function setDebugMode(bool $Enable): void
     {
         $this->DebugMode = $Enable;
     }
-    
-    
-
-
-
 
     public function getRoutes(): array
     {

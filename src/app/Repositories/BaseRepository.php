@@ -1,4 +1,8 @@
 <?php
+/**
+ * Base Repository için veri erişim işlemlerini yürütür.
+ * Sorgu ve kalıcılık katmanını soyutlar.
+ */
 
 namespace App\Repositories;
 
@@ -24,10 +28,6 @@ class BaseRepository
         return null;
     }
 
-    
-
-
-
     protected function paginatedQuery(string $BaseSql, array $Parametreler = [], int $Sayfa = 1, int $Limit = 10): array
     {
         $SayimBaseSql = preg_replace('/\s+ORDER\s+BY\s+[\w\s,\.]+(?:ASC|DESC)?(?:\s*,\s*[\w\.]+\s*(?:ASC|DESC)?)*\s*$/is', '', $BaseSql);
@@ -35,17 +35,17 @@ class BaseRepository
         $SayimStmt = $this->Db->prepare($SayimSql);
         $SayimStmt->execute($Parametreler);
         $Toplam = (int) $SayimStmt->fetch()['Total'];
-        
+
         $ToplamSayfa = $Limit > 0 ? (int) ceil($Toplam / $Limit) : 1;
         $Sayfa = max(1, min($Sayfa, $ToplamSayfa > 0 ? $ToplamSayfa : 1));
         $Offset = ($Sayfa - 1) * $Limit;
-        
+
         $SayfaliBirSql = $BaseSql . " OFFSET {$Offset} ROWS FETCH NEXT {$Limit} ROWS ONLY";
-        
+
         $Stmt = $this->Db->prepare($SayfaliBirSql);
         $Stmt->execute($Parametreler);
         $Veri = $Stmt->fetchAll();
-        
+
         return [
             'data' => $Veri,
             'pagination' => [
@@ -76,10 +76,6 @@ class BaseRepository
         return $Sonuc ?: null;
     }
 
-    
-
-
-
     public function bulTemel(int $Id): ?array
     {
         $Sql = "SELECT * FROM {$this->Tablo} WHERE Id = :Id AND Sil = 0";
@@ -90,7 +86,7 @@ class BaseRepository
 
     public function yedekle(int $Id, string $YedekTablo, ?int $KullaniciId = null): void
     {
-        
+
         $Kayit = $this->bulTemel($Id);
         if (!$Kayit) {
             return;
@@ -157,8 +153,7 @@ class BaseRepository
             try {
                 $this->yedekle($Id, $BckTablo, $KullaniciId);
             } catch (\Throwable $Ignored) {
-                
-                
+
             }
 
             $Stmt = $this->Db->prepare($Sql);

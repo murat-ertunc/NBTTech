@@ -1,13 +1,5 @@
 <?php
 
-
-
-
-
-
-
-
-
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
 use App\Core\Database;
@@ -19,10 +11,6 @@ echo "║     KAPSAMLI PERMISSION DOĞRULAMA RAPORU                         ║\
 echo "╠══════════════════════════════════════════════════════════════════╣\n";
 echo "║ Tarih: " . date('Y-m-d H:i:s') . "                                   ║\n";
 echo "╚══════════════════════════════════════════════════════════════════╝\n\n";
-
-
-
-
 
 $ModulTanimlari = [
     'users' => ['create', 'read', 'read_all', 'update', 'delete'],
@@ -63,10 +51,6 @@ foreach ($ModulTanimlari as $Modul => $Aksiyonlar) {
     echo "   - {$Modul}: " . implode(', ', $Aksiyonlar) . "\n";
 }
 
-
-
-
-
 echo "\n═══════════════════════════════════════════════════════════════════\n";
 echo "2. DATABASE MEVCUT PERMISSIONS\n";
 echo "═══════════════════════════════════════════════════════════════════\n";
@@ -75,7 +59,6 @@ $Stmt = $Db->query("SELECT Id, PermissionKodu, ModulAdi, Aksiyon, Aktif FROM tnm
 $DbPermissions = $Stmt->fetchAll(\PDO::FETCH_ASSOC);
 
 echo "   DB'de Toplam Permission: " . count($DbPermissions) . "\n\n";
-
 
 $DbModulGrup = [];
 foreach ($DbPermissions as $P) {
@@ -87,19 +70,13 @@ foreach ($DbModulGrup as $Modul => $Aksiyonlar) {
     echo "   - {$Modul}: " . implode(', ', $Aksiyonlar) . "\n";
 }
 
-
-
-
-
 echo "\n═══════════════════════════════════════════════════════════════════\n";
 echo "3. KARŞILAŞTIRMA: EXPECTED vs DATABASE\n";
 echo "═══════════════════════════════════════════════════════════════════\n";
 
 $DbKodlar = array_column($DbPermissions, 'PermissionKodu');
 
-
 $EksikDbde = array_diff($ExpectedPermissions, $DbKodlar);
-
 
 $FazlaDbde = array_diff($DbKodlar, $ExpectedPermissions);
 
@@ -121,14 +98,9 @@ if (empty($FazlaDbde)) {
     }
 }
 
-
-
-
-
 echo "\n═══════════════════════════════════════════════════════════════════\n";
 echo "4. SUPERADMIN PERMISSION DURUMU\n";
 echo "═══════════════════════════════════════════════════════════════════\n";
-
 
 $Stmt = $Db->query("SELECT Id FROM tnm_rol WHERE RolKodu = 'superadmin' AND Sil = 0");
 $SuperadminRol = $Stmt->fetch();
@@ -141,9 +113,8 @@ if (!$SuperadminRol) {
 $SuperadminRolId = $SuperadminRol['Id'];
 echo "   Superadmin Rol ID: {$SuperadminRolId}\n";
 
-
 $Stmt = $Db->prepare("
-    SELECT p.PermissionKodu 
+    SELECT p.PermissionKodu
     FROM tnm_rol_permission rp
     INNER JOIN tnm_permission p ON rp.PermissionId = p.Id
     WHERE rp.RolId = :RolId AND rp.Sil = 0 AND p.Sil = 0 AND p.Aktif = 1
@@ -153,7 +124,6 @@ $SuperadminPerms = $Stmt->fetchAll(\PDO::FETCH_COLUMN);
 
 echo "   Superadmin Permission Sayısı: " . count($SuperadminPerms) . "\n";
 echo "   DB Toplam Permission Sayısı: " . count($DbPermissions) . "\n";
-
 
 $SuperadminEksik = array_diff($DbKodlar, $SuperadminPerms);
 
@@ -165,10 +135,6 @@ if (empty($SuperadminEksik)) {
         echo "      - {$Eksik}\n";
     }
 }
-
-
-
-
 
 echo "\n═══════════════════════════════════════════════════════════════════\n";
 echo "5. CUSTOMER-DETAIL TAB PERMISSIONS KONTROLÜ\n";
@@ -207,10 +173,6 @@ if (empty($TabHatalar)) {
         echo "      ✗ {$Tab} → {$Perm} (DB'de yok!)\n";
     }
 }
-
-
-
-
 
 echo "\n╔══════════════════════════════════════════════════════════════════╗\n";
 echo "║                        ÖZET RAPOR                                ║\n";

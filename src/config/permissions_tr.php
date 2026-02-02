@@ -1,16 +1,7 @@
 <?php
 
-
-
-
-
-
-
-
 return [
-    
-    
-    
+
     'moduller' => [
         'users' => 'Kullanıcılar',
         'roles' => 'Roller',
@@ -31,10 +22,7 @@ return [
         'dashboard' => 'Ana Sayfa',
         'alarms' => 'Hatırlatmalar',
     ],
-    
-    
-    
-    
+
     'aksiyonlar' => [
         'create' => 'Oluşturma',
         'read' => 'Görüntüleme',
@@ -45,113 +33,93 @@ return [
         'import' => 'İçe Aktarma',
         'assign' => 'Atama',
     ],
-    
-    
-    
-    
+
     'permissionlar' => [
-        
+
         'users.create' => 'Kullanıcı Oluşturma',
         'users.read' => 'Kullanıcı Görüntüleme',
         'users.read_all' => 'Tüm Kullanıcıları Görüntüleme',
         'users.update' => 'Kullanıcı Düzenleme',
         'users.delete' => 'Kullanıcı Silme',
-        
-        
+
         'roles.create' => 'Rol Oluşturma',
         'roles.read' => 'Rol Görüntüleme',
         'roles.update' => 'Rol Düzenleme',
         'roles.delete' => 'Rol Silme',
-        
-        
+
         'customers.create' => 'Müşteri Oluşturma',
         'customers.read' => 'Müşteri Görüntüleme',
         'customers.read_all' => 'Tüm Müşterileri Görüntüleme',
         'customers.update' => 'Müşteri Düzenleme',
         'customers.delete' => 'Müşteri Silme',
-        
-        
+
         'invoices.create' => 'Fatura Oluşturma',
         'invoices.read' => 'Fatura Görüntüleme',
         'invoices.read_all' => 'Tüm Faturaları Görüntüleme',
         'invoices.update' => 'Fatura Düzenleme',
         'invoices.delete' => 'Fatura Silme',
-        
-        
+
         'payments.create' => 'Ödeme Oluşturma',
         'payments.read' => 'Ödeme Görüntüleme',
         'payments.read_all' => 'Tüm Ödemeleri Görüntüleme',
         'payments.update' => 'Ödeme Düzenleme',
         'payments.delete' => 'Ödeme Silme',
-        
-        
+
         'projects.create' => 'Proje Oluşturma',
         'projects.read' => 'Proje Görüntüleme',
         'projects.read_all' => 'Tüm Projeleri Görüntüleme',
         'projects.update' => 'Proje Düzenleme',
         'projects.delete' => 'Proje Silme',
-        
-        
+
         'offers.create' => 'Teklif Oluşturma',
         'offers.read' => 'Teklif Görüntüleme',
         'offers.update' => 'Teklif Düzenleme',
         'offers.delete' => 'Teklif Silme',
-        
-        
+
         'contracts.create' => 'Sözleşme Oluşturma',
         'contracts.read' => 'Sözleşme Görüntüleme',
         'contracts.update' => 'Sözleşme Düzenleme',
         'contracts.delete' => 'Sözleşme Silme',
-        
-        
+
         'guarantees.create' => 'Teminat Oluşturma',
         'guarantees.read' => 'Teminat Görüntüleme',
         'guarantees.update' => 'Teminat Düzenleme',
         'guarantees.delete' => 'Teminat Silme',
-        
-        
+
         'meetings.create' => 'Görüşme Oluşturma',
         'meetings.read' => 'Görüşme Görüntüleme',
         'meetings.update' => 'Görüşme Düzenleme',
         'meetings.delete' => 'Görüşme Silme',
-        
-        
+
         'contacts.create' => 'Kişi Oluşturma',
         'contacts.read' => 'Kişi Görüntüleme',
         'contacts.update' => 'Kişi Düzenleme',
         'contacts.delete' => 'Kişi Silme',
-        
-        
+
         'calendar.create' => 'Etkinlik Oluşturma',
         'calendar.read' => 'Takvim Görüntüleme',
         'calendar.update' => 'Etkinlik Düzenleme',
         'calendar.delete' => 'Etkinlik Silme',
-        
-        
+
         'files.create' => 'Dosya Yükleme',
         'files.read' => 'Dosya Görüntüleme',
         'files.update' => 'Dosya Düzenleme',
         'files.delete' => 'Dosya Silme',
-        
-        
+
         'stamp_taxes.create' => 'Damga Vergisi Oluşturma',
         'stamp_taxes.read' => 'Damga Vergisi Görüntüleme',
         'stamp_taxes.update' => 'Damga Vergisi Düzenleme',
         'stamp_taxes.delete' => 'Damga Vergisi Silme',
-        
-        
+
         'parameters.create' => 'Parametre Oluşturma',
         'parameters.read' => 'Parametre Görüntüleme',
         'parameters.update' => 'Parametre Düzenleme',
         'parameters.delete' => 'Parametre Silme',
-        
-        
+
         'logs.read' => 'Log Görüntüleme',
-        
-        
+
         'dashboard.read' => 'Ana Sayfa Görüntüleme',
-        
-        
+
         'alarms.read' => 'Hatırlatma Görüntüleme',
     ],
 ];

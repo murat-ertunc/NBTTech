@@ -54,9 +54,9 @@ END
 IF OBJECT_ID('tnm_rol_permission', 'U') IS NOT NULL
 BEGIN
     -- Mevcut base rol atamalari temizle (sadece superadmin, admin, editor, viewer)
-    DELETE FROM tnm_rol_permission 
+    DELETE FROM tnm_rol_permission
     WHERE RolId IN (
-        SELECT Id FROM tnm_rol 
+        SELECT Id FROM tnm_rol
         WHERE RolKodu IN ('superadmin', 'admin', 'editor', 'viewer') AND Sil = 0
     );
 END
@@ -140,10 +140,10 @@ BEGIN
     FROM tnm_user u
     WHERE u.Rol = 'superadmin' AND u.Sil = 0
       AND NOT EXISTS (
-          SELECT 1 FROM tnm_user_rol ur 
+          SELECT 1 FROM tnm_user_rol ur
           WHERE ur.UserId = u.Id AND ur.RolId = @SuperAdminRolId AND ur.Sil = 0
       );
-    
+
     PRINT 'Mevcut superadmin kullanicilarina rol atandi.';
 END
 GO

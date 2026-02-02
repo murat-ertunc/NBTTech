@@ -15,7 +15,7 @@ BEGIN
         DegisiklikZamani    DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId    INT NULL,
         Sil                 BIT NOT NULL DEFAULT 0,
-        
+
         -- Permission Bilgileri
         PermissionKodu      NVARCHAR(100) NOT NULL,      -- users.create, invoices.read
         ModulAdi            NVARCHAR(50) NOT NULL,       -- users, invoices, logs
@@ -23,12 +23,12 @@ BEGIN
         Aciklama            NVARCHAR(250) NULL,
         Aktif               BIT NOT NULL DEFAULT 1
     );
-    
+
     -- Indexler
     CREATE UNIQUE NONCLUSTERED INDEX IX_tnm_permission_Kodu ON tnm_permission(PermissionKodu) WHERE Sil = 0;
     CREATE NONCLUSTERED INDEX IX_tnm_permission_Modul ON tnm_permission(ModulAdi) WHERE Sil = 0;
     CREATE NONCLUSTERED INDEX IX_tnm_permission_Sil ON tnm_permission(Sil);
-    
+
     PRINT 'tnm_permission tablosu olusturuldu.';
 END
 ELSE

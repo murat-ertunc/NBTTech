@@ -1,4 +1,8 @@
 <?php
+/**
+ * Logger Factory iş kurallarını uygular.
+ * Servis seviyesinde işlem akışlarını sağlar.
+ */
 
 namespace App\Services\Logger;
 
