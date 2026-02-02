@@ -492,7 +492,7 @@ const NbtParams = {
         if (status) {
             return `<span class="badge bg-${status.Deger}">${NbtUtils.escapeHtml(status.Etiket)}</span>`;
         }
-        return `<span class="badge bg-secondary">${kod}</span>`;
+        return '<span class="badge bg-secondary">Bilinmiyor</span>';
     },
 
     /**
@@ -587,7 +587,8 @@ const NbtParams = {
                 this.getStatuses('proje'),
                 this.getStatuses('teklif'),
                 this.getStatuses('sozlesme'),
-                this.getStatuses('teminat')
+                this.getStatuses('teminat'),
+                this.getStatuses('takvim')
             ]);
             NbtLogger.log('Parametreler onyuklendi');
         } catch (err) {
@@ -1565,7 +1566,8 @@ const NbtDetailModal = {
             project: 'proje',
             offer: 'teklif',
             contract: 'sozlesme',
-            guarantee: 'teminat'
+            guarantee: 'teminat',
+            calendar: 'takvim'
         };
         if (statusEntityMap[entityType]) {
             await NbtParams.getStatuses(statusEntityMap[entityType]);
@@ -1636,6 +1638,43 @@ const NbtDetailModal = {
         const bodyEl = document.getElementById('entityDetailModalBody');
         if (bodyEl) {
             bodyEl.innerHTML = this._buildContent(entityType, data);
+
+            bodyEl.querySelectorAll('[data-download-url]').forEach(el => {
+                el.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const url = el.dataset.downloadUrl;
+                    const filename = el.dataset.downloadName || 'dosya';
+                    if (!url) return;
+                    try {
+                        NbtToast.info('Dosya hazırlanıyor...');
+                        const response = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': 'Bearer ' + NbtUtils.getToken(),
+                                'X-Tab-Id': NbtUtils.getTabId()
+                            }
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.error || 'Dosya indirilemedi');
+                        }
+
+                        const blob = await response.blob();
+                        const objectUrl = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = objectUrl;
+                        link.download = filename;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(objectUrl);
+                    } catch (err) {
+                        NbtToast.error(err.message || 'Dosya indirilemedi');
+                        NbtLogger.error('Detay indir hata:', err);
+                    }
+                });
+            });
         }
 
         const editBtn = document.getElementById('btnEntityDetailEdit');
@@ -1710,24 +1749,34 @@ const NbtDetailModal = {
                 { label: 'Tarih', field: 'Tarih', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'DovizCinsi' },
                 { label: 'Döviz', field: 'DovizCinsi' },
-                { label: 'Şüpheli Alacak', field: 'SupheliAlacak', render: (v) => v ? '<span class="badge bg-warning">Evet</span>' : '<span class="badge bg-secondary">Hayır</span>' },
+                { label: 'Şüpheli Alacak', field: 'SupheliAlacak', render: (v) => v === '1' ? '<span class="badge bg-warning">Evet</span>' : '<span class="badge bg-secondary">Hayır</span>' },
                 { label: 'Tevkifat', field: 'TevkifatAktif', render: (v, d) => {
                     if (!v) return '<span class="badge bg-secondary">Yok</span>';
                     return `<span class="badge bg-info">Oran1: %${d.TevkifatOran1 || 0}, Oran2: %${d.TevkifatOran2 || 0}</span>`;
                 }},
-                { label: 'Açıklama', field: 'Aciklama' }
             ],
             payment: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Tarih', field: 'Tarih', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money' },
-                { label: 'Fatura', field: 'FaturaId', render: (v) => v ? `FT${v}` : 'Bağımsız' },
-                { label: 'Açıklama', field: 'Aciklama' }
+                { label: 'Fatura', field: 'FaturaNo', render: (v, d) => {
+                    if (v) return v;
+                    if (d?.FaturaNumarasi) return d.FaturaNumarasi;
+                    if (d?.FaturaId) return `FT${d.FaturaId}`;
+                    return 'Bağımsız';
+                }},
+                { label: 'Ödeme Türü', field: 'OdemeTuru' },
+                { label: 'Banka/Hesap', field: 'BankaHesap' },
+                { label: 'Notlar', field: 'Notlar' },
+                { label: 'Ödeme Dosyası', field: 'DosyaAdi', render: (v, d) => {
+                    if (!d.DosyaYolu) return '<span class="text-muted">-</span>';
+                    const name = NbtUtils.escapeHtml(v || 'odeme');
+                    return `<a href="#" class="u-break-anywhere" data-download-url="/api/payments/${d.Id}/download" data-download-name="${name}"><i class="bi bi-download me-1"></i>${name}</a>`;
+                }}
             ],
             project: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Proje Adı', field: 'ProjeAdi' },
-                { label: 'Bütçe', field: 'Butce', format: 'money' },
                 { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'proje' }
             ],
             offer: [
@@ -1736,29 +1785,45 @@ const NbtDetailModal = {
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
                 { label: 'Teklif Tarihi', field: 'TeklifTarihi', format: 'date' },
                 { label: 'Geçerlilik Tarihi', field: 'GecerlilikTarihi', format: 'date' },
-                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'teklif' }
+                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'teklif' },
+                { label: 'Teklif Dosyası', field: 'DosyaAdi', render: (v, d) => {
+                    if (!d.DosyaYolu) return '<span class="text-muted">-</span>';
+                    const name = NbtUtils.escapeHtml(v || 'teklif');
+                    return `<a href="#" class="u-break-anywhere" data-download-url="/api/offers/${d.Id}/download" data-download-name="${name}"><i class="bi bi-download me-1"></i>${name}</a>`;
+                }}
             ],
             contract: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
-                { label: 'Sözleşme No', field: 'SozlesmeNo' },
                 { label: 'Sözleşme Tarihi', field: 'SozlesmeTarihi', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
-                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'sozlesme' }
+                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'sozlesme' },
+                { label: 'Sözleşme Dosyası', field: 'DosyaAdi', render: (v, d) => {
+                    if (!d.DosyaYolu) return '<span class="text-muted">-</span>';
+                    const name = NbtUtils.escapeHtml(v || 'sozlesme');
+                    return `<a href="#" class="u-break-anywhere" data-download-url="/api/contracts/${d.Id}/download" data-download-name="${name}"><i class="bi bi-download me-1"></i>${name}</a>`;
+                }}
             ],
             guarantee: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
-                { label: 'Belge No', field: 'BelgeNo' },
                 { label: 'Tür', field: 'Tur' },
                 { label: 'Banka', field: 'BankaAdi' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'ParaBirimi' },
                 { label: 'Termin Tarihi', field: 'TerminTarihi', format: 'date' },
-                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'teminat' }
+                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'teminat' },
+                { label: 'Notlar', field: 'Notlar' },
+                { label: 'Teminat Dosyası', field: 'DosyaAdi', render: (v, d) => {
+                    if (!d.DosyaYolu) return '<span class="text-muted">-</span>';
+                    const name = NbtUtils.escapeHtml(v || 'teminat');
+                    return `<a href="#" class="u-break-anywhere" data-download-url="/api/guarantees/${d.Id}/download" data-download-name="${name}"><i class="bi bi-download me-1"></i>${name}</a>`;
+                }}
             ],
             meeting: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Tarih', field: 'Tarih', format: 'date' },
                 { label: 'Konu', field: 'Konu' },
-                { label: 'Kişi', field: 'Kisi' },
+                { label: 'Görüşülen Kişi', field: 'Kisi' },
+                { label: 'E-posta', field: 'Eposta' },
+                { label: 'Telefon', field: 'Telefon' },
                 { label: 'Notlar', field: 'Notlar' }
             ],
             contact: [
@@ -1766,6 +1831,7 @@ const NbtDetailModal = {
                 { label: 'Ad Soyad', field: 'AdSoyad' },
                 { label: 'Unvan', field: 'Unvan' },
                 { label: 'Telefon', field: 'Telefon' },
+                { label: 'Dahili No', field: 'DahiliNo' },
                 { label: 'E-posta', field: 'Email' },
                 { label: 'Notlar', field: 'Notlar' }
             ],
@@ -1773,8 +1839,13 @@ const NbtDetailModal = {
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Tarih', field: 'Tarih', format: 'date' },
                 { label: 'Tutar', field: 'Tutar', format: 'money', currencyField: 'DovizCinsi' },
-                { label: 'Belge No', field: 'BelgeNo' },
-                { label: 'Açıklama', field: 'Aciklama' }
+                { label: 'Notlar', field: 'Notlar' },
+                { label: 'Ödeme Durumu', field: 'OdemeDurumu' },
+                { label: 'Damga Vergisi Dosyası', field: 'DosyaAdi', render: (v, d) => {
+                    if (!d.DosyaYolu) return '<span class="text-muted">-</span>';
+                    const name = NbtUtils.escapeHtml(v || 'damga-vergisi');
+                    return `<a href="#" class="u-break-anywhere" data-download-url="/api/stamp-taxes/${d.Id}/download" data-download-name="${name}"><i class="bi bi-download me-1"></i>${name}</a>`;
+                }}
             ],
             file: [
                 { label: 'Müşteri', field: 'MusteriUnvan' },
@@ -1786,7 +1857,8 @@ const NbtDetailModal = {
                 { label: 'Müşteri', field: 'MusteriUnvan' },
                 { label: 'Proje', field: 'ProjeAdi' },
                 { label: 'Özet', field: 'Ozet' },
-                { label: 'Termin Tarihi', field: 'TerminTarihi', format: 'date' }
+                { label: 'Termin Tarihi', field: 'TerminTarihi', format: 'date' },
+                { label: 'Durum', field: 'Durum', format: 'status', statusEntity: 'takvim' }
             ]
         };
 
@@ -1804,7 +1876,6 @@ const NbtDetailModal = {
                 const currency = item.currencyField ? data[item.currencyField] : 'TRY';
                 value = formatters.money(value, currency);
             } else if (item.format === 'status' && item.statusEntity) {
-                // Dinamik durum parametrelerinden badge al
                 value = NbtParams.getStatusBadge(item.statusEntity, value);
             }
             
@@ -1814,7 +1885,7 @@ const NbtDetailModal = {
                 <div class="col-md-6">
                     <div class="border rounded p-2 h-100">
                         <small class="text-muted d-block">${item.label}</small>
-                        <div class="fw-medium">${value}</div>
+                        <div class="fw-medium u-break-anywhere">${value}</div>
                     </div>
                 </div>
             `;
@@ -1843,7 +1914,7 @@ const NbtDetailModal = {
                                     <tr>
                                         <td>${i + 1}</td>
                                         <td>${k.Miktar || 0}</td>
-                                        <td>${NbtUtils.escapeHtml(k.Aciklama || '-')}</td>
+                                        <td class="u-break-anywhere">${NbtUtils.escapeHtml(k.Aciklama || '-')}</td>
                                         <td>%${k.KdvOran || 0}</td>
                                         <td>${NbtUtils.formatMoney(k.BirimFiyat || 0)}</td>
                                         <td>${NbtUtils.formatMoney(k.Tutar || 0)}</td>
@@ -1874,7 +1945,7 @@ const NbtDetailModal = {
                             <tbody>
                                 ${data.Dosyalar.map((d) => `
                                     <tr>
-                                        <td>${NbtUtils.escapeHtml(d.DosyaAdi || '-')}</td>
+                                        <td class="u-break-anywhere">${NbtUtils.escapeHtml(d.DosyaAdi || '-')}</td>
                                         <td>${d.DosyaBoyutu ? (d.DosyaBoyutu / 1024).toFixed(1) + ' KB' : '-'}</td>
                                         <td>${NbtUtils.formatDate(d.OlusturmaZamani)}</td>
                                         <td>

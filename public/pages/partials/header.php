@@ -257,7 +257,7 @@ $canAll = function(array $permissions) use ($PermissionSet): bool {
                 style="width:28px;height:28px;font-size:14px;">
                 <i class="bi bi-person-fill"></i>
               </div>
-              <span id="userNameDisplay">Kullanıcı</span>
+              <span id="userNameDisplay"></span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg mt-2"
               style="border-radius:10px;min-width:200px;">

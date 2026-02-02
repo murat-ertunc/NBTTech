@@ -86,6 +86,12 @@ require __DIR__ . '/partials/header.php';
             <span class="badge bg-danger ms-1" id="paramCountDurumTeminat">0</span>
           </button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-param-tab="durum_takvim" type="button">
+            <i class="bi bi-calendar3 me-1"></i>Takvim Durumları
+            <span class="badge bg-success ms-1" id="paramCountDurumTakvim">0</span>
+          </button>
+        </li>
       </ul>
 
       <!-- Tab İçerikleri -->

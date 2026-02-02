@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Core\Transaction;
+use App\Services\CalendarService;
 
 class InvoiceRepository extends BaseRepository
 {
@@ -264,6 +265,7 @@ class InvoiceRepository extends BaseRepository
      */
     private function ekleTakvimKaydi(int $MusteriId, ?int $ProjeId, string $TerminTarihi, string $Ozet, int $KullaniciId): void
     {
+        $VarsayilanDurum = CalendarService::getDefaultTakvimDurum();
         // Guid olustur
         $Guid = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
             mt_rand(0, 0xffff), mt_rand(0, 0xffff),
@@ -273,8 +275,8 @@ class InvoiceRepository extends BaseRepository
             mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
         );
         
-        $Sql = "INSERT INTO tbl_takvim (Guid, MusteriId, ProjeId, TerminTarihi, Ozet, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil)
-            VALUES (:Guid, :MusteriId, :ProjeId, :TerminTarihi, :Ozet, GETDATE(), :UserId, GETDATE(), :UserId2, 0)";
+        $Sql = "INSERT INTO tbl_takvim (Guid, MusteriId, ProjeId, TerminTarihi, Ozet, Durum, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil)
+            VALUES (:Guid, :MusteriId, :ProjeId, :TerminTarihi, :Ozet, :Durum, GETDATE(), :UserId, GETDATE(), :UserId2, 0)";
         $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute([
             'Guid' => $Guid,
@@ -282,6 +284,7 @@ class InvoiceRepository extends BaseRepository
             'ProjeId' => $ProjeId,
             'TerminTarihi' => $TerminTarihi,
             'Ozet' => $Ozet,
+            'Durum' => $VarsayilanDurum,
             'UserId' => $KullaniciId,
             'UserId2' => $KullaniciId
         ]);

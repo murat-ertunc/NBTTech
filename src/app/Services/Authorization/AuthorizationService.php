@@ -370,6 +370,48 @@ class AuthorizationService
         $KullaniciPermissionlari = $this->kullaniciPermissionlariGetir($AtayanUserId);
         return empty(array_diff($RolPermissionlari, $KullaniciPermissionlari));
     }
+
+    /**
+     * Bir kullanicinin belirtilen rolu duzenleyip duzenleyemeyecegini kontrol eder
+     * Kural: Rolun permission seti, kullanicinin permission setinin alt kumesi olmalidir
+     *
+     * @param int $UserId
+     * @param int $RolId
+     * @return bool
+     */
+    public function rolDuzenleyebilirMi(int $UserId, int $RolId): bool
+    {
+        return $this->rolAtayabilirMi($UserId, $RolId);
+    }
+
+    /**
+     * Bir kullanicinin baska bir kullanicinin rol setini duzenleyip duzenleyemeyecegini kontrol eder
+     * Kural: Hedef kullanicinin tum rolleri, duzenleyen kullanicinin permission setinin alt kumesi olmali
+     *
+     * @param int $DuzenleyenUserId
+     * @param int $HedefUserId
+     * @return bool
+     */
+    public function kullaniciRolleriniDuzenleyebilirMi(int $DuzenleyenUserId, int $HedefUserId): bool
+    {
+        if ($this->kullaniciSuperadminMi($DuzenleyenUserId)) {
+            return true;
+        }
+
+        $HedefRoller = $this->kullaniciRolleriGetir($HedefUserId);
+        if (empty($HedefRoller)) {
+            return true;
+        }
+
+        foreach ($HedefRoller as $Rol) {
+            $RolId = (int) ($Rol['Id'] ?? 0);
+            if ($RolId > 0 && !$this->rolAtayabilirMi($DuzenleyenUserId, $RolId)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
     
     /**
      * Bir kullanicinin bir role permission ekleyip ekleyemeyecegini kontrol eder

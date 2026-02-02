@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
+use App\Core\UploadValidator;
+use App\Core\DownloadHelper;
 use App\Repositories\PaymentRepository;
 use App\Services\Logger\ActionLogger;
 use App\Services\CalendarService;
@@ -74,7 +76,12 @@ class PaymentController
 
     public static function store(): void
     {
-        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($IcerikTipi, 'application/json') !== false) {
+            $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } else {
+            $Girdi = $_POST;
+        }
         $Zorunlu = ['MusteriId', 'ProjeId', 'FaturaId', 'Tarih', 'Tutar'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan])) {
@@ -89,6 +96,9 @@ class PaymentController
         $Tutar = (float)$Girdi['Tutar'];
         $Tarih = trim((string)$Girdi['Tarih']); 
         $Aciklama = isset($Girdi['Aciklama']) ? trim((string)$Girdi['Aciklama']) : null;
+        $OdemeTuru = isset($Girdi['OdemeTuru']) ? trim((string)$Girdi['OdemeTuru']) : null;
+        $BankaHesap = isset($Girdi['BankaHesap']) ? trim((string)$Girdi['BankaHesap']) : null;
+        $Notlar = isset($Girdi['Notlar']) ? trim((string)$Girdi['Notlar']) : null;
 
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -96,15 +106,46 @@ class PaymentController
             return;
         }
 
+        // Dosya yukleme islemi (opsiyonel)
+        $DosyaAdi = null;
+        $DosyaYolu = null;
+        if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $Hata = UploadValidator::validateDocument($_FILES['dosya'], 10 * 1024 * 1024);
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
+                return;
+            }
+
+            $YuklemeKlasoru = STORAGE_PATH . 'uploads' . DIRECTORY_SEPARATOR;
+            if (!is_dir($YuklemeKlasoru)) {
+                mkdir($YuklemeKlasoru, 0755, true);
+            }
+
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $HedefYol = $YuklemeKlasoru . $GuvenliAd;
+
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
+                $DosyaAdi = $OrijinalAd;
+                $DosyaYolu = 'storage/uploads/' . $GuvenliAd;
+            }
+        }
+
         $Repo = new PaymentRepository();
-        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $FaturaId, $Tarih, $Tutar, $Aciklama, $KullaniciId) {
+        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $FaturaId, $Tarih, $Tutar, $Aciklama, $OdemeTuru, $BankaHesap, $Notlar, $DosyaAdi, $DosyaYolu, $KullaniciId) {
             return $Repo->ekle([
                 'MusteriId' => $MusteriId,
                 'ProjeId' => $ProjeId,
                 'FaturaId' => $FaturaId,
                 'Tarih' => $Tarih,
                 'Tutar' => $Tutar,
-                'Aciklama' => $Aciklama
+                'Aciklama' => $Aciklama,
+                'OdemeTuru' => $OdemeTuru,
+                'BankaHesap' => $BankaHesap,
+                'Notlar' => $Notlar,
+                'DosyaAdi' => $DosyaAdi,
+                'DosyaYolu' => $DosyaYolu
             ], $KullaniciId);
         });
 
@@ -132,7 +173,16 @@ class PaymentController
             return;
         }
 
-        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($IcerikTipi, 'application/json') !== false) {
+            $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } elseif (strpos($IcerikTipi, 'multipart/form-data') !== false) {
+            $Girdi = $_POST;
+        } elseif (strpos($IcerikTipi, 'application/x-www-form-urlencoded') !== false) {
+            parse_str(file_get_contents('php://input'), $Girdi);
+        } else {
+            $Girdi = $_POST;
+        }
         $Repo = new PaymentRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -146,13 +196,62 @@ class PaymentController
             return;
         }
 
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
+        $DosyaGuncellemesi = [];
+        if (!empty($Girdi['removeFile'])) {
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
+                $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
+                if (file_exists($EskiDosyaYolu)) {
+                    unlink($EskiDosyaYolu);
+                }
+            }
+            $DosyaGuncellemesi['DosyaAdi'] = null;
+            $DosyaGuncellemesi['DosyaYolu'] = null;
+        }
+
+        if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $Hata = UploadValidator::validateDocument($_FILES['dosya'], 10 * 1024 * 1024);
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
+                return;
+            }
+
+            $Mevcut = $Repo->bul($Id);
+            if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
+                $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
+                if (file_exists($EskiDosyaYolu)) {
+                    unlink($EskiDosyaYolu);
+                }
+            }
+
+            $YuklemeKlasoru = STORAGE_PATH . 'uploads' . DIRECTORY_SEPARATOR;
+            if (!is_dir($YuklemeKlasoru)) {
+                mkdir($YuklemeKlasoru, 0755, true);
+            }
+
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $HedefYol = $YuklemeKlasoru . $GuvenliAd;
+
+            if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
+                $DosyaGuncellemesi['DosyaAdi'] = $OrijinalAd;
+                $DosyaGuncellemesi['DosyaYolu'] = 'storage/uploads/' . $GuvenliAd;
+            }
+        }
+
+        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId, $DosyaGuncellemesi) {
             $Guncellenecek = [];
             if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = (int)$Girdi['ProjeId'];
             if (isset($Girdi['Tarih'])) $Guncellenecek['Tarih'] = $Girdi['Tarih'];
             if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
             if (isset($Girdi['FaturaId'])) $Guncellenecek['FaturaId'] = !empty($Girdi['FaturaId']) ? (int)$Girdi['FaturaId'] : null;
             if (isset($Girdi['Aciklama'])) $Guncellenecek['Aciklama'] = $Girdi['Aciklama'];
+            if (isset($Girdi['OdemeTuru'])) $Guncellenecek['OdemeTuru'] = trim((string)$Girdi['OdemeTuru']);
+            if (isset($Girdi['BankaHesap'])) $Guncellenecek['BankaHesap'] = trim((string)$Girdi['BankaHesap']);
+            if (array_key_exists('Notlar', $Girdi)) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
+
+            $Guncellenecek = array_merge($Guncellenecek, $DosyaGuncellemesi);
 
             if (!empty($Guncellenecek)) {
                 $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
@@ -209,5 +308,35 @@ class PaymentController
         CalendarService::deleteReminder('odeme', $Id);
 
         Response::json(['status' => 'success']);
+    }
+
+    public static function download(array $Parametreler): void
+    {
+        $Id = isset($Parametreler['id']) ? (int) $Parametreler['id'] : 0;
+        if ($Id <= 0) {
+            Response::error('Gecersiz kayit.', 422);
+            return;
+        }
+
+        $Repo = new PaymentRepository();
+        $Kayit = $Repo->bul($Id);
+        if (!$Kayit) {
+            Response::error('Kayit bulunamadi.', 404);
+            return;
+        }
+
+        if (empty($Kayit['DosyaYolu'])) {
+            Response::error('Bu kayita ait dosya bulunamadi.', 404);
+            return;
+        }
+
+        $FilePath = SRC_PATH . $Kayit['DosyaYolu'];
+        if (!file_exists($FilePath)) {
+            Response::error('Dosya bulunamadi.', 404);
+            return;
+        }
+
+        $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
+        DownloadHelper::outputFile($FilePath, $DosyaAdi);
     }
 }

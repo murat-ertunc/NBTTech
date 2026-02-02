@@ -52,6 +52,15 @@ require __DIR__ . '/../partials/header.php';
               <input type="date" class="form-control" id="calendarTerminTarihi" required>
             </div>
           </div>
+
+          <div class="row mb-3">
+            <label class="col-4 col-form-label">Durum</label>
+            <div class="col-8">
+              <select class="form-select" id="calendarDurum">
+                <!-- Dinamik doldurulur -->
+              </select>
+            </div>
+          </div>
           
           <div class="row mb-3">
             <label class="col-4 col-form-label">İşin Özeti <span class="text-danger">*</span></label>

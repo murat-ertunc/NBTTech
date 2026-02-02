@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
+use App\Core\UploadValidator;
+use App\Core\DownloadHelper;
 use App\Repositories\OfferRepository;
 use App\Services\CalendarService;
 
@@ -104,19 +106,10 @@ class OfferController
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
-            // Dosya uzanti ve boyut kontrolu
-            $OrijinalAd = $_FILES['dosya']['name'];
-            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
-            $IzinliUzantilar = ['pdf', 'doc', 'docx'];
             $MaksimumBoyut = 10 * 1024 * 1024; // 10MB
-            
-            if (!in_array($Uzanti, $IzinliUzantilar)) {
-                Response::json(['errors' => ['dosya' => 'Sadece PDF veya Word dosyası (.pdf, .doc, .docx) yüklenebilir.'], 'message' => 'Dosya formatı geçersiz.'], 422);
-                return;
-            }
-            
-            if ($_FILES['dosya']['size'] > $MaksimumBoyut) {
-                Response::json(['errors' => ['dosya' => 'Dosya boyutu maksimum 10MB olabilir.'], 'message' => 'Dosya boyutu çok büyük.'], 422);
+            $Hata = UploadValidator::validateDocument($_FILES['dosya'], $MaksimumBoyut);
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
                 return;
             }
             
@@ -124,7 +117,9 @@ class OfferController
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
             }
-            
+
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
             $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
             
@@ -219,19 +214,10 @@ class OfferController
 
         // Yeni dosya yuklendiyse eskisini silip yenisini kaydediyoruz
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
-            // Dosya uzanti ve boyut kontrolu
-            $OrijinalAd = $_FILES['dosya']['name'];
-            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
-            $IzinliUzantilar = ['pdf', 'doc', 'docx'];
             $MaksimumBoyut = 10 * 1024 * 1024; // 10MB
-            
-            if (!in_array($Uzanti, $IzinliUzantilar)) {
-                Response::json(['errors' => ['dosya' => 'Sadece PDF veya Word dosyası (.pdf, .doc, .docx) yüklenebilir.'], 'message' => 'Dosya formatı geçersiz.'], 422);
-                return;
-            }
-            
-            if ($_FILES['dosya']['size'] > $MaksimumBoyut) {
-                Response::json(['errors' => ['dosya' => 'Dosya boyutu maksimum 10MB olabilir.'], 'message' => 'Dosya boyutu çok büyük.'], 422);
+            $Hata = UploadValidator::validateDocument($_FILES['dosya'], $MaksimumBoyut);
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
                 return;
             }
             
@@ -248,7 +234,9 @@ class OfferController
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
             }
-            
+
+            $OrijinalAd = $_FILES['dosya']['name'];
+            $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
             $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
             
@@ -337,12 +325,6 @@ class OfferController
         }
 
         $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
-        $MimeType = mime_content_type($FilePath) ?: 'application/octet-stream';
-
-        header('Content-Type: ' . $MimeType);
-        header('Content-Disposition: attachment; filename="' . $DosyaAdi . '"');
-        header('Content-Length: ' . filesize($FilePath));
-        readfile($FilePath);
-        exit;
+        DownloadHelper::outputFile($FilePath, $DosyaAdi);
     }
 }

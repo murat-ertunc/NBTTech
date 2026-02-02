@@ -51,6 +51,9 @@ class UserController
         if (!empty($_GET['kullaniciadi'])) {
             $Filtreler['kullaniciadi'] = $_GET['kullaniciadi'];
         }
+        if (!empty($_GET['roller_str'])) {
+            $Filtreler['roller_str'] = $_GET['roller_str'];
+        }
         if (isset($_GET['aktif']) && $_GET['aktif'] !== '') {
             $Filtreler['aktif'] = $_GET['aktif'];
         }
@@ -338,6 +341,12 @@ class UserController
         $HedefKullanici = $Repo->bul($HedefKullaniciId);
         if (!$HedefKullanici) {
             Response::error('Kullanici bulunamadi.', 404);
+            return;
+        }
+
+        // Hedef kullanicinin mevcut rolleri, duzenleyen kullanicinin yetkilerinin alt kumesi olmali
+        if (!$AuthService->kullaniciRolleriniDuzenleyebilirMi($AtayanKullaniciId, $HedefKullaniciId)) {
+            Response::forbidden('Bu kullanicinin rollerini duzenleme yetkiniz yok.');
             return;
         }
         

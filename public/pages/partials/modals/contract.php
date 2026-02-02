@@ -45,7 +45,7 @@
           <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
           <div class="col-8">
             <div class="input-group">
-               <input type="text" class="form-control nbt-money-input" id="contractAmount" placeholder="0,00" required value="0,00">
+               <input type="text" class="form-control price__input nbt-money-input" id="contractAmount" placeholder="0,00" required value="0,00">
               <select class="form-select" id="contractCurrency" style="max-width: 90px;">
               </select>
             </div>
@@ -63,13 +63,13 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-4 col-form-label">PDF Dosya</label>
+          <label class="col-4 col-form-label">Sözleşme Dosyası</label>
           <div class="col-8">
-            <input type="file" class="form-control" id="contractDosya" accept=".pdf,application/pdf">
-            <small class="form-hint">PDF, Maks 10MB</small>
+            <input type="file" class="form-control" id="contractDosya" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+            <small class="form-hint">PDF veya Word (PDF, DOC, DOCX), Maks 10MB</small>
             <div class="invalid-feedback" id="contractDosyaError"></div>
             <div class="mt-2 d-none" id="contractCurrentFile">
-              <span class="badge bg-secondary me-2"><i class="bi bi-file-pdf me-1"></i><span id="contractCurrentFileName"></span></span>
+              <span class="badge bg-secondary me-2"><i class="bi bi-file-earmark-text me-1"></i><span id="contractCurrentFileName" class="u-break-anywhere"></span></span>
               <button type="button" class="btn btn-sm btn-outline-danger" id="btnRemoveContractFile"><i class="bi bi-x"></i></button>
             </div>
           </div>

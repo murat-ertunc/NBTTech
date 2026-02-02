@@ -94,32 +94,12 @@ class FileController
         $MaksimumBoyut = 10 * 1024 * 1024;
         if ($DosyaBoyutu > $MaksimumBoyut) {
             $BoyutMB = round($DosyaBoyutu / (1024 * 1024), 2);
+            $MaksimumMB = round($MaksimumBoyut / (1024 * 1024));
             Response::error("Dosya boyutu cok buyuk ({$BoyutMB}MB). Maksimum {$MaksimumMB}MB yuklenebilir.", 422);
             return;
         }
 
-        $IzinliTipler = [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'image/jpeg',
-            'image/png',
-            'image/gif',
-            'text/plain',
-            'application/zip',
-            'application/x-rar-compressed',
-            'application/octet-stream'
-        ];
-        
-        $IzinliUzantilar = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'txt', 'zip', 'rar'];
         $Uzanti = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
-        
-        if (!in_array($Uzanti, $IzinliUzantilar)) {
-            Response::error('Bu dosya turu desteklenmiyor. Izin verilen turler: PDF, Word, Excel, Resimler, TXT, ZIP, RAR', 422);
-            return;
-        }
 
         $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
         $UploadDir = self::getUploadDir();
@@ -187,7 +167,12 @@ class FileController
             return;
         }
 
-        $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($IcerikTipi, 'application/json') !== false) {
+            $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
+        } else {
+            $Girdi = $_POST;
+        }
         $Repo = new FileRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -195,14 +180,71 @@ class FileController
             return;
         }
 
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Dosya bulunamadi.', 404);
+            return;
+        }
+
+        // Opsiyonel dosya degistirme
+        $DosyaAnahtari = isset($_FILES['file']) ? 'file' : (isset($_FILES['dosya']) ? 'dosya' : null);
+        $YeniDosya = null;
+        if ($DosyaAnahtari && $_FILES[$DosyaAnahtari]['error'] === UPLOAD_ERR_OK) {
+            $DosyaBilgisi = $_FILES[$DosyaAnahtari];
+            $OriginalName = $DosyaBilgisi['name'];
+            $DosyaBoyutu = $DosyaBilgisi['size'];
+            $DosyaTipi = $DosyaBilgisi['type'];
+            $GeciciYol = $DosyaBilgisi['tmp_name'];
+
+            $MaksimumBoyut = 10 * 1024 * 1024;
+            if ($DosyaBoyutu > $MaksimumBoyut) {
+                $BoyutMB = round($DosyaBoyutu / (1024 * 1024), 2);
+                Response::error("Dosya boyutu cok buyuk ({$BoyutMB}MB). Maksimum 10MB yuklenebilir.", 422);
+                return;
+            }
+
+            $Uzanti = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
+
+            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $UploadDir = self::getUploadDir();
+            if (!is_dir($UploadDir)) {
+                mkdir($UploadDir, 0755, true);
+            }
+
+            $HedefYol = $UploadDir . $GuvenliAd;
+            if (!move_uploaded_file($GeciciYol, $HedefYol)) {
+                Response::error('Dosya kaydedilemedi.', 500);
+                return;
+            }
+
+            $YeniDosya = [
+                'DosyaAdi' => $OriginalName,
+                'DosyaYolu' => 'storage/uploads/' . $GuvenliAd,
+                'DosyaTipi' => $DosyaTipi,
+                'DosyaBoyutu' => $DosyaBoyutu
+            ];
+        }
+
         Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
             $Guncellenecek = [];
             if (isset($Girdi['Aciklama'])) $Guncellenecek['Aciklama'] = trim((string)$Girdi['Aciklama']);
+            if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
 
             if (!empty($Guncellenecek)) {
                 $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
             }
         });
+
+        if ($YeniDosya) {
+            // Eski dosyayi sil
+            if (!empty($Mevcut['DosyaYolu'])) {
+                $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
+                if (file_exists($EskiDosyaYolu)) {
+                    unlink($EskiDosyaYolu);
+                }
+            }
+            $Repo->guncelle($Id, $YeniDosya, $KullaniciId);
+        }
 
         Response::json(['status' => 'success']);
     }

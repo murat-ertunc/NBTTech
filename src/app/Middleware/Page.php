@@ -247,6 +247,17 @@ class Page
         <?php
         exit;
     }
+
+    /**
+     * Diger kontroller icin 403 sayfasini goster
+     *
+     * @param string $GerekliYetki
+     * @return void
+     */
+    public static function forbid(string $GerekliYetki): void
+    {
+        self::showForbidden($GerekliYetki);
+    }
     
     /**
      * Yetkisiz erişim logla

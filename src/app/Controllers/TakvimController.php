@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Response;
 use App\Repositories\CalendarRepository;
+use App\Services\CalendarService;
 
 /**
  * TakvimController
@@ -92,11 +93,13 @@ class TakvimController
         }
 
         $Repo = new CalendarRepository();
+        $VarsayilanDurum = CalendarService::getDefaultTakvimDurum();
         $YuklenecekVeri = [
             'MusteriId' => (int)$Girdi['MusteriId'],
             'ProjeId' => (int)$Girdi['ProjeId'],
             'TerminTarihi' => $Girdi['TerminTarihi'],
-            'Ozet' => trim((string)$Girdi['Ozet'])
+            'Ozet' => trim((string)$Girdi['Ozet']),
+            'Durum' => (isset($Girdi['Durum']) && trim((string)$Girdi['Durum']) !== '') ? (int)$Girdi['Durum'] : $VarsayilanDurum
         ];
 
         $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
@@ -128,6 +131,10 @@ class TakvimController
                 return;
             }
             $Guncellenecek['Ozet'] = trim((string)$Girdi['Ozet']);
+        }
+        if (array_key_exists('Durum', $Girdi)) {
+            $DurumDeger = trim((string)$Girdi['Durum']);
+            $Guncellenecek['Durum'] = $DurumDeger === '' ? CalendarService::getDefaultTakvimDurum() : (int)$DurumDeger;
         }
         if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
 

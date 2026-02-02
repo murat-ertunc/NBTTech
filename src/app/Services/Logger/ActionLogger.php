@@ -88,6 +88,22 @@ class ActionLogger
     }
 
     /**
+     * Hata logla
+     *
+     * @param string $Kaynak Hata kaynagi (sinif/metod)
+     * @param string $Mesaj Hata mesaji
+     * @param array $Ek Ek bilgiler
+     */
+    public static function error(string $Kaynak, string $Mesaj, array $Ek = []): void
+    {
+        self::logla('ERROR', 'system', [
+            'Kaynak' => $Kaynak,
+            'Mesaj' => $Mesaj,
+            'Ek' => $Ek,
+        ], 'fail');
+    }
+
+    /**
      * Log verisini hazirla
      */
     private static function veriHazirla(string $Islem, string $Tablo, array $Yukleme, string $Sonuc): array

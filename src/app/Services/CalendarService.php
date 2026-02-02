@@ -13,6 +13,17 @@ use App\Core\Database;
 class CalendarService
 {
     /**
+     * Takvim durumlari icin varsayilan kodu getir
+     */
+    public static function getDefaultTakvimDurum(): int
+    {
+        $Db = Database::getInstance();
+        $Sonuc = $Db->fetchOne(
+            "SELECT TOP 1 Kod FROM tbl_parametre WHERE Grup = 'durum_takvim' AND Sil = 0 AND Aktif = 1 AND Varsayilan = 1 ORDER BY Sira"
+        );
+        return $Sonuc ? (int)$Sonuc['Kod'] : 1;
+    }
+    /**
      * Kaynak türleri ve parametre isimleri eşleştirmesi
      */
     private static $KaynakTurleri = [
@@ -172,9 +183,11 @@ class CalendarService
 
         // Mevcut kayıt var mı kontrol et
         $Mevcut = $Db->fetchOne(
-            "SELECT Id FROM tbl_takvim WHERE KaynakTuru = :turu AND KaynakId = :id AND Sil = 0",
+            "SELECT Id, Durum FROM tbl_takvim WHERE KaynakTuru = :turu AND KaynakId = :id AND Sil = 0",
             ['turu' => $KaynakTuru, 'id' => $KaynakId]
         );
+
+        $VarsayilanDurum = self::getDefaultTakvimDurum();
 
         if ($Mevcut) {
             // Güncelle
@@ -183,6 +196,7 @@ class CalendarService
                     MusteriId = :musteriId,
                     TerminTarihi = :tarih,
                     Ozet = :ozet,
+                    Durum = CASE WHEN Durum IS NULL OR Durum = 0 THEN :durum ELSE Durum END,
                     DegistirenUserId = :userId,
                     DegisiklikZamani = GETDATE()
                 WHERE Id = :takvimId",
@@ -190,6 +204,7 @@ class CalendarService
                     'musteriId' => $MusteriId,
                     'tarih' => $HatirlatmaTarihi,
                     'ozet' => $Icerik,
+                    'durum' => $VarsayilanDurum,
                     'userId' => $KullaniciId,
                     'takvimId' => $Mevcut['Id']
                 ]
@@ -206,13 +221,14 @@ class CalendarService
             ));
             
             $Db->execute(
-                "INSERT INTO tbl_takvim (Guid, MusteriId, TerminTarihi, Ozet, KaynakTuru, KaynakId, Sil, EkleyenUserId, EklemeZamani)
-                VALUES (:guid, :musteriId, :tarih, :ozet, :kaynakTuru, :kaynakId, 0, :userId, GETDATE())",
+                "INSERT INTO tbl_takvim (Guid, MusteriId, TerminTarihi, Ozet, Durum, KaynakTuru, KaynakId, Sil, EkleyenUserId, EklemeZamani)
+                VALUES (:guid, :musteriId, :tarih, :ozet, :durum, :kaynakTuru, :kaynakId, 0, :userId, GETDATE())",
                 [
                     'guid' => $Guid,
                     'musteriId' => $MusteriId,
                     'tarih' => $HatirlatmaTarihi,
                     'ozet' => $Icerik,
+                    'durum' => $VarsayilanDurum,
                     'kaynakTuru' => $KaynakTuru,
                     'kaynakId' => $KaynakId,
                     'userId' => $KullaniciId

@@ -277,15 +277,42 @@ require ROUTES_PATH . 'web.php';
 
 $Metod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-// PATH_INFO/REDIRECT_URL destekli yol tespiti
+// PATH_INFO/REDIRECT_URL destekli yol tespiti (IIS uyumlu)
 $PathFromUri = parse_url($RequestUri, PHP_URL_PATH);
 if ($PathFromUri === false || $PathFromUri === null) {
     $PathFromUri = '/';
 }
 $PathInfo = $_SERVER['PATH_INFO'] ?? ($_SERVER['ORIG_PATH_INFO'] ?? null);
 $RedirectUrl = $_SERVER['REDIRECT_URL'] ?? null;
+$UnencodedUrl = $_SERVER['UNENCODED_URL'] ?? null; // IIS
+$OriginalUrl = $_SERVER['HTTP_X_ORIGINAL_URL'] ?? null; // IIS ARR / reverse proxy
 
-$Yol = $PathInfo ? $PathInfo : ($RedirectUrl ? $RedirectUrl : $PathFromUri);
+$Adaylar = [$OriginalUrl, $UnencodedUrl, $PathInfo, $RedirectUrl, $PathFromUri];
+$Yol = null;
+foreach ($Adaylar as $Aday) {
+    if ($Aday === null || $Aday === '') {
+        continue;
+    }
+    $AdayPath = parse_url($Aday, PHP_URL_PATH);
+    if ($AdayPath === false || $AdayPath === null || $AdayPath === '') {
+        continue;
+    }
+    if ($AdayPath === '/index.php' || $AdayPath === '/index.php/') {
+        continue;
+    }
+    if ($AdayPath === '/') {
+        if ($Yol === null) {
+            $Yol = '/';
+        }
+        continue;
+    }
+    $Yol = $AdayPath;
+    break;
+}
+
+if ($Yol === null) {
+    $Yol = '/';
+}
 
 // Güvenli normalize
 if ($Yol === '' || $Yol === false) {

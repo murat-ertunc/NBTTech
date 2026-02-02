@@ -37,7 +37,7 @@
           <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
           <div class="col-8">
             <div class="input-group">
-              <input type="text" class="form-control nbt-money-input" id="stampTaxTutar" placeholder="0,00" required value="0,00">
+              <input type="text" class="form-control price__input nbt-money-input" id="stampTaxTutar" placeholder="0,00" required value="0,00">
               <select class="form-select" id="stampTaxDovizCinsi" style="max-width: 90px;">
               </select>
             </div>
@@ -46,20 +46,31 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-4 col-form-label">Açıklama</label>
+          <label class="col-4 col-form-label">Ödeme Durumu</label>
           <div class="col-8">
-            <textarea class="form-control" id="stampTaxAciklama" rows="2"></textarea>
+            <select class="form-select" id="stampTaxOdemeDurumu">
+              <option value="Ödenmedi">Ödenmedi</option>
+              <option value="Ödendi">Ödendi</option>
+              <option value="Kısmi">Kısmi</option>
+            </select>
             <div class="invalid-feedback"></div>
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-4 col-form-label">PDF Dosya</label>
+          <label class="col-4 col-form-label">Notlar</label>
           <div class="col-8">
-            <input type="file" class="form-control" id="stampTaxDosya" accept=".pdf,application/pdf">
-            <small class="form-hint">PDF, Maks 10MB</small>
+            <textarea class="form-control" id="stampTaxNotlar" rows="2"></textarea>
+            <div class="invalid-feedback"></div>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <label class="col-4 col-form-label">Dosya</label>
+          <div class="col-8">
+            <input type="file" class="form-control" id="stampTaxDosya" accept=".pdf,.doc,.docx">
+            <small class="form-hint">PDF veya Word (PDF, DOC, DOCX). Maks 10MB</small>
             <div class="invalid-feedback" id="stampTaxDosyaError"></div>
             <div class="mt-2 d-none" id="stampTaxCurrentFile">
-              <span class="badge bg-secondary me-2"><i class="bi bi-file-pdf me-1"></i><span id="stampTaxCurrentFileName"></span></span>
+              <span class="badge bg-secondary me-2"><i class="bi bi-file-pdf me-1"></i><span id="stampTaxCurrentFileName" class="u-break-anywhere"></span></span>
               <button type="button" class="btn btn-sm btn-outline-danger" id="btnRemoveStampTaxFile"><i class="bi bi-x"></i></button>
             </div>
           </div>

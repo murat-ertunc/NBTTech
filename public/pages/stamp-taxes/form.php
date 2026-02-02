@@ -46,7 +46,7 @@ require __DIR__ . '/../partials/header.php';
             </div>
           </div>
           
-          <div class="row mb-3">
+          <div class="row mb-3 d-none">
             <label class="col-4 col-form-label">Sözleşme</label>
             <div class="col-8">
               <select class="form-select" id="stampTaxSozlesmeId">
@@ -87,6 +87,20 @@ require __DIR__ . '/../partials/header.php';
             <label class="col-4 col-form-label">Notlar</label>
             <div class="col-8">
               <textarea class="form-control" id="stampTaxNotlar" rows="2"></textarea>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <label class="col-4 col-form-label">Dosya</label>
+            <div class="col-8">
+              <input type="file" class="form-control" id="stampTaxDosyaPage" accept=".pdf,.doc,.docx">
+              <div class="form-text text-muted">PDF veya Word (PDF, DOC, DOCX). Maksimum 10MB.</div>
+              <div class="invalid-feedback" id="stampTaxDosyaErrorPage"></div>
+              <input type="hidden" id="stampTaxRemoveFile" value="0">
+              <div class="mt-2 d-none" id="stampTaxCurrentFilePage">
+                <span class="badge bg-secondary"><i class="bi bi-file-earmark-text me-1"></i><span id="stampTaxCurrentFileNamePage" class="u-break-anywhere"></span></span>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="btnRemoveStampTaxFilePage"><i class="bi bi-x"></i></button>
+              </div>
             </div>
           </div>
         </form>

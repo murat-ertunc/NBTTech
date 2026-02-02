@@ -8,9 +8,66 @@ use App\Core\Transaction;
 use App\Repositories\InvoiceRepository;
 use App\Services\Logger\ActionLogger;
 use App\Services\CalendarService;
+use App\Repositories\CalendarRepository;
 
 class InvoiceController
 {
+    private const TAKVIM_SURE_TIPLERI = ['gun', 'hafta', 'ay', 'yil'];
+
+    private static function takvimHatirlatmaDogrula(int $TakvimAktif, ?int $TakvimSure, ?string $TakvimSureTipi): ?string
+    {
+        if ($TakvimAktif !== 1) {
+            return null;
+        }
+        if ($TakvimSure === null && ($TakvimSureTipi === null || $TakvimSureTipi === '')) {
+            return null;
+        }
+        if ($TakvimSure === null || $TakvimSure <= 0) {
+            return 'Takvim hatirlatma suresi gecersiz.';
+        }
+        if ($TakvimSureTipi === null || !in_array($TakvimSureTipi, self::TAKVIM_SURE_TIPLERI, true)) {
+            return 'Takvim hatirlatma birimi gecersiz.';
+        }
+        return null;
+    }
+
+    private static function takvimTarihEkle(string $Tarih, int $Sure, string $SureTipi): string
+    {
+        $T = new \DateTime($Tarih);
+        $Gun = (int)$T->format('d');
+        $Ay = (int)$T->format('m');
+        $Yil = (int)$T->format('Y');
+        $AySonu = $T->format('Y-m-d') === $T->format('Y-m-t');
+        switch ($SureTipi) {
+            case 'hafta':
+                $T->add(new \DateInterval('P' . $Sure . 'W'));
+                break;
+            case 'ay':
+                $T->setDate($Yil, $Ay, 1);
+                $T->modify('first day of +' . $Sure . ' month');
+                if ($AySonu) {
+                    $T->modify('last day of this month');
+                } else {
+                    $HedefAySonu = (int)$T->format('t');
+                    $T->setDate((int)$T->format('Y'), (int)$T->format('m'), min($Gun, $HedefAySonu));
+                }
+                break;
+            case 'yil':
+                $T->setDate($Yil + $Sure, $Ay, 1);
+                $T->modify('first day of this month');
+                if ($AySonu) {
+                    $T->modify('last day of this month');
+                } else {
+                    $HedefAySonu = (int)$T->format('t');
+                    $T->setDate((int)$T->format('Y'), (int)$T->format('m'), min($Gun, $HedefAySonu));
+                }
+                break;
+            default:
+                $T->add(new \DateInterval('P' . $Sure . 'D'));
+                break;
+        }
+        return $T->format('Y-m-d');
+    }
     public static function index(): void
     {
         $Repo = new InvoiceRepository();
@@ -104,11 +161,13 @@ class InvoiceController
         $TakvimAktif = !empty($Girdi['TakvimAktif']) ? 1 : 0;
         $TakvimSure = isset($Girdi['TakvimSure']) ? (int)$Girdi['TakvimSure'] : null;
         $TakvimSure = $TakvimSure > 0 ? $TakvimSure : null;
-        $AllowedSureTipleri = ['gun', 'hafta', 'ay', 'yil'];
         $TakvimSureTipi = isset($Girdi['TakvimSureTipi']) ? trim((string)$Girdi['TakvimSureTipi']) : null;
-        $TakvimSureTipi = $TakvimSureTipi && in_array($TakvimSureTipi, $AllowedSureTipleri, true) ? $TakvimSureTipi : null;
-        // Checkbox degerine bagli kalmadan, sure girildiyse hatirlatma aktif say (UI'da secili olsa da olmasa da kullanici niyeti korunur)
-        $HatirlatmaAktif = ($TakvimSure !== null) ? 1 : $TakvimAktif;
+        $TakvimSureTipi = $TakvimSureTipi && in_array($TakvimSureTipi, self::TAKVIM_SURE_TIPLERI, true) ? $TakvimSureTipi : null;
+        $HatirlatmaHatasi = self::takvimHatirlatmaDogrula($TakvimAktif, $TakvimSure, $TakvimSureTipi);
+        if ($HatirlatmaHatasi) {
+            Response::error($HatirlatmaHatasi, 422);
+            return;
+        }
         $Kalemler = isset($Girdi['Kalemler']) && is_array($Girdi['Kalemler']) ? $Girdi['Kalemler'] : [];
 
         $KullaniciId = Context::kullaniciId();
@@ -118,7 +177,7 @@ class InvoiceController
         }
 
         $Repo = new InvoiceRepository();
-        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $Tarih, $Tutar, $Doviz, $FaturaNo, $SupheliAlacak, $TevkifatAktif, $TevkifatOran1, $TevkifatOran2, $HatirlatmaAktif, $TakvimSure, $TakvimSureTipi, $Kalemler, $KullaniciId) {
+        $Id = Transaction::wrap(function () use ($Repo, $MusteriId, $ProjeId, $Tarih, $Tutar, $Doviz, $FaturaNo, $SupheliAlacak, $TevkifatAktif, $TevkifatOran1, $TevkifatOran2, $TakvimAktif, $TakvimSure, $TakvimSureTipi, $Kalemler, $KullaniciId) {
             $FaturaId = $Repo->ekle([
                 'MusteriId' => $MusteriId,
                 'ProjeId' => $ProjeId,
@@ -130,7 +189,7 @@ class InvoiceController
                 'TevkifatAktif' => $TevkifatAktif,
                 'TevkifatOran1' => $TevkifatOran1,
                 'TevkifatOran2' => $TevkifatOran2,
-                'TakvimAktif' => $HatirlatmaAktif,
+                'TakvimAktif' => $TakvimAktif,
                 'TakvimSure' => $TakvimSure,
                 'TakvimSureTipi' => $TakvimSureTipi
             ], $KullaniciId);
@@ -139,22 +198,40 @@ class InvoiceController
             if (!empty($Kalemler)) {
                 $Repo->kaydetKalemler($FaturaId, $Kalemler, $KullaniciId);
             }
+
+            // Normal takvim hatirlatmasi (mevcut davranis)
+            if (!empty($Tarih)) {
+                $FaturaAciklama = !empty($FaturaNo) ? 'Fatura No: ' . $FaturaNo : 'Fatura';
+                CalendarService::createOrUpdateReminder(
+                    $MusteriId,
+                    'fatura',
+                    $FaturaId,
+                    $Tarih,
+                    $FaturaAciklama,
+                    $KullaniciId
+                );
+            }
+
+            // Ek takvim hatirlatmasi (checkbox + alanlar dolu)
+            if ($TakvimAktif === 1 && $TakvimSure !== null && $TakvimSureTipi !== null && !empty($Tarih)) {
+                $EkTarih = self::takvimTarihEkle($Tarih, $TakvimSure, $TakvimSureTipi);
+                $TakvimRepo = new CalendarRepository();
+                $Ozet = !empty($FaturaNo)
+                    ? 'Fatura Hatırlatma: ' . $FaturaNo
+                    : 'Fatura Hatırlatma';
+                $TakvimRepo->ekle([
+                    'MusteriId' => $MusteriId,
+                    'ProjeId' => $ProjeId,
+                    'TerminTarihi' => $EkTarih,
+                    'Ozet' => $Ozet,
+                    'Durum' => CalendarService::getDefaultTakvimDurum(),
+                    'KaynakTuru' => 'fatura_hatirlatma',
+                    'KaynakId' => $FaturaId
+                ], $KullaniciId);
+            }
             
             return $FaturaId;
         });
-
-        // Takvim hatirlatmasi olustur - tarih varsa
-        if (!empty($Tarih)) {
-            $FaturaAciklama = !empty($FaturaNo) ? 'Fatura No: ' . $FaturaNo : 'Fatura';
-            CalendarService::createOrUpdateReminder(
-                $MusteriId,
-                'fatura',
-                $Id,
-                $Tarih,
-                $FaturaAciklama,
-                $KullaniciId
-            );
-        }
 
         Response::json(['id' => $Id], 201);
     }
@@ -181,9 +258,27 @@ class InvoiceController
             return;
         }
 
+        $TakvimAktif = array_key_exists('TakvimAktif', $Girdi) && !empty($Girdi['TakvimAktif']) ? 1 : 0;
+        $TakvimSure = array_key_exists('TakvimSure', $Girdi) ? (int)$Girdi['TakvimSure'] : null;
+        $TakvimSure = $TakvimSure > 0 ? $TakvimSure : null;
+        $TakvimSureTipi = array_key_exists('TakvimSureTipi', $Girdi) ? trim((string)$Girdi['TakvimSureTipi']) : null;
+        $TakvimSureTipi = $TakvimSureTipi && in_array($TakvimSureTipi, self::TAKVIM_SURE_TIPLERI, true) ? $TakvimSureTipi : null;
+        $HatirlatmaHatasi = self::takvimHatirlatmaDogrula($TakvimAktif, $TakvimSure, $TakvimSureTipi);
+        if ($HatirlatmaHatasi) {
+            Response::error($HatirlatmaHatasi, 422);
+            return;
+        }
+
         // Basit validasyonlar eklenebilir.
 
-        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId, $Mevcut) {
+        $FaturaTarihi = isset($Girdi['Tarih']) ? $Girdi['Tarih'] : ($Mevcut['Tarih'] ?? null);
+        $FaturaNo = isset($Girdi['FaturaNo']) ? $Girdi['FaturaNo'] : ($Mevcut['FaturaNo'] ?? '');
+        $MusteriId = (int)($Mevcut['MusteriId'] ?? 0);
+        $ProjeId = array_key_exists('ProjeId', $Girdi)
+            ? ($Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null)
+            : ($Mevcut['ProjeId'] ?? null);
+
+        Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId, $Mevcut, $FaturaTarihi, $FaturaNo, $MusteriId, $ProjeId, $TakvimAktif, $TakvimSure, $TakvimSureTipi) {
             $Guncellenecek = [];
             if (isset($Girdi['Tarih'])) $Guncellenecek['Tarih'] = $Girdi['Tarih'];
             if (isset($Girdi['Tutar'])) $Guncellenecek['Tutar'] = (float)$Girdi['Tutar'];
@@ -196,9 +291,9 @@ class InvoiceController
             if (isset($Girdi['TevkifatAktif'])) $Guncellenecek['TevkifatAktif'] = (int)$Girdi['TevkifatAktif'];
             if (isset($Girdi['TevkifatOran1'])) $Guncellenecek['TevkifatOran1'] = $Girdi['TevkifatOran1'] ? (float)$Girdi['TevkifatOran1'] : null;
             if (isset($Girdi['TevkifatOran2'])) $Guncellenecek['TevkifatOran2'] = $Girdi['TevkifatOran2'] ? (float)$Girdi['TevkifatOran2'] : null;
-            if (isset($Girdi['TakvimAktif'])) $Guncellenecek['TakvimAktif'] = (int)$Girdi['TakvimAktif'];
-            if (isset($Girdi['TakvimSure'])) $Guncellenecek['TakvimSure'] = $Girdi['TakvimSure'] ? (int)$Girdi['TakvimSure'] : null;
-            if (isset($Girdi['TakvimSureTipi'])) $Guncellenecek['TakvimSureTipi'] = $Girdi['TakvimSureTipi'];
+            if (array_key_exists('TakvimAktif', $Girdi)) $Guncellenecek['TakvimAktif'] = $TakvimAktif;
+            if (array_key_exists('TakvimSure', $Girdi)) $Guncellenecek['TakvimSure'] = $TakvimSure;
+            if (array_key_exists('TakvimSureTipi', $Girdi)) $Guncellenecek['TakvimSureTipi'] = $TakvimSureTipi;
 
             if (!empty($Guncellenecek)) {
                 $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
@@ -208,24 +303,37 @@ class InvoiceController
             if (isset($Girdi['Kalemler']) && is_array($Girdi['Kalemler'])) {
                 $Repo->kaydetKalemler($Id, $Girdi['Kalemler'], $KullaniciId);
             }
-        });
 
-        // Takvim hatirlatmasi guncelle - tarih varsa
-        if (isset($Girdi['Tarih'])) {
-            $Mevcut = $Repo->bul($Id);
-            if ($Mevcut) {
-                $FaturaNo = isset($Girdi['FaturaNo']) ? $Girdi['FaturaNo'] : ($Mevcut['FaturaNo'] ?? '');
+            // Normal takvim hatirlatmasi (mevcut davranis)
+            if (isset($Girdi['Tarih']) && !empty($FaturaTarihi)) {
                 $FaturaAciklama = !empty($FaturaNo) ? 'Fatura No: ' . $FaturaNo : 'Fatura';
                 CalendarService::createOrUpdateReminder(
-                    (int)$Mevcut['MusteriId'],
+                    $MusteriId,
                     'fatura',
                     $Id,
-                    $Girdi['Tarih'],
+                    $FaturaTarihi,
                     $FaturaAciklama,
                     $KullaniciId
                 );
             }
-        }
+
+            // Ek takvim hatirlatmasi (checkbox + alanlar dolu)
+            if ($TakvimAktif === 1 && $TakvimSure !== null && $TakvimSureTipi !== null && !empty($FaturaTarihi)) {
+                $EkTarih = self::takvimTarihEkle($FaturaTarihi, $TakvimSure, $TakvimSureTipi);
+                $TakvimRepo = new CalendarRepository();
+                $Ozet = !empty($FaturaNo)
+                    ? 'Fatura Hatırlatma: ' . $FaturaNo
+                    : 'Fatura Hatırlatma';
+                $TakvimRepo->ekle([
+                    'MusteriId' => $MusteriId,
+                    'ProjeId' => $ProjeId,
+                    'TerminTarihi' => $EkTarih,
+                    'Ozet' => $Ozet,
+                    'KaynakTuru' => 'fatura_hatirlatma',
+                    'KaynakId' => $Id
+                ], $KullaniciId);
+            }
+        });
 
         Response::json(['status' => 'success']);
     }

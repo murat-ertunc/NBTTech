@@ -69,7 +69,7 @@ require __DIR__ . '/../partials/header.php';
               <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
               <div class="col-8">
                 <div class="input-group">
-                  <input type="text" class="form-control nbt-money-input" id="contractAmount" placeholder="0,00" required value="0,00">
+                  <input type="text" class="form-control price__input nbt-money-input" id="contractAmount" placeholder="0,00" required value="0,00">
                   <select class="form-select" id="contractCurrency" style="max-width: 100px;">
                     <!-- Dinamik olarak doldurulacak -->
                   </select>
@@ -88,19 +88,24 @@ require __DIR__ . '/../partials/header.php';
             </div>
             
             <div class="row mb-3">
-              <label class="col-4 col-form-label">PDF Dosya</label>
+              <label class="col-4 col-form-label">Sözleşme Dosyası</label>
               <div class="col-8">
-                <input type="file" class="form-control" id="contractDosya" accept=".pdf,application/pdf">
-                <div class="form-text text-muted">Sadece PDF dosyası. Maksimum 10MB.</div>
+                <input type="file" class="form-control" id="contractDosya" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                <div class="form-text text-muted">PDF veya Word (PDF, DOC, DOCX). Maksimum 10MB.</div>
                 <div class="invalid-feedback" id="contractDosyaError"></div>
                 <div class="mt-2 d-none" id="contractCurrentFile">
-                  <span class="badge bg-secondary me-2">
-                    <i class="bi bi-file-pdf me-1"></i>
-                    <span id="contractCurrentFileName"></span>
-                  </span>
-                  <button type="button" class="btn btn-sm btn-outline-danger" id="btnRemoveContractFile">
-                    <i class="bi bi-x"></i> Sil
-                  </button>
+                  <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="badge bg-secondary">
+                      <i class="bi bi-file-earmark-text me-1"></i>
+                      <span id="contractCurrentFileName" class="u-break-anywhere"></span>
+                    </span>
+                    <a href="#" class="btn btn-sm btn-outline-primary" id="contractCurrentFileDownload" target="_blank" rel="noopener">
+                      <i class="bi bi-download"></i> İndir
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="btnRemoveContractFile">
+                      <i class="bi bi-x"></i> Sil
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

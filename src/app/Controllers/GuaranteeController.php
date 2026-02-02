@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
+use App\Core\UploadValidator;
+use App\Core\DownloadHelper;
 use App\Repositories\GuaranteeRepository;
 use App\Services\CalendarService;
 
@@ -32,7 +34,6 @@ class GuaranteeController
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            // Standalone sayfa - pagination ile tum teminatlar
             if (isset($_GET['page']) || isset($_GET['limit'])) {
                 $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
                 Response::json($Sonuc);
@@ -100,6 +101,11 @@ class GuaranteeController
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $Hata = UploadValidator::validateDocument($_FILES['dosya'], 10 * 1024 * 1024);
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
+                return;
+            }
             $YuklemeKlasoru = STORAGE_PATH . 'uploads' . DIRECTORY_SEPARATOR;
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
@@ -125,7 +131,8 @@ class GuaranteeController
             'ParaBirimi' => $Girdi['ParaBirimi'] ?? 'TRY',
             'BankaAdi' => $Girdi['BankaAdi'] ?? null,
             'TerminTarihi' => $Girdi['TerminTarihi'] ?? null,
-            'Durum' => isset($Girdi['Durum']) ? (int)$Girdi['Durum'] : 1,
+            'Durum' => (isset($Girdi['Durum']) && trim((string)$Girdi['Durum']) !== '') ? (int)$Girdi['Durum'] : 1,
+            'Notlar' => isset($Girdi['Notlar']) ? trim((string)$Girdi['Notlar']) : null,
             'DosyaAdi' => $DosyaAdi,
             'DosyaYolu' => $DosyaYolu
         ];
@@ -199,6 +206,11 @@ class GuaranteeController
 
         // Yeni dosya yuklendiyse
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $Hata = UploadValidator::validateDocument($_FILES['dosya'], 10 * 1024 * 1024);
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
+                return;
+            }
             // Eski dosyayi sil
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
@@ -231,7 +243,11 @@ class GuaranteeController
             if (isset($Girdi['ParaBirimi'])) $Guncellenecek['ParaBirimi'] = $Girdi['ParaBirimi'];
             if (isset($Girdi['BankaAdi'])) $Guncellenecek['BankaAdi'] = $Girdi['BankaAdi'];
             if (isset($Girdi['TerminTarihi'])) $Guncellenecek['TerminTarihi'] = $Girdi['TerminTarihi'];
-            if (isset($Girdi['Durum'])) $Guncellenecek['Durum'] = (int)$Girdi['Durum'];
+            if (isset($Girdi['Notlar'])) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
+            if (array_key_exists('Durum', $Girdi)) {
+                $DurumDeger = trim((string)$Girdi['Durum']);
+                $Guncellenecek['Durum'] = $DurumDeger === '' ? 1 : (int)$DurumDeger;
+            }
             if (isset($Girdi['ProjeId'])) $Guncellenecek['ProjeId'] = !empty($Girdi['ProjeId']) ? (int)$Girdi['ProjeId'] : null;
 
             // Dosya guncellemesi varsa ekle
@@ -315,12 +331,6 @@ class GuaranteeController
         }
 
         $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
-        $MimeType = mime_content_type($FilePath) ?: 'application/octet-stream';
-
-        header('Content-Type: ' . $MimeType);
-        header('Content-Disposition: attachment; filename="' . $DosyaAdi . '"');
-        header('Content-Length: ' . filesize($FilePath));
-        readfile($FilePath);
-        exit;
+        DownloadHelper::outputFile($FilePath, $DosyaAdi);
     }
 }

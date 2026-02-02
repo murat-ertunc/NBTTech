@@ -34,6 +34,15 @@
           </div>
         </div>
         <div class="row mb-3">
+          <label class="col-4 col-form-label">Durum</label>
+          <div class="col-8">
+            <select class="form-select" id="calendarDurum">
+              <!-- Dinamik olarak doldurulacak -->
+            </select>
+            <div class="invalid-feedback"></div>
+          </div>
+        </div>
+        <div class="row mb-3">
           <label class="col-4 col-form-label">İşin Özeti <span class="text-danger">*</span></label>
           <div class="col-8">
             <textarea class="form-control" id="calendarOzet" rows="3" maxlength="255" required></textarea>

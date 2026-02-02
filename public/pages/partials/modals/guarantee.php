@@ -55,7 +55,7 @@
           <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
           <div class="col-8">
             <div class="input-group">
-              <input type="text" class="form-control nbt-money-input" id="guaranteeAmount" placeholder="0,00" value="0,00">
+              <input type="text" class="form-control price__input nbt-money-input" id="guaranteeAmount" placeholder="0,00" value="0,00">
               <select class="form-select" id="guaranteeCurrency" style="max-width: 90px;">
               </select>
             </div>
@@ -80,13 +80,13 @@
           </div>
         </div>
         <div class="row mb-3">
-          <label class="col-4 col-form-label">PDF Dosya</label>
+          <label class="col-4 col-form-label">Dosya</label>
           <div class="col-8">
-            <input type="file" class="form-control" id="guaranteeDosya" accept=".pdf,application/pdf">
-            <small class="form-hint">PDF, Maks 10MB</small>
+            <input type="file" class="form-control" id="guaranteeDosya" accept=".pdf,.doc,.docx">
+            <small class="form-hint">PDF veya Word (PDF, DOC, DOCX). Maks 10MB</small>
             <div class="invalid-feedback" id="guaranteeDosyaError"></div>
             <div class="mt-2 d-none" id="guaranteeCurrentFile">
-              <span class="badge bg-secondary me-2"><i class="bi bi-file-pdf me-1"></i><span id="guaranteeCurrentFileName"></span></span>
+              <span class="badge bg-secondary me-2"><i class="bi bi-file-pdf me-1"></i><span id="guaranteeCurrentFileName" class="u-break-anywhere"></span></span>
               <button type="button" class="btn btn-sm btn-outline-danger" id="btnRemoveGuaranteeFile"><i class="bi bi-x"></i></button>
             </div>
           </div>

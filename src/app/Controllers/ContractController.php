@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Core\Context;
 use App\Core\Response;
 use App\Core\Transaction;
+use App\Core\UploadValidator;
+use App\Core\DownloadHelper;
 use App\Repositories\ContractRepository;
 use App\Services\CalendarService;
 
@@ -96,20 +98,32 @@ class ContractController
             return;
         }
 
-        // Dosya yukleme islemi - varsa dosya yolunu ve adini kaydediyoruz
+        // Dosya yukleme islemi - PDF veya Word tek alanda saklanir
+        $MaksimumBoyut = 10 * 1024 * 1024; // 10MB
         $DosyaAdi = null;
         $DosyaYolu = null;
+
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $Hata = UploadValidator::validateDocument(
+                $_FILES['dosya'],
+                $MaksimumBoyut
+            );
+
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
+                return;
+            }
+
             $YuklemeKlasoru = STORAGE_PATH . 'uploads' . DIRECTORY_SEPARATOR;
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
             }
-            
+
             $OrijinalAd = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
             $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
-            
+
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
                 $DosyaAdi = $OrijinalAd;
                 $DosyaYolu = 'storage/uploads/' . $GuvenliAd;
@@ -183,7 +197,7 @@ class ContractController
         if (isset($Girdi['TeklifId'])) $Guncellenecek['TeklifId'] = (int)$Girdi['TeklifId'];
         if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
 
-        // Dosya silme veya guncelleme islemi
+        // PDF dosya silme veya guncelleme islemi
         if (!empty($Girdi['removeFile'])) {
             // Mevcut dosyayi sil
             $Mevcut = $Repo->bul($Id);
@@ -199,6 +213,15 @@ class ContractController
 
         // Yeni dosya yuklendiyse eskisini silip yenisini kaydediyoruz
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
+            $Hata = UploadValidator::validateDocument(
+                $_FILES['dosya'],
+                10 * 1024 * 1024
+            );
+            if ($Hata !== null) {
+                Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
+                return;
+            }
+
             // Eski dosyayi fiziksel olarak sil
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
@@ -212,17 +235,18 @@ class ContractController
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
             }
-            
+
             $OrijinalAd = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
             $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
-            
+
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
                 $Guncellenecek['DosyaAdi'] = $OrijinalAd;
                 $Guncellenecek['DosyaYolu'] = 'storage/uploads/' . $GuvenliAd;
             }
         }
+
 
         if (!empty($Guncellenecek)) {
             Transaction::wrap(function () use ($Repo, $Id, $Guncellenecek, $KullaniciId) {
@@ -295,19 +319,13 @@ class ContractController
         }
 
         $FilePath = SRC_PATH . $Kayit['DosyaYolu'];
+        $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
         
         if (!file_exists($FilePath)) {
             Response::error('Dosya bulunamadi.', 404);
             return;
         }
 
-        $DosyaAdi = $Kayit['DosyaAdi'] ?? basename($Kayit['DosyaYolu']);
-        $MimeType = mime_content_type($FilePath) ?: 'application/octet-stream';
-
-        header('Content-Type: ' . $MimeType);
-        header('Content-Disposition: attachment; filename="' . $DosyaAdi . '"');
-        header('Content-Length: ' . filesize($FilePath));
-        readfile($FilePath);
-        exit;
+        DownloadHelper::outputFile($FilePath, $DosyaAdi);
     }
 }

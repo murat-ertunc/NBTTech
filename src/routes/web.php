@@ -27,6 +27,7 @@
  */
 
 use App\Middleware\Page;
+use App\Services\Authorization\AuthorizationService;
 
 // Path sabiti (PUBLIC_PATH bootstrap'ta tanımlı)
 $PagesPath = PUBLIC_PATH . 'pages' . DIRECTORY_SEPARATOR;
@@ -49,14 +50,14 @@ $Router->add('GET', '/dashboard', function () use ($PagesPath) {
 
 // ===== MUSTERILER =====
 
-// Yeni müşteri ekle (modal yerine tam sayfa)
+// Yeni müşteri ekle 
 $Router->add('GET', '/customer/new', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('customers.create')) return;
 	$MusteriId = 0;
 	require $PagesPath . 'customers' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
-// Müşteri düzenle (modal yerine tam sayfa)
+// Müşteri düzenle 
 $Router->add('GET', '/customer/{id}/edit', function ($Parametreler) use ($PagesPath) {
 	if (!Page::can('customers.update')) return;
 	$MusteriId = (int)($Parametreler['id'] ?? 0);
@@ -311,10 +312,48 @@ $Router->add('GET', '/users', function () use ($PagesPath) {
 	require $PagesPath . 'users.php';
 });
 
+// Yeni kullanıcı ekle
+$Router->add('GET', '/users/new', function () use ($PagesPath) {
+	if (!Page::can('users.create')) return;
+	$KullaniciId = 0;
+	require $PagesPath . 'users' . DIRECTORY_SEPARATOR . 'form.php';
+});
+
+// Kullanıcı düzenle
+$Router->add('GET', '/users/{id}/edit', function ($Parametreler) use ($PagesPath) {
+	if (!Page::can('users.update')) return;
+	$KullaniciId = (int)($Parametreler['id'] ?? 0);
+	if (!Page::requireRecord('UserRepository', $KullaniciId, 'Kullanıcı')) return;
+	require $PagesPath . 'users' . DIRECTORY_SEPARATOR . 'form.php';
+});
+
 // ===== ROLLER =====
 $Router->add('GET', '/roles', function () use ($PagesPath) {
 	if (!Page::can('roles.read')) return;
 	require $PagesPath . 'roles.php';
+});
+
+// Yeni rol ekle
+$Router->add('GET', '/roles/new', function () use ($PagesPath) {
+	if (!Page::can('roles.create')) return;
+	$RolId = 0;
+	require $PagesPath . 'roles' . DIRECTORY_SEPARATOR . 'form.php';
+});
+
+// Rol düzenle
+$Router->add('GET', '/roles/{id}/edit', function ($Parametreler) use ($PagesPath) {
+	if (!Page::can('roles.update')) return;
+	$RolId = (int)($Parametreler['id'] ?? 0);
+	if (!Page::requireRecord('RoleRepository', $RolId, 'Rol')) return;
+	$UserId = $GLOBALS['AuthUserId'] ?? null;
+	if ($UserId) {
+		$AuthService = AuthorizationService::getInstance();
+		if (!$AuthService->rolDuzenleyebilirMi($UserId, $RolId)) {
+			Page::forbid('roles.update');
+			return;
+		}
+	}
+	require $PagesPath . 'roles' . DIRECTORY_SEPARATOR . 'form.php';
 });
 
 // ===== LOGLAR =====

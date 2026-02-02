@@ -122,8 +122,21 @@ class CustomerController
 
     private static function sehirIlceDogrula(array $Girdi): array
     {
-        $SehirId = array_key_exists('SehirId', $Girdi) && $Girdi['SehirId'] !== '' ? (int)$Girdi['SehirId'] : null;
-        $IlceId = array_key_exists('IlceId', $Girdi) && $Girdi['IlceId'] !== '' ? (int)$Girdi['IlceId'] : null;
+        $SehirId = null;
+        if (array_key_exists('SehirId', $Girdi)) {
+            $SehirRaw = $Girdi['SehirId'];
+            if ($SehirRaw !== null && $SehirRaw !== '' && (int)$SehirRaw > 0) {
+                $SehirId = (int)$SehirRaw;
+            }
+        }
+
+        $IlceId = null;
+        if (array_key_exists('IlceId', $Girdi)) {
+            $IlceRaw = $Girdi['IlceId'];
+            if ($IlceRaw !== null && $IlceRaw !== '' && (int)$IlceRaw > 0) {
+                $IlceId = (int)$IlceRaw;
+            }
+        }
 
         if ($IlceId !== null && $SehirId === null) {
             return ['ok' => false, 'message' => 'Ilce secildiyse SehirId zorunludur.'];

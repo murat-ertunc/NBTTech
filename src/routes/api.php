@@ -185,7 +185,11 @@ resource('customers', App\Controllers\CustomerController::class, [
 ]);
 
 resource('invoices', App\Controllers\InvoiceController::class);
-resource('payments', App\Controllers\PaymentController::class);
+resource('payments', App\Controllers\PaymentController::class, [
+    'extra' => [
+        ['GET', '/api/payments/{id}/download', 'payments.read', 'download'],
+    ]
+]);
 resource('projects', App\Controllers\ProjectController::class);
 
 resource('offers', App\Controllers\OfferController::class, [
