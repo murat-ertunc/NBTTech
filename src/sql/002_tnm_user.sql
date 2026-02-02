@@ -1,3 +1,6 @@
+-- tnm_user tablosunu oluşturur.
+-- Şema başlangıç kurulumunu içerir.
+
 IF OBJECT_ID('tnm_user', 'U') IS NULL
 BEGIN
     CREATE TABLE tnm_user (

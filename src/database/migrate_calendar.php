@@ -1,8 +1,5 @@
 <?php
 
-
-
-
 require dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
 use App\Core\Database;
@@ -11,15 +8,11 @@ try {
     $db = Database::connection();
     echo "Veritabani baglantisi basarili.\n\n";
 
-    
-    
-    
     echo "=== TAKVIM TABLOSU GUNCELLEME ===\n";
-    
-    
+
     $check = $db->query("SELECT COL_LENGTH('tbl_takvim', 'KaynakTuru') as len");
     $result = $check->fetch();
-    
+
     if ($result['len'] === null) {
         echo "KaynakTuru kolonu ekleniyor...\n";
         $db->exec('ALTER TABLE tbl_takvim ADD KaynakTuru NVARCHAR(50) NULL');
@@ -27,11 +20,10 @@ try {
     } else {
         echo "KaynakTuru zaten mevcut.\n";
     }
-    
-    
+
     $check = $db->query("SELECT COL_LENGTH('tbl_takvim', 'KaynakId') as len");
     $result = $check->fetch();
-    
+
     if ($result['len'] === null) {
         echo "KaynakId kolonu ekleniyor...\n";
         $db->exec('ALTER TABLE tbl_takvim ADD KaynakId INT NULL');
@@ -39,11 +31,10 @@ try {
     } else {
         echo "KaynakId zaten mevcut.\n";
     }
-    
-    
+
     $check = $db->query("SELECT name FROM sys.indexes WHERE object_id = OBJECT_ID('tbl_takvim') AND name = 'IX_tbl_takvim_Kaynak'");
     $result = $check->fetch();
-    
+
     if (!$result) {
         echo "IX_tbl_takvim_Kaynak index ekleniyor...\n";
         $db->exec('CREATE INDEX IX_tbl_takvim_Kaynak ON tbl_takvim(KaynakTuru, KaynakId)');
@@ -51,12 +42,9 @@ try {
     } else {
         echo "IX_tbl_takvim_Kaynak zaten mevcut.\n";
     }
-    
+
     echo "\n=== HATIRLATMA PARAMETRELERI ===\n";
-    
-    
-    
-    
+
     $gunParametreleri = [
         ['gorusme_hatirlatma_gun', '0', 'Görüşme Tarihi Öncesi Hatırlatma Günü'],
         ['teklif_gecerlilik_hatirlatma_gun', '3', 'Teklif Geçerlilik Tarihi Öncesi Hatırlatma Günü'],
@@ -66,20 +54,20 @@ try {
         ['fatura_hatirlatma_gun', '0', 'Fatura Tarihi Öncesi Hatırlatma Günü'],
         ['odeme_hatirlatma_gun', '0', 'Ödeme Tarihi Öncesi Hatırlatma Günü'],
     ];
-    
+
     $sira = 3;
     foreach ($gunParametreleri as $param) {
         $kod = $param[0];
         $deger = $param[1];
         $etiket = $param[2];
-        
+
         $check = $db->prepare("SELECT Id FROM tbl_parametre WHERE Grup = 'genel' AND Kod = :kod AND Sil = 0");
         $check->execute(['kod' => $kod]);
         $result = $check->fetch();
-        
+
         if (!$result) {
             echo "Ekleniyor: $kod...\n";
-            $stmt = $db->prepare("INSERT INTO tbl_parametre (Grup, Kod, Deger, Etiket, Sira, Aktif, Varsayilan, Sil, EklemeZamani, EkleyenUserId) 
+            $stmt = $db->prepare("INSERT INTO tbl_parametre (Grup, Kod, Deger, Etiket, Sira, Aktif, Varsayilan, Sil, EklemeZamani, EkleyenUserId)
                                   VALUES ('genel', :kod, :deger, :etiket, :sira, 1, 0, 0, GETDATE(), 1)");
             $stmt->execute(['kod' => $kod, 'deger' => $deger, 'etiket' => $etiket, 'sira' => $sira]);
             echo "$kod eklendi.\n";
@@ -88,12 +76,9 @@ try {
         }
         $sira++;
     }
-    
-    
-    
-    
+
     echo "\n=== HATIRLATMA AKTIF/PASIF PARAMETRELERI ===\n";
-    
+
     $aktifParametreleri = [
         ['gorusme_hatirlatma_aktif', '1', 'Görüşme Hatırlatma Aktif'],
         ['teklif_gecerlilik_hatirlatma_aktif', '1', 'Teklif Geçerlilik Hatırlatma Aktif'],
@@ -103,20 +88,20 @@ try {
         ['fatura_hatirlatma_aktif', '1', 'Fatura Hatırlatma Aktif'],
         ['odeme_hatirlatma_aktif', '1', 'Ödeme Hatırlatma Aktif'],
     ];
-    
+
     $sira = 13;
     foreach ($aktifParametreleri as $param) {
         $kod = $param[0];
         $deger = $param[1];
         $etiket = $param[2];
-        
+
         $check = $db->prepare("SELECT Id FROM tbl_parametre WHERE Grup = 'genel' AND Kod = :kod AND Sil = 0");
         $check->execute(['kod' => $kod]);
         $result = $check->fetch();
-        
+
         if (!$result) {
             echo "Ekleniyor: $kod...\n";
-            $stmt = $db->prepare("INSERT INTO tbl_parametre (Grup, Kod, Deger, Etiket, Sira, Aktif, Varsayilan, Sil, EklemeZamani, EkleyenUserId) 
+            $stmt = $db->prepare("INSERT INTO tbl_parametre (Grup, Kod, Deger, Etiket, Sira, Aktif, Varsayilan, Sil, EklemeZamani, EkleyenUserId)
                                   VALUES ('genel', :kod, :deger, :etiket, :sira, 1, 0, 0, GETDATE(), 1)");
             $stmt->execute(['kod' => $kod, 'deger' => $deger, 'etiket' => $etiket, 'sira' => $sira]);
             echo "$kod eklendi.\n";
@@ -125,9 +110,9 @@ try {
         }
         $sira++;
     }
-    
+
     echo "\n=== MIGRATION TAMAMLANDI ===\n";
-    
+
 } catch (Exception $e) {
     echo "HATA: " . $e->getMessage() . "\n";
     exit(1);

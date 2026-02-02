@@ -12,11 +12,11 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId INT NULL,
         Sil BIT NOT NULL DEFAULT 0,
-        
+
         -- İlçe Bilgileri
         SehirId INT NOT NULL,
         Ad NVARCHAR(50) NOT NULL,
-        
+
         CONSTRAINT FK_ilce_sehir FOREIGN KEY (SehirId) REFERENCES tnm_sehir(Id)
     );
     PRINT 'tnm_ilce tablosu olusturuldu.';

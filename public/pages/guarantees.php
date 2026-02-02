@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $pageTitle = 'Teminatlar';
 $activeNav = 'islemler';
 $currentPage = 'guarantees';

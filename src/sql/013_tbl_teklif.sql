@@ -9,11 +9,11 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId INT NULL,
         Sil BIT NOT NULL DEFAULT 0,
-        
+
         -- İlişkiler
         MusteriId INT NOT NULL,
         ProjeId INT NULL,
-        
+
         -- Teklif Bilgileri
         Konu NVARCHAR(255) NULL,
         Tutar DECIMAL(16,2) DEFAULT 0.00,
@@ -21,11 +21,11 @@ BEGIN
         TeklifTarihi DATE NULL,
         GecerlilikTarihi DATE NULL,
         Durum TINYINT DEFAULT 0,
-        
+
         -- Dosya Bilgileri
         DosyaAdi NVARCHAR(255) NULL,
         DosyaYolu NVARCHAR(500) NULL,
-        
+
         CONSTRAINT FK_teklif_musteri FOREIGN KEY (MusteriId) REFERENCES tbl_musteri(Id),
         CONSTRAINT FK_teklif_proje FOREIGN KEY (ProjeId) REFERENCES tbl_proje(Id)
     );

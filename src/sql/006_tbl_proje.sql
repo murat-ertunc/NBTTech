@@ -9,15 +9,15 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId INT NULL,
         Sil BIT NOT NULL DEFAULT 0,
-        
+
         -- İlişkiler
         MusteriId INT NOT NULL,
-        
+
         -- Proje Bilgileri
         ProjeAdi NVARCHAR(255) NOT NULL,
         Butce DECIMAL(16,2) DEFAULT 0.00,
         Durum TINYINT DEFAULT 1,
-        
+
         CONSTRAINT FK_proje_musteri FOREIGN KEY (MusteriId) REFERENCES tbl_musteri(Id)
     );
 END

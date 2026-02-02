@@ -1,7 +1,5 @@
 <?php
 
-
-
 ?>
 <!-- Şifre Değiştir Modal -->
 <div class="modal fade" id="passwordModal" tabindex="-1">

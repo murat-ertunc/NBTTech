@@ -9,31 +9,31 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         DegistirenUserId INT NULL,
         Sil BIT NOT NULL DEFAULT 0,
-        
+
         -- İlişkiler
         MusteriId INT NOT NULL,
         ProjeId INT NULL,
-        
+
         -- Fatura Bilgileri
         FaturaNo NVARCHAR(50) NULL,
         Tarih DATE NOT NULL,
         Tutar DECIMAL(16,2) NOT NULL DEFAULT 0,
         DovizCinsi NVARCHAR(3) NOT NULL DEFAULT 'TRY',
         Aciklama NVARCHAR(MAX) NULL,
-        
+
         -- Şüpheli Alacak
         SupheliAlacak TINYINT DEFAULT 0,
-        
+
         -- Tevkifat Bilgileri
         TevkifatAktif TINYINT DEFAULT 0,
         TevkifatOran1 DECIMAL(5,2) NULL,
         TevkifatOran2 DECIMAL(5,2) NULL,
-        
+
         -- Takvim Hatırlatma
         TakvimAktif TINYINT DEFAULT 0,
         TakvimSure INT NULL,
         TakvimSureTipi NVARCHAR(10) NULL,
-        
+
         CONSTRAINT FK_fatura_musteri FOREIGN KEY (MusteriId) REFERENCES tbl_musteri(Id),
         CONSTRAINT FK_fatura_proje FOREIGN KEY (ProjeId) REFERENCES tbl_proje(Id)
     );

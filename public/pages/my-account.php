@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $pageTitle = 'Hesabım';
 $activeNav = '';
 $currentPage = 'my-account';
@@ -50,7 +46,7 @@ require __DIR__ . '/partials/header.php';
                 <hr class="my-4">
 
                 <h6 class="fw-semibold mb-3"><i class="bi bi-key me-2"></i>Şifre Değiştir</h6>
-                
+
                 <div class="row mb-3 align-items-center">
                   <label class="col-3 col-form-label fw-semibold">Eski Şifre</label>
                   <div class="col-9">

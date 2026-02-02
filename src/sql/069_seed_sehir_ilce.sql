@@ -6,7 +6,7 @@
 IF NOT EXISTS (SELECT 1 FROM tnm_sehir WHERE Sil = 0)
 BEGIN
     PRINT 'Il verileri ekleniyor...';
-    
+
     -- İller (81 il)
     INSERT INTO tnm_sehir (PlakaKodu, Ad, Bolge) VALUES
     ('01', 'Adana', 'Akdeniz'),
@@ -90,7 +90,7 @@ BEGIN
     ('79', 'Kilis', 'Güneydoğu Anadolu'),
     ('80', 'Osmaniye', 'Akdeniz'),
     ('81', 'Düzce', 'Karadeniz');
-    
+
     PRINT '81 il eklendi.';
 END
 ELSE
@@ -103,7 +103,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM tnm_ilce WHERE Sil = 0)
 BEGIN
     PRINT 'Ilce verileri ekleniyor...';
-    
+
     -- Her il için merkez ilçe ve bazı büyük ilçeler
     -- İstanbul ilçeleri
     DECLARE @IstanbulId INT = (SELECT Id FROM tnm_sehir WHERE PlakaKodu = '34');
@@ -147,7 +147,7 @@ BEGIN
     (@IstanbulId, 'Ümraniye'),
     (@IstanbulId, 'Üsküdar'),
     (@IstanbulId, 'Zeytinburnu');
-    
+
     -- Ankara ilçeleri
     DECLARE @AnkaraId INT = (SELECT Id FROM tnm_sehir WHERE PlakaKodu = '06');
     INSERT INTO tnm_ilce (SehirId, Ad) VALUES
@@ -176,7 +176,7 @@ BEGIN
     (@AnkaraId, 'Sincan'),
     (@AnkaraId, 'Şereflikoçhisar'),
     (@AnkaraId, 'Yenimahalle');
-    
+
     -- İzmir ilçeleri
     DECLARE @IzmirId INT = (SELECT Id FROM tnm_sehir WHERE PlakaKodu = '35');
     INSERT INTO tnm_ilce (SehirId, Ad) VALUES
@@ -210,7 +210,7 @@ BEGIN
     (@IzmirId, 'Tire'),
     (@IzmirId, 'Torbalı'),
     (@IzmirId, 'Urla');
-    
+
     -- Bursa ilçeleri
     DECLARE @BursaId INT = (SELECT Id FROM tnm_sehir WHERE PlakaKodu = '16');
     INSERT INTO tnm_ilce (SehirId, Ad) VALUES
@@ -231,7 +231,7 @@ BEGIN
     (@BursaId, 'Osmangazi'),
     (@BursaId, 'Yenişehir'),
     (@BursaId, 'Yıldırım');
-    
+
     -- Antalya ilçeleri
     DECLARE @AntalyaId INT = (SELECT Id FROM tnm_sehir WHERE PlakaKodu = '07');
     INSERT INTO tnm_ilce (SehirId, Ad) VALUES
@@ -254,19 +254,19 @@ BEGIN
     (@AntalyaId, 'Manavgat'),
     (@AntalyaId, 'Muratpaşa'),
     (@AntalyaId, 'Serik');
-    
+
     -- Diğer iller için merkez ilçe ekleme (kalan 76 il)
     DECLARE @SehirCursor CURSOR;
     DECLARE @SehirId INT;
     DECLARE @SehirAd NVARCHAR(50);
-    
-    SET @SehirCursor = CURSOR FOR 
-        SELECT Id, Ad FROM tnm_sehir 
+
+    SET @SehirCursor = CURSOR FOR
+        SELECT Id, Ad FROM tnm_sehir
         WHERE PlakaKodu NOT IN ('06', '07', '16', '34', '35') AND Sil = 0;
-    
+
     OPEN @SehirCursor;
     FETCH NEXT FROM @SehirCursor INTO @SehirId, @SehirAd;
-    
+
     WHILE @@FETCH_STATUS = 0
     BEGIN
         -- Her il için merkez ilçe ekle
@@ -274,13 +274,13 @@ BEGIN
         BEGIN
             INSERT INTO tnm_ilce (SehirId, Ad) VALUES (@SehirId, 'Merkez');
         END
-        
+
         FETCH NEXT FROM @SehirCursor INTO @SehirId, @SehirAd;
     END
-    
+
     CLOSE @SehirCursor;
     DEALLOCATE @SehirCursor;
-    
+
     PRINT 'Ilce verileri eklendi.';
 END
 ELSE

@@ -2,9 +2,6 @@
 
 namespace App\Core;
 
-
-
-
 class Context
 {
     private static ?int $KullaniciId = null;
@@ -55,20 +52,10 @@ class Context
         return self::$SekmeId;
     }
 
-    
-
-
-
-
     public static function setRol(?string $Rol): void
     {
         self::$Rol = $Rol;
     }
-
-    
-
-
-
 
     public static function rol(): ?string
     {

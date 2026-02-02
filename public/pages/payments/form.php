@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $MusteriId = $MusteriId ?? 0;
 $OdemeId = $OdemeId ?? 0;
 $IsEdit = $OdemeId > 0;
@@ -11,7 +7,6 @@ $IsEdit = $OdemeId > 0;
 $pageTitle = $IsEdit ? 'Ödeme Düzenle' : 'Yeni Ödeme';
 $activeNav = 'customers';
 $currentPage = 'payment-form';
-
 
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'odemeler';
@@ -29,14 +24,14 @@ require __DIR__ . '/../partials/header.php';
   <div class="row justify-content-center">
     <div class="col-12">
       <?php require __DIR__ . '/../partials/form-header.php'; ?>
-      
+
       <div class="card-body">
         <form id="paymentPageForm">
           <div class="alert alert-danger d-none" id="paymentFormError"></div>
-          
+
           <input type="hidden" id="paymentId" value="<?= (int)$OdemeId ?>">
           <input type="hidden" id="paymentMusteriId" value="<?= (int)$MusteriId ?>">
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
             <div class="col-8">
@@ -45,7 +40,7 @@ require __DIR__ . '/../partials/header.php';
               </select>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Fatura <span class="text-danger">*</span></label>
             <div class="col-8">
@@ -55,14 +50,14 @@ require __DIR__ . '/../partials/header.php';
               <small class="text-muted">Sadece bakiyesi olan faturalar listelenir</small>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Ödeme Tarihi <span class="text-danger">*</span></label>
             <div class="col-8">
               <input type="date" class="form-control" id="paymentTarih" value="<?= date('Y-m-d') ?>" required>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
             <div class="col-8">
@@ -76,7 +71,7 @@ require __DIR__ . '/../partials/header.php';
               </div>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Ödeme Türü <span class="text-danger">*</span></label>
             <div class="col-8">
@@ -91,14 +86,14 @@ require __DIR__ . '/../partials/header.php';
               </select>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Banka/Hesap</label>
             <div class="col-8">
               <input type="text" class="form-control" id="paymentBanka">
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Notlar</label>
             <div class="col-8">
@@ -121,7 +116,7 @@ require __DIR__ . '/../partials/header.php';
           </div>
         </form>
       </div>
-      
+
       <?php require __DIR__ . '/../partials/form-footer.php'; ?>
     </div>
   </div>

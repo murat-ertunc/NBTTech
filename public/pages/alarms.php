@@ -1,10 +1,5 @@
 <?php
 
-
-
-
-
-
 $pageTitle = 'Alarmlar';
 $activeNav = 'dashboard';
 $currentPage = 'alarms';

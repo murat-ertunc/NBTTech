@@ -1,7 +1,5 @@
 <?php
 
-
-
 ?>
 <!-- Teklif Modal -->
 <div class="modal fade" id="offerModal" tabindex="-1">

@@ -6,7 +6,7 @@ BEGIN
         KaynakId INT NOT NULL,
         BackupZamani DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         BackupUserId INT NULL,
-        
+
         -- Orijinal tablo verileri
         Guid UNIQUEIDENTIFIER NOT NULL,
         EklemeZamani DATETIME2(0) NOT NULL,
@@ -14,17 +14,17 @@ BEGIN
         DegisiklikZamani DATETIME2(0) NOT NULL,
         DegistirenUserId INT NULL,
         Sil BIT NOT NULL,
-        
+
         -- Temel Bilgiler
         MusteriKodu NVARCHAR(10) NULL,
         Unvan NVARCHAR(150) NOT NULL,
         Aciklama NVARCHAR(500) NULL,
-        
+
         -- Vergi Bilgileri
         VergiDairesi NVARCHAR(50) NULL,
         VergiNo NVARCHAR(11) NULL,
         MersisNo NVARCHAR(16) NULL,
-        
+
         -- İletişim Bilgileri
         Il NVARCHAR(50) NULL,
         Ilce NVARCHAR(50) NULL,

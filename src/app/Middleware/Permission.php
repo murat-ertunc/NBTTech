@@ -6,157 +6,110 @@ use App\Core\Context;
 use App\Core\Response;
 use App\Services\Authorization\AuthorizationService;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 class Permission
 {
-    
-
-
-
-
 
     public static function izinGerekli(string $PermissionKodu): bool
     {
         $UserId = Context::kullaniciId();
-        
+
         if (!$UserId) {
             Response::error('Yetkisiz erisim. Oturum bulunamadi.', 401);
             return false;
         }
-        
+
         $AuthService = AuthorizationService::getInstance();
-        
+
         if (!$AuthService->can($UserId, $PermissionKodu)) {
             self::logForbidden($UserId, [$PermissionKodu], 'izinGerekli');
             Response::forbidden();
             return false;
         }
-        
+
         return true;
     }
-    
-    
-
-
-
-
 
     public static function izinlerdenBiriGerekli(array $PermissionKodlari): bool
     {
         $UserId = Context::kullaniciId();
-        
+
         if (!$UserId) {
             Response::error('Yetkisiz erisim. Oturum bulunamadi.', 401);
             return false;
         }
-        
+
         $AuthService = AuthorizationService::getInstance();
-        
+
         if (!$AuthService->izinlerdenBiriVarMi($UserId, $PermissionKodlari)) {
             self::logForbidden($UserId, $PermissionKodlari, 'izinlerdenBiriGerekli');
             Response::forbidden();
             return false;
         }
-        
+
         return true;
     }
-    
-    
-
-
-
-
 
     public static function tumIzinlerGerekli(array $PermissionKodlari): bool
     {
         $UserId = Context::kullaniciId();
-        
+
         if (!$UserId) {
             Response::error('Yetkisiz erisim. Oturum bulunamadi.', 401);
             return false;
         }
-        
+
         $AuthService = AuthorizationService::getInstance();
-        
+
         if (!$AuthService->tumIzinlerVarMi($UserId, $PermissionKodlari)) {
             self::logForbidden($UserId, $PermissionKodlari, 'tumIzinlerGerekli');
             Response::forbidden();
             return false;
         }
-        
+
         return true;
     }
-    
-    
-
-
-
-
 
     public static function modulErisimGerekli(string $ModulAdi): bool
     {
         $UserId = Context::kullaniciId();
-        
+
         if (!$UserId) {
             Response::error('Yetkisiz erisim. Oturum bulunamadi.', 401);
             return false;
         }
-        
+
         $AuthService = AuthorizationService::getInstance();
-        
+
         if (!$AuthService->modulErisimVarMi($UserId, $ModulAdi)) {
             self::logForbidden($UserId, [$ModulAdi . '.*'], 'modulErisimGerekli');
             Response::forbidden();
             return false;
         }
-        
+
         return true;
     }
-    
-    
-    
-
-
-
-
-
-
 
     public static function kendiKaydiVeyaIzin(int $HedefUserId, string $PermissionKodu): bool
     {
         $UserId = Context::kullaniciId();
-        
+
         if (!$UserId) {
             Response::error('Yetkisiz erisim. Oturum bulunamadi.', 401);
             return false;
         }
-        
-        
+
         if ($UserId === $HedefUserId) {
             return true;
         }
-        
+
         $AuthService = AuthorizationService::getInstance();
-        
-        
+
         if (!$AuthService->can($UserId, $PermissionKodu)) {
             self::logForbidden($UserId, [$PermissionKodu], 'kendiKaydiVeyaIzin');
             Response::forbidden();
             return false;
         }
-        
+
         return true;
     }
 

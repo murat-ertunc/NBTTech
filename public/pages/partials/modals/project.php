@@ -1,7 +1,5 @@
 <?php
 
-
-
 ?>
 <!-- Proje Modal -->
 <div class="modal fade" id="projectModal" tabindex="-1">

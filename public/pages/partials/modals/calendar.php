@@ -1,7 +1,5 @@
 <?php
 
-
-
 ?>
 <!-- Takvim Modal -->
 <div class="modal fade" id="calendarModal" tabindex="-1">

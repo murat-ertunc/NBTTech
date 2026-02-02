@@ -1,18 +1,11 @@
 <?php
 
-
-
-
-
-
-
 use App\Core\Config;
 use App\Core\Env;
 use App\Services\Logger\LoggerFactory;
 
-
 if (!defined('ROOT_PATH')) {
-    
+
     define('DS', DIRECTORY_SEPARATOR);
     define('ROOT_PATH', dirname(__DIR__, 3) . DS);
     define('SRC_PATH', dirname(__DIR__, 2) . DS);
@@ -24,7 +17,6 @@ if (!defined('ROOT_PATH')) {
     define('ENV_PATH', ROOT_PATH . '.env');
     define('BASE_PATH', APP_PATH);
 }
-
 
 spl_autoload_register(function ($Sinif) {
     $Prefix = 'App\\';
@@ -41,7 +33,6 @@ spl_autoload_register(function ($Sinif) {
 
 require_once __DIR__ . DS . 'Env.php';
 require_once __DIR__ . DS . 'Config.php';
-
 
 $EnvYolu = ENV_PATH;
 if (!file_exists($EnvYolu)) {
@@ -76,15 +67,10 @@ if (!function_exists('logger')) {
 
 date_default_timezone_set('UTC');
 
-
-
-
-
 set_exception_handler(function (\Throwable $Exception) {
     $RequestUri = $_SERVER['REQUEST_URI'] ?? '';
     $IsApiRequest = strpos($RequestUri, '/api/') !== false;
-    
-    
+
     $LogMessage = sprintf(
         "[UNCAUGHT EXCEPTION] %s: %s in %s:%d\nStack trace:\n%s",
         get_class($Exception),
@@ -94,21 +80,20 @@ set_exception_handler(function (\Throwable $Exception) {
         $Exception->getTraceAsString()
     );
     error_log($LogMessage);
-    
-    
+
     if (function_exists('logger')) {
         try {
             logger()->error($LogMessage);
         } catch (\Throwable $LogError) {
-            
+
         }
     }
-    
+
     if ($IsApiRequest) {
-        
+
         http_response_code(500);
         header('Content-Type: application/json');
-        
+
         $Response = [
             'ok' => false,
             'error' => [
@@ -116,8 +101,7 @@ set_exception_handler(function (\Throwable $Exception) {
                 'message' => 'Sunucu hatası oluştu.'
             ]
         ];
-        
-        
+
         if (env('APP_DEBUG', false) === true || env('APP_DEBUG', 'false') === 'true') {
             $Response['error']['debug'] = [
                 'exception' => get_class($Exception),
@@ -126,12 +110,12 @@ set_exception_handler(function (\Throwable $Exception) {
                 'line' => $Exception->getLine()
             ];
         }
-        
+
         echo json_encode($Response, JSON_UNESCAPED_UNICODE);
     } else {
-        
+
         http_response_code(500);
-        
+
         if (defined('PUBLIC_PATH') && file_exists(PUBLIC_PATH . '500.php')) {
             require PUBLIC_PATH . '500.php';
         } else {
@@ -141,13 +125,12 @@ set_exception_handler(function (\Throwable $Exception) {
             }
         }
     }
-    
+
     exit(1);
 });
 
-
 set_error_handler(function ($Severity, $Message, $File, $Line) {
-    
+
     if (!(error_reporting() & $Severity)) {
         return false;
     }

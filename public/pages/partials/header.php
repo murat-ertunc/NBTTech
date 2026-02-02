@@ -1,24 +1,10 @@
 <?php
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 $projectRoot = dirname(__DIR__, 3);
 require_once $projectRoot . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
 
 use App\Core\Token;
 use App\Services\Authorization\AuthorizationService;
-
 
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
@@ -30,20 +16,15 @@ $UygulamaAdi = config('app.name', 'NbtProject');
 $Logo = config('app.logo', '/assets/logo.png');
 $PaginationDefault = env('PAGINATION_DEFAULT', 10);
 
-
-
-
-
 $pageTitle = $pageTitle ?? 'Ana Sayfa';
 $activeNav = $activeNav ?? 'dashboard';
-$currentPage = $currentPage ?? $activeNav; 
+$currentPage = $currentPage ?? $activeNav;
 
 $FrontendPermissions = [
   'roller' => [],
   'permissionlar' => [],
   'moduller' => []
 ];
-
 
 $AuthUserId = null;
 try {
@@ -63,23 +44,12 @@ try {
   ];
 }
 
-
 $PermissionList = $FrontendPermissions['permissionlar'] ?? [];
 $PermissionSet = array_flip($PermissionList);
-
-
-
-
-
 
 $can = function(string $permission) use ($PermissionSet): bool {
   return isset($PermissionSet[$permission]);
 };
-
-
-
-
-
 
 $canAny = function(array $permissions) use ($PermissionSet): bool {
   foreach ($permissions as $p) {
@@ -87,11 +57,6 @@ $canAny = function(array $permissions) use ($PermissionSet): bool {
   }
   return false;
 };
-
-
-
-
-
 
 $canAll = function(array $permissions) use ($PermissionSet): bool {
   foreach ($permissions as $p) {
@@ -222,10 +187,10 @@ $canAll = function(array $permissions) use ($PermissionSet): bool {
               <li><a class="dropdown-item py-2" href="/projects" data-nav-group="islemler"><i
                     class="bi bi-kanban me-2 text-primary"></i>Projeler</a></li>
               <?php endif; ?>
-              <?php 
+              <?php
               $HasFirstGroup = $can('invoices.read') || $can('payments.read') || $can('projects.read');
               $HasSecondGroup = $can('offers.read') || $can('contracts.read') || $can('guarantees.read');
-              if ($HasFirstGroup && $HasSecondGroup): 
+              if ($HasFirstGroup && $HasSecondGroup):
               ?>
               <li>
                 <hr class="dropdown-divider border-secondary">
@@ -336,6 +301,6 @@ $canAll = function(array $permissions) use ($PermissionSet): bool {
         </div>
       </div>
       <?php endif; ?>
-      
+
       <!-- Sağ İçerik: Sayfa İçeriği -->
       <div class="<?= $can('customers.read') ? 'col-lg-9' : 'col-12' ?>" id="mainContent">

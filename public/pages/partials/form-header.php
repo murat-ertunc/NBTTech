@@ -1,17 +1,5 @@
 <?php
 
-
-
-
-
-
-
-
-
-
-
-
-
 $FormMusteriId = $FormMusteriId ?? 0;
 $FormTabKey = $FormTabKey ?? 'bilgi';
 $FormTitle = $FormTitle ?? 'Form';

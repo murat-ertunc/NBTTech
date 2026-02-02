@@ -10,7 +10,7 @@ BEGIN
         BackupId            INT IDENTITY(1,1) PRIMARY KEY,
         BackupZamani        DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         BackupIslemTipi     NVARCHAR(10) NOT NULL, -- UPDATE, DELETE
-        
+
         -- Original table columns
         Id                  INT NOT NULL,
         Guid                UNIQUEIDENTIFIER NOT NULL,
@@ -26,10 +26,10 @@ BEGIN
         SistemRolu          BIT NOT NULL,
         Aktif               BIT NOT NULL
     );
-    
+
     CREATE NONCLUSTERED INDEX IX_bck_tnm_rol_Id ON bck_tnm_rol(Id);
     CREATE NONCLUSTERED INDEX IX_bck_tnm_rol_BackupZamani ON bck_tnm_rol(BackupZamani);
-    
+
     PRINT 'bck_tnm_rol tablosu olusturuldu.';
 END
 GO
@@ -41,7 +41,7 @@ BEGIN
         BackupId            INT IDENTITY(1,1) PRIMARY KEY,
         BackupZamani        DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         BackupIslemTipi     NVARCHAR(10) NOT NULL,
-        
+
         Id                  INT NOT NULL,
         Guid                UNIQUEIDENTIFIER NOT NULL,
         EklemeZamani        DATETIME2(0) NOT NULL,
@@ -55,10 +55,10 @@ BEGIN
         Aciklama            NVARCHAR(250) NULL,
         Aktif               BIT NOT NULL
     );
-    
+
     CREATE NONCLUSTERED INDEX IX_bck_tnm_permission_Id ON bck_tnm_permission(Id);
     CREATE NONCLUSTERED INDEX IX_bck_tnm_permission_BackupZamani ON bck_tnm_permission(BackupZamani);
-    
+
     PRINT 'bck_tnm_permission tablosu olusturuldu.';
 END
 GO
@@ -70,7 +70,7 @@ BEGIN
         BackupId            INT IDENTITY(1,1) PRIMARY KEY,
         BackupZamani        DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         BackupIslemTipi     NVARCHAR(10) NOT NULL,
-        
+
         Id                  INT NOT NULL,
         Guid                UNIQUEIDENTIFIER NOT NULL,
         EklemeZamani        DATETIME2(0) NOT NULL,
@@ -81,10 +81,10 @@ BEGIN
         RolId               INT NOT NULL,
         PermissionId        INT NOT NULL
     );
-    
+
     CREATE NONCLUSTERED INDEX IX_bck_tnm_rol_permission_Id ON bck_tnm_rol_permission(Id);
     CREATE NONCLUSTERED INDEX IX_bck_tnm_rol_permission_BackupZamani ON bck_tnm_rol_permission(BackupZamani);
-    
+
     PRINT 'bck_tnm_rol_permission tablosu olusturuldu.';
 END
 GO
@@ -96,7 +96,7 @@ BEGIN
         BackupId            INT IDENTITY(1,1) PRIMARY KEY,
         BackupZamani        DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
         BackupIslemTipi     NVARCHAR(10) NOT NULL,
-        
+
         Id                  INT NOT NULL,
         Guid                UNIQUEIDENTIFIER NOT NULL,
         EklemeZamani        DATETIME2(0) NOT NULL,
@@ -107,10 +107,10 @@ BEGIN
         UserId              INT NOT NULL,
         RolId               INT NOT NULL
     );
-    
+
     CREATE NONCLUSTERED INDEX IX_bck_tnm_user_rol_Id ON bck_tnm_user_rol(Id);
     CREATE NONCLUSTERED INDEX IX_bck_tnm_user_rol_BackupZamani ON bck_tnm_user_rol(BackupZamani);
-    
+
     PRINT 'bck_tnm_user_rol tablosu olusturuldu.';
 END
 GO

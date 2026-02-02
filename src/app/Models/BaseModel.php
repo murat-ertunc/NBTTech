@@ -1,4 +1,8 @@
 <?php
+/**
+ * Base Model veri modelini tanımlar.
+ * Alanlar ve ilişkiler için temel yapı sunar.
+ */
 
 namespace App\Models;
 

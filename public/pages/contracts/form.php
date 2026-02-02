@@ -1,12 +1,5 @@
 <?php
 
-
-
-
-
-
-
-
 $MusteriId = $MusteriId ?? 0;
 $SozlesmeId = $SozlesmeId ?? 0;
 $IsEdit = $SozlesmeId > 0;
@@ -44,10 +37,10 @@ require __DIR__ . '/../partials/header.php';
         <div class="card-body">
           <form id="contractPageForm" enctype="multipart/form-data">
             <div class="alert alert-danger d-none" id="contractFormError"></div>
-            
+
             <input type="hidden" id="contractId" value="<?= (int)$SozlesmeId ?>">
             <input type="hidden" id="contractMusteriId" value="<?= (int)$MusteriId ?>">
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
               <div class="col-8">
@@ -57,14 +50,14 @@ require __DIR__ . '/../partials/header.php';
                 <div class="invalid-feedback"></div>
               </div>
             </div>
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Sözleşme Tarihi</label>
               <div class="col-8">
                 <input type="date" class="form-control" id="contractStart" value="<?= date('Y-m-d') ?>">
               </div>
             </div>
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Tutar <span class="text-danger">*</span></label>
               <div class="col-8">
@@ -77,7 +70,7 @@ require __DIR__ . '/../partials/header.php';
                 <div class="invalid-feedback"></div>
               </div>
             </div>
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Durum</label>
               <div class="col-8">
@@ -86,7 +79,7 @@ require __DIR__ . '/../partials/header.php';
                 </select>
               </div>
             </div>
-            
+
             <div class="row mb-3">
               <label class="col-4 col-form-label">Sözleşme Dosyası</label>
               <div class="col-8">
@@ -129,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const MusteriId = <?= (int)$MusteriId ?>;
   const SozlesmeId = <?= (int)$SozlesmeId ?>;
   const IsEdit = SozlesmeId > 0;
-  
+
   // Form initialization
   NbtContractPageForm.init(MusteriId, SozlesmeId);
 });

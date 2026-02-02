@@ -1,4 +1,8 @@
 <?php
+/**
+ * Auth Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 

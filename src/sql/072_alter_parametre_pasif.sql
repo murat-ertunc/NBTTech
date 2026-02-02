@@ -4,7 +4,7 @@
 -- =============================================
 
 IF NOT EXISTS (
-    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_NAME = 'tbl_parametre' AND COLUMN_NAME = 'Pasif'
 )
 BEGIN

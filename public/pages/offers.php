@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $pageTitle = 'Teklifler';
 $activeNav = 'islemler';
 $currentPage = 'offers';

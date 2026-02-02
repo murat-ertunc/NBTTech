@@ -30,14 +30,14 @@ SELECT NEWID(), SYSUTCDATETIME(), 1, SYSUTCDATETIME(), 1, 0, @AdminRolId, p.Id
 FROM tnm_permission p
 WHERE p.Sil = 0 AND p.Aktif = 1
   AND NOT EXISTS (
-      SELECT 1 FROM tnm_rol_permission rp 
+      SELECT 1 FROM tnm_rol_permission rp
       WHERE rp.RolId = @AdminRolId AND rp.PermissionId = p.Id AND rp.Sil = 0
   );
 
 PRINT 'Admin (Yonetici) rolune tum yetkiler atandi.';
 
 -- Sonucu goster
-SELECT 
+SELECT
     r.RolAdi,
     r.RolKodu,
     COUNT(rp.Id) AS ToplamYetkiSayisi

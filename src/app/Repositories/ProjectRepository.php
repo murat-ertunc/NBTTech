@@ -1,4 +1,8 @@
 <?php
+/**
+ * Project Repository için veri erişim işlemlerini yürütür.
+ * Sorgu ve kalıcılık katmanını soyutlar.
+ */
 
 namespace App\Repositories;
 
@@ -9,15 +13,12 @@ class ProjectRepository extends BaseRepository
 {
     protected string $Tablo = 'tbl_proje';
 
-    
-
-
     public function tumAktifler(): array
     {
-        $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan 
-                FROM {$this->Tablo} p 
-                LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id 
-                WHERE p.Sil = 0 
+        $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan
+                FROM {$this->Tablo} p
+                LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id
+                WHERE p.Sil = 0
                 ORDER BY p.Id DESC";
         $Stmt = $this->Db->query($Sql);
         $Sonuclar = $Stmt->fetchAll();
@@ -42,39 +43,27 @@ class ProjectRepository extends BaseRepository
         return $Sonuc;
     }
 
-    
-
-
     public function tumAktiflerPaginated(int $Sayfa = 1, int $Limit = 10): array
     {
-        $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan 
-                FROM {$this->Tablo} p 
-                LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id 
-                WHERE p.Sil = 0 
+        $Sql = "SELECT p.*, m.Unvan AS MusteriUnvan
+                FROM {$this->Tablo} p
+                LEFT JOIN tbl_musteri m ON p.MusteriId = m.Id
+                WHERE p.Sil = 0
                 ORDER BY p.Id DESC";
         $Sonuc = $this->paginatedQuery($Sql, [], $Sayfa, $Limit);
         $this->logSelect(['Sil' => 0, 'page' => $Sayfa], $Sonuc['data']);
         return $Sonuc;
     }
 
-    
-
-
-
-
-
-
-
     public function cascadeSoftSil(int $Id, int $KullaniciId): void
     {
         Transaction::wrap(function() use ($Id, $KullaniciId) {
-            
+
             $this->softSil($Id, $KullaniciId);
 
-            
             $IliskiliTablolar = [
                 'tbl_fatura',
-                'tbl_odeme', 
+                'tbl_odeme',
                 'tbl_teklif',
                 'tbl_sozlesme',
                 'tbl_teminat',
@@ -85,15 +74,14 @@ class ProjectRepository extends BaseRepository
             ];
 
             foreach ($IliskiliTablolar as $Tablo) {
-                $Sql = "UPDATE {$Tablo} SET 
-                        Sil = 1, 
-                        DegisiklikZamani = GETDATE(), 
-                        DegistirenUserId = :UserId 
+                $Sql = "UPDATE {$Tablo} SET
+                        Sil = 1,
+                        DegisiklikZamani = GETDATE(),
+                        DegistirenUserId = :UserId
                         WHERE ProjeId = :ProjeId AND Sil = 0";
                 $Stmt = $this->Db->prepare($Sql);
                 $Stmt->execute(['ProjeId' => $Id, 'UserId' => $KullaniciId]);
-                
-                
+
                 $SilinenSayisi = $Stmt->rowCount();
                 if ($SilinenSayisi > 0) {
                     ActionLogger::logla('CASCADE_DELETE', $Tablo, null, [

@@ -10,7 +10,7 @@ class Config
     {
         [$Dosya, $AltAnahtar] = self::anahtarParcala($Anahtar);
         if (!isset(self::$Onbellek[$Dosya])) {
-            
+
             $Yol = CONFIG_PATH . $Dosya . '.php';
             self::$Onbellek[$Dosya] = file_exists($Yol) ? require $Yol : [];
         }

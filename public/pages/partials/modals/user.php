@@ -1,10 +1,5 @@
 <?php
 
-
-
-
-
-
 ?>
 <!-- Kullanıcı Ekle Modal -->
 <div class="modal fade" id="userModal" tabindex="-1">

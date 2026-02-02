@@ -1,12 +1,5 @@
 <?php
 
-
-
-
-
-
-
-
 $MusteriId = $MusteriId ?? 0;
 $FaturaId = $FaturaId ?? 0;
 $IsEdit = $FaturaId > 0;
@@ -14,7 +7,6 @@ $IsEdit = $FaturaId > 0;
 $pageTitle = $IsEdit ? 'Fatura Düzenle' : 'Yeni Fatura';
 $activeNav = 'customers';
 $currentPage = 'invoice-form';
-
 
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'faturalar';
@@ -32,7 +24,7 @@ require __DIR__ . '/../partials/header.php';
   <div class="row justify-content-center">
     <div class="col-12">
       <?php require __DIR__ . '/../partials/form-header.php'; ?>
-      
+
       <div class="card-body">
         <div class="alert alert-danger d-none modal-error" id="invoiceModalError"></div>
         <input type="hidden" id="invoiceId" value="<?= (int)$FaturaId ?>">
@@ -245,7 +237,7 @@ require __DIR__ . '/../partials/header.php';
         </div>
 
       </div>
-      
+
       <?php require __DIR__ . '/../partials/form-footer.php'; ?>
     </div>
   </div>
@@ -263,11 +255,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const projeSelect = document.getElementById('invoiceProjeId');
     const dovizSelect = document.getElementById('invoiceDoviz');
     const invoiceId = document.getElementById('invoiceId').value;
-    
+
     // InvoiceModule dosya state'ini initialize et
     if (typeof InvoiceModule !== 'undefined') {
         InvoiceModule.resetState();
-        
+
         // Dosya yükleme input event listener
         const fileInput = document.getElementById('invoiceFileInput');
         if (fileInput) {
@@ -276,10 +268,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
-    
+
     // PHP'den gelen müşteri ID (URL path'ten)
     const phpMusteriId = '<?= (int)$MusteriId ?>';
-    
+
     // Müşteri listesini yükle (gizli alan için)
     if (musteriSelect) {
         NbtApi.get('/api/customers').then(response => {
@@ -287,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
             customers.forEach(c => {
                 musteriSelect.innerHTML += `<option value="${c.Id}">${NbtUtils.escapeHtml(c.MusteriAdi || '')}</option>`;
             });
-            
+
             // Müşteri seçimini yap
             if (phpMusteriId && phpMusteriId !== '0') {
                 musteriSelect.value = phpMusteriId;
@@ -295,25 +287,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }).catch(err => {
             console.error('Müşteriler yüklenemedi:', err);
         });
-        
+
         // Müşteri değiştiğinde projeleri yükle
         musteriSelect.addEventListener('change', function() {
             loadProjects(this.value);
         });
     }
-    
+
     // Yeni fatura modunda projeleri doğrudan yükle (müşteri API'sinden bağımsız)
     if (!invoiceId || invoiceId === '0') {
         if (phpMusteriId && phpMusteriId !== '0') {
             loadProjects(phpMusteriId);
         }
     }
-    
+
     // Döviz seçeneklerini yükle
     if (dovizSelect) {
         NbtParams.populateCurrencySelect(dovizSelect);
     }
-    
+
     // Projeleri yükle fonksiyonu (meetings/new ile AYNI mantık)
     async function loadProjects(musteriId) {
       if (!projeSelect) return;
@@ -340,12 +332,12 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Projeler yüklenemedi:', err);
       }
     }
-    
+
     // Edit modunda veri yükle
     if (invoiceId && invoiceId !== '0') {
         loadInvoiceData(invoiceId);
     }
-    
+
     async function loadInvoiceData(id) {
         try {
             const invoice = await NbtApi.get(`/api/invoices/${id}`);
@@ -356,12 +348,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (projeSelect) {
                   projeSelect.value = invoice.ProjeId || '';
                 }
-                
+
                 document.getElementById('invoiceFaturaNo').value = invoice.FaturaNo || '';
                 document.getElementById('invoiceTarih').value = invoice.Tarih?.split('T')[0] || '';
                 dovizSelect.value = invoice.DovizCinsi || invoice.ParaBirimi || NbtParams.getDefaultCurrency();
                 document.getElementById('invoiceSupheliAlacak').checked = parseInt(invoice.SupheliAlacak, 10) === 1;
-                
+
                 // Tevkifat
                 if (parseInt(invoice.TevkifatAktif, 10) === 1) {
                     document.getElementById('invoiceTevkifatAktif').checked = true;
@@ -369,7 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('invoiceTevkifatOran1').value = parseFloat(invoice.TevkifatOran1) || '';
                     document.getElementById('invoiceTevkifatOran2').value = parseFloat(invoice.TevkifatOran2) || '';
                 }
-                
+
                 // Takvim hatırlatma
                 if (parseInt(invoice.TakvimAktif, 10) === 1) {
                   document.getElementById('invoiceTakvimAktif').checked = true;
@@ -386,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (invoice.Kalemler && Array.isArray(invoice.Kalemler)) {
                     loadInvoiceItemsUI(invoice.Kalemler);
                 }
-                
+
                 // Dosyalar
                 if (invoice.Dosyalar && Array.isArray(invoice.Dosyalar)) {
                     InvoiceModule.loadInvoiceFiles(invoice.Dosyalar);
@@ -423,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const oran1 = parseFloat(this.value) || 0;
             const oran2 = Math.max(0, 100 - oran1);
             tevkifatOran2.value = oran2.toFixed(2);
-            
+
             // KDV hesaplamalarını güncelle
             calculateInvoiceItemsTotals();
         });
@@ -435,16 +427,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Önceki event listener'ları temizle
         const newBtn = btnAddItem.cloneNode(true);
         btnAddItem.parentNode.replaceChild(newBtn, btnAddItem);
-        
+
         newBtn.addEventListener('click', function() {
             const tbody = document.getElementById('invoiceItemsBody');
             const currentItemCount = tbody ? tbody.querySelectorAll('tr').length : 0;
-            
+
             if (currentItemCount >= 10) {
                 alert('Maksimum 10 kalem ekleyebilirsiniz.');
                 return;
             }
-            
+
             addInvoiceItemRow();
         });
     }
@@ -453,8 +445,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const itemsBody = document.getElementById('invoiceItemsBody');
     if (itemsBody) {
         itemsBody.addEventListener('input', function(e) {
-            if (e.target.classList.contains('item-miktar') || 
-                e.target.classList.contains('item-kdv') || 
+            if (e.target.classList.contains('item-miktar') ||
+                e.target.classList.contains('item-kdv') ||
                 e.target.classList.contains('item-birimfiyat')) {
                 calculateInvoiceItemRow(e.target.closest('tr'));
                 calculateInvoiceItemsTotals();
@@ -478,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Sayfa yüklendiğinde boş durumu kontrol et
     checkEmptyItems();
-    
+
     // Kaydet butonu
     const btnSave = document.getElementById('btnSaveInvoice');
     if (btnSave) {
@@ -501,7 +493,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
     }
-    
+
     async function saveInvoice() {
       if (btnSave) {
         btnSave.disabled = true;
@@ -510,7 +502,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const id = document.getElementById('invoiceId').value;
         const musteriId = parseInt(document.getElementById('invoiceMusteriId').value);
         const projeId = parseInt(document.getElementById('invoiceProjeId').value);
-        
+
         // Validasyon
         if (!musteriId) {
             NbtToast.error('Müşteri seçiniz');
@@ -528,7 +520,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
             return;
         }
-        
+
         const tarih = document.getElementById('invoiceTarih').value;
         if (!tarih) {
             NbtToast.error('Tarih zorunludur');
@@ -538,7 +530,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
             return;
         }
-        
+
         const kalemler = getInvoiceItems();
         if (!kalemler || kalemler.length === 0) {
             NbtToast.error('En az bir fatura kalemi eklemelisiniz');
@@ -548,11 +540,11 @@ document.addEventListener('DOMContentLoaded', function() {
           }
             return;
         }
-        
+
         // Tutar'ı kalemlerden hesapla
         const genelToplamEl = document.getElementById('invoiceItemsGenelToplam');
         const tutar = parseFloat(genelToplamEl?.value) || 0;
-        
+
         const tevkifatAktif = document.getElementById('invoiceTevkifatAktif')?.checked ? 1 : 0;
         const takvimAktif = document.getElementById('invoiceTakvimAktif')?.checked ? 1 : 0;
         const takvimSureRaw = document.getElementById('invoiceTakvimSure')?.value || '';
@@ -578,7 +570,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
           }
         }
-        
+
         const data = {
             MusteriId: musteriId,
             ProjeId: projeId,
@@ -595,7 +587,7 @@ document.addEventListener('DOMContentLoaded', function() {
             TakvimSureTipi: takvimAktif && allowedSureTipleri.includes(takvimSureTipi) ? takvimSureTipi : null,
             Kalemler: kalemler
         };
-        
+
         try {
             let faturaId;
             if (id && id !== '0') {
@@ -607,13 +599,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 faturaId = response.id || response.Id || response.data?.id || response.data?.Id;
                 NbtToast.success('Fatura eklendi');
             }
-            
+
             // Dosya işlemleri
             if (faturaId && typeof InvoiceModule !== 'undefined') {
                 await InvoiceModule.deleteMarkedFiles();
                 await InvoiceModule.uploadPendingFiles(faturaId);
             }
-            
+
             // Müşteri detay sayfasına dön
             if (musteriId) {
                 window.location.href = `/customer/${musteriId}?tab=faturalar`;
@@ -627,18 +619,18 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         }
     }
-    
+
     function getInvoiceItems() {
         const kalemler = [];
         const rows = document.querySelectorAll('#invoiceItemsBody .invoice-item-row');
-        
+
         rows.forEach((row, index) => {
             const miktar = parseFloat(row.querySelector('.item-miktar').value) || 0;
             const aciklama = row.querySelector('.item-aciklama').value.trim();
             const kdvOran = parseFloat(row.querySelector('.item-kdv').value) || 0;
             const birimFiyat = parseFloat(row.querySelector('.item-birimfiyat').value) || 0;
             const tutar = parseFloat(row.querySelector('.item-tutar').value) || 0;
-            
+
             // Sadece dolu kalemleri ekle
             if (miktar > 0 || aciklama || birimFiyat > 0) {
                 kalemler.push({
@@ -661,18 +653,18 @@ function addInvoiceItemRow(data = null) {
 
     window.invoiceItemCounter++;
     const rowNum = tbody.querySelectorAll('tr').length + 1;
-    
+
     // Ondalık değerleri formatla (başındaki 0'ı koru)
     const formatNum = (val, decimals = 2) => {
         if (val === null || val === undefined || val === '') return '0';
         const num = parseFloat(val);
         return isNaN(num) ? '0' : num.toFixed(decimals);
     };
-    
+
     const tr = document.createElement('tr');
     tr.className = 'invoice-item-row';
     tr.dataset.row = window.invoiceItemCounter;
-    
+
     tr.innerHTML = `
         <td class="text-center align-middle row-number">
           ${rowNum}
@@ -703,25 +695,25 @@ function addInvoiceItemRow(data = null) {
             </button>
         </td>
     `;
-    
+
     tbody.appendChild(tr);
-    
+
     // Hesaplamaları güncelle
     calculateInvoiceItemRow(tr);
     calculateInvoiceItemsTotals();
     checkEmptyItems();
-    
+
     // Yeni eklenen satıra focus
     tr.querySelector('.item-miktar').focus();
 }
 
 function calculateInvoiceItemRow(row) {
     if (!row) return;
-    
+
     const miktar = parseFloat(row.querySelector('.item-miktar').value) || 0;
     const birimFiyat = parseFloat(row.querySelector('.item-birimfiyat').value) || 0;
     const tutar = miktar * birimFiyat;
-    
+
     row.querySelector('.item-tutar').value = tutar.toFixed(2);
 }
 
@@ -734,7 +726,7 @@ function calculateInvoiceItemsTotals() {
         const tutar = parseFloat(row.querySelector('.item-tutar').value) || 0;
         const kdvOran = parseFloat(row.querySelector('.item-kdv').value) || 0;
         const satirKdv = tutar * (kdvOran / 100);
-        
+
         toplam += tutar;
         toplamKdv += satirKdv;
     });
@@ -742,7 +734,7 @@ function calculateInvoiceItemsTotals() {
     // Tevkifat oranını al ve KDV'ye uygula
     const tevkifatAktif = document.getElementById('invoiceTevkifatAktif')?.checked || false;
     const tevkifatOran1 = tevkifatAktif ? (parseFloat(document.getElementById('invoiceTevkifatOran1')?.value) || 0) : 0;
-    
+
     // Tevkifat oranı varsa KDV'yi ona göre düşür
     let kdvSonrasi = toplamKdv;
     if (tevkifatAktif) {
@@ -756,7 +748,7 @@ function calculateInvoiceItemsTotals() {
     const toplamEl = document.getElementById('invoiceItemsToplam');
     const kdvEl = document.getElementById('invoiceItemsKdv');
     const genelToplamEl = document.getElementById('invoiceItemsGenelToplam');
-    
+
     if (toplamEl) toplamEl.value = toplam.toFixed(2);
     if (kdvEl) kdvEl.value = kdvSonrasi.toFixed(2);
     if (genelToplamEl) genelToplamEl.value = (toplam + kdvSonrasi).toFixed(2);
@@ -774,9 +766,9 @@ function checkEmptyItems() {
     const tbody = document.getElementById('invoiceItemsBody');
     const emptyDiv = document.getElementById('invoiceItemsEmpty');
     const table = document.getElementById('invoiceItemsTable');
-    
+
     if (!tbody || !emptyDiv || !table) return;
-    
+
     const hasItems = tbody.querySelectorAll('tr').length > 0;
     emptyDiv.style.display = hasItems ? 'none' : 'block';
     table.style.display = hasItems ? 'table' : 'none';

@@ -1,4 +1,8 @@
 <?php
+/**
+ * Stamp Tax Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -20,7 +24,7 @@ class StampTaxController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
+
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
         $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
@@ -38,9 +42,6 @@ class StampTaxController
             Response::json(['data' => $Satirlar]);
         }
     }
-
-    
-
 
     public static function show(array $Parametreler): void
     {
@@ -69,15 +70,15 @@ class StampTaxController
 
     public static function store(): void
     {
-        
+
         $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         } else {
-            
+
             $Girdi = $_POST;
         }
-        
+
         $Zorunlu = ['MusteriId', 'Tarih', 'Tutar'];
         foreach ($Zorunlu as $Alan) {
             if (empty($Girdi[$Alan]) && $Girdi[$Alan] !== 0) {
@@ -92,7 +93,6 @@ class StampTaxController
             return;
         }
 
-        
         $DosyaAdi = null;
         $DosyaYolu = null;
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
@@ -105,12 +105,12 @@ class StampTaxController
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
             }
-            
+
             $OrijinalAd = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
             $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
-            
+
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
                 $DosyaAdi = $OrijinalAd;
                 $DosyaYolu = 'storage/uploads/' . $GuvenliAd;
@@ -133,7 +133,6 @@ class StampTaxController
 
         $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
 
-        
         if (!empty($YuklenecekVeri['Tarih'])) {
             $Notlar = !empty($YuklenecekVeri['Notlar']) ? $YuklenecekVeri['Notlar'] : 'Damga Vergisi';
             CalendarService::createOrUpdateReminder(
@@ -157,23 +156,20 @@ class StampTaxController
             return;
         }
 
-        
         $IcerikTipi = $_SERVER['CONTENT_TYPE'] ?? '';
         if (strpos($IcerikTipi, 'application/json') !== false) {
             $Girdi = json_decode(file_get_contents('php://input'), true) ?: [];
         } elseif (strpos($IcerikTipi, 'multipart/form-data') !== false) {
-            
-            
-            
+
             $Girdi = $_POST;
         } elseif (strpos($IcerikTipi, 'application/x-www-form-urlencoded') !== false) {
-            
+
             parse_str(file_get_contents('php://input'), $Girdi);
         } else {
-            
+
             $Girdi = $_POST;
         }
-        
+
         $Repo = new StampTaxRepository();
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
@@ -190,9 +186,8 @@ class StampTaxController
         if (array_key_exists('Notlar', $Girdi)) $Guncellenecek['Notlar'] = trim((string)$Girdi['Notlar']);
         if (array_key_exists('ProjeId', $Girdi)) $Guncellenecek['ProjeId'] = $Girdi['ProjeId'] ? (int)$Girdi['ProjeId'] : null;
 
-        
         if (!empty($Girdi['removeFile'])) {
-            
+
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
@@ -204,14 +199,13 @@ class StampTaxController
             $Guncellenecek['DosyaYolu'] = null;
         }
 
-        
         if (isset($_FILES['dosya']) && $_FILES['dosya']['error'] === UPLOAD_ERR_OK) {
             $Hata = UploadValidator::validateDocument($_FILES['dosya'], 10 * 1024 * 1024);
             if ($Hata !== null) {
                 Response::json(['errors' => ['dosya' => $Hata], 'message' => $Hata], 422);
                 return;
             }
-            
+
             $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
@@ -224,12 +218,12 @@ class StampTaxController
             if (!is_dir($YuklemeKlasoru)) {
                 mkdir($YuklemeKlasoru, 0755, true);
             }
-            
+
             $OrijinalAd = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
             $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
-            
+
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
                 $Guncellenecek['DosyaAdi'] = $OrijinalAd;
                 $Guncellenecek['DosyaYolu'] = 'storage/uploads/' . $GuvenliAd;
@@ -238,8 +232,7 @@ class StampTaxController
 
         if (!empty($Guncellenecek)) {
             $Repo->guncelle($Id, $Guncellenecek, $KullaniciId);
-            
-            
+
             if (isset($Guncellenecek['Tarih'])) {
                 $Mevcut = $Repo->bul($Id);
                 if ($Mevcut) {
@@ -276,7 +269,6 @@ class StampTaxController
 
         $Repo->softSil($Id, $KullaniciId);
 
-        
         CalendarService::deleteReminder('damgavergisi', $Id);
 
         Response::json(['status' => 'success']);
@@ -292,7 +284,7 @@ class StampTaxController
 
         $Repo = new StampTaxRepository();
         $Kayit = $Repo->bul($Id);
-        
+
         if (!$Kayit) {
             Response::error('Kayit bulunamadi.', 404);
             return;
@@ -304,7 +296,7 @@ class StampTaxController
         }
 
         $FilePath = SRC_PATH . $Kayit['DosyaYolu'];
-        
+
         if (!file_exists($FilePath)) {
             Response::error('Dosya bulunamadi.', 404);
             return;

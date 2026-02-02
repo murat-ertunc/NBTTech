@@ -2,16 +2,8 @@
 
 namespace App\Core;
 
-
-
-
-
-
-
 class Token
 {
-    
-
 
     private static function getKey(): string
     {

@@ -1,4 +1,8 @@
 <?php
+/**
+ * Project Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -17,7 +21,7 @@ class ProjectController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
+
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
         $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
@@ -31,7 +35,7 @@ class ProjectController
                 Response::json(['data' => $Satirlar]);
             }
         } else {
-            
+
             if (isset($_GET['page']) || isset($_GET['limit'])) {
                 $Sonuc = $Repo->tumAktiflerPaginated($Sayfa, $Limit);
                 Response::json($Sonuc);
@@ -41,9 +45,6 @@ class ProjectController
             }
         }
     }
-
-    
-
 
     public static function show(array $Parametreler): void
     {
@@ -145,7 +146,6 @@ class ProjectController
             return;
         }
 
-        
         Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
             $Repo->cascadeSoftSil($Id, $KullaniciId);
         });

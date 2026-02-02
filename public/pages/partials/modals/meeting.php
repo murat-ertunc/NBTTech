@@ -1,7 +1,5 @@
 <?php
 
-
-
 ?>
 <!-- Görüşme Modal -->
 <div class="modal fade" id="meetingModal" tabindex="-1">

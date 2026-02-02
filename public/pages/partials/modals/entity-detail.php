@@ -1,7 +1,5 @@
 <?php
 
-
-
 ?>
 <!-- Genel Detay Görüntüleme Modal (Read-Only) -->
 <div class="modal fade" id="entityDetailModal" tabindex="-1">

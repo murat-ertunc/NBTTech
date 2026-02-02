@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $MusteriId = $MusteriId ?? 0;
 $TakvimId = $TakvimId ?? 0;
 $IsEdit = $TakvimId > 0;
@@ -11,7 +7,6 @@ $IsEdit = $TakvimId > 0;
 $pageTitle = $IsEdit ? 'Takvim Düzenle' : 'Yeni Takvim Kaydı';
 $activeNav = 'customers';
 $currentPage = 'calendar-form';
-
 
 $FormMusteriId = $MusteriId;
 $FormTabKey = 'takvim';
@@ -29,14 +24,14 @@ require __DIR__ . '/../partials/header.php';
   <div class="row justify-content-center">
     <div class="col-12">
       <?php require __DIR__ . '/../partials/form-header.php'; ?>
-      
+
       <div class="card-body">
         <form id="calendarPageForm">
           <div class="alert alert-danger d-none" id="calendarFormError"></div>
-          
+
           <input type="hidden" id="calendarId" value="<?= (int)$TakvimId ?>">
           <input type="hidden" id="calendarMusteriId" value="<?= (int)$MusteriId ?>">
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Proje <span class="text-danger">*</span></label>
             <div class="col-8">
@@ -45,7 +40,7 @@ require __DIR__ . '/../partials/header.php';
               </select>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">Termin Tarihi <span class="text-danger">*</span></label>
             <div class="col-8">
@@ -61,7 +56,7 @@ require __DIR__ . '/../partials/header.php';
               </select>
             </div>
           </div>
-          
+
           <div class="row mb-3">
             <label class="col-4 col-form-label">İşin Özeti <span class="text-danger">*</span></label>
             <div class="col-8">
@@ -71,7 +66,7 @@ require __DIR__ . '/../partials/header.php';
           </div>
         </form>
       </div>
-      
+
       <?php require __DIR__ . '/../partials/form-footer.php'; ?>
     </div>
   </div>

@@ -1,4 +1,8 @@
 <?php
+/**
+ * File Controller için HTTP isteklerini yönetir.
+ * Gelen talepleri doğrular ve yanıt akışını oluşturur.
+ */
 
 namespace App\Controllers;
 
@@ -22,7 +26,7 @@ class FileController
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
             return;
         }
-        
+
         $MusteriId = isset($_GET['musteri_id']) ? (int)$_GET['musteri_id'] : 0;
         $Sayfa = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
         $Limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : (int)env('PAGINATION_DEFAULT', 10);
@@ -49,7 +53,6 @@ class FileController
             return;
         }
 
-        
         $DosyaAnahtari = isset($_FILES['file']) ? 'file' : (isset($_FILES['dosya']) ? 'dosya' : null);
         if (!$DosyaAnahtari || $_FILES[$DosyaAnahtari]['error'] !== UPLOAD_ERR_OK) {
             $HataMesajlari = [
@@ -67,11 +70,9 @@ class FileController
             return;
         }
 
-        
         $FaturaId = isset($_POST['FaturaId']) ? (int)$_POST['FaturaId'] : null;
         $MusteriId = isset($_POST['MusteriId']) ? (int)$_POST['MusteriId'] : 0;
-        
-        
+
         if ($FaturaId && $MusteriId <= 0) {
             $FaturaRepo = new \App\Repositories\InvoiceRepository();
             $Fatura = $FaturaRepo->bul($FaturaId);
@@ -79,7 +80,7 @@ class FileController
                 $MusteriId = (int)$Fatura['MusteriId'];
             }
         }
-        
+
         if ($MusteriId <= 0) {
             Response::error('MusteriId alani zorunludur.', 422);
             return;
@@ -103,13 +104,13 @@ class FileController
 
         $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
         $UploadDir = self::getUploadDir();
-        
+
         if (!is_dir($UploadDir)) {
             mkdir($UploadDir, 0755, true);
         }
 
         $HedefYol = $UploadDir . $GuvenliAd;
-        
+
         if (!move_uploaded_file($GeciciYol, $HedefYol)) {
             Response::error('Dosya kaydedilemedi.', 500);
             return;
@@ -186,7 +187,6 @@ class FileController
             return;
         }
 
-        
         $DosyaAnahtari = isset($_FILES['file']) ? 'file' : (isset($_FILES['dosya']) ? 'dosya' : null);
         $YeniDosya = null;
         if ($DosyaAnahtari && $_FILES[$DosyaAnahtari]['error'] === UPLOAD_ERR_OK) {
@@ -236,7 +236,7 @@ class FileController
         });
 
         if ($YeniDosya) {
-            
+
             if (!empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
                 if (file_exists($EskiDosyaYolu)) {
@@ -264,7 +264,6 @@ class FileController
             return;
         }
 
-        
         Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
             $Repo->softSil($Id, $KullaniciId);
         });
@@ -282,15 +281,14 @@ class FileController
 
         $Repo = new FileRepository();
         $Dosya = $Repo->bul($Id);
-        
+
         if (!$Dosya) {
             Response::error('Dosya bulunamadi.', 404);
             return;
         }
 
-        
         $TamDosyaYolu = SRC_PATH . $Dosya['DosyaYolu'];
-        
+
         if (!file_exists($TamDosyaYolu)) {
             Response::error('Dosya bulunamadi.', 404);
             return;

@@ -1,7 +1,5 @@
 <?php
 
-
-
 ?>
 <!-- Teminat Modal -->
 <div class="modal fade" id="guaranteeModal" tabindex="-1">
