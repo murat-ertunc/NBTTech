@@ -94,7 +94,9 @@ class ContactController
             'Notlar' => isset($Girdi['Notlar']) ? trim((string)$Girdi['Notlar']) : null
         ];
 
-        $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
+        $Id = Transaction::wrap(function () use ($Repo, $YuklenecekVeri, $KullaniciId) {
+            return $Repo->ekle($YuklenecekVeri, $KullaniciId);
+        });
 
         Response::json(['id' => $Id], 201);
     }
@@ -112,6 +114,12 @@ class ContactController
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Kisi bulunamadi.', 404);
             return;
         }
 
@@ -149,7 +157,15 @@ class ContactController
             return;
         }
 
-        $Repo->softSil($Id, $KullaniciId);
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Kisi bulunamadi.', 404);
+            return;
+        }
+
+        Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
+            $Repo->softSil($Id, $KullaniciId);
+        });
 
         Response::json(['status' => 'success']);
     }

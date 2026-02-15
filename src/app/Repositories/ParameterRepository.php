@@ -140,7 +140,7 @@ class ParameterRepository extends BaseRepository
 
     public function softSil(int $Id, ?int $KullaniciId = null, array $EkKosul = []): void
     {
-        $Sql = "UPDATE {$this->Tablo} SET Sil = 1, DegistirenUserId = :Uid, DegisiklikZamani = GETDATE() WHERE Id = :Id";
+        $Sql = "UPDATE {$this->Tablo} SET Sil = 1, DegistirenUserId = :Uid, DegisiklikZamani = SYSUTCDATETIME() WHERE Id = :Id";
 
         Transaction::wrap(function () use ($Sql, $Id, $KullaniciId) {
             $Stmt = $this->Db->prepare($Sql);
@@ -159,10 +159,10 @@ class ParameterRepository extends BaseRepository
 
         Transaction::wrap(function () use ($Id, $Grup, $KullaniciId) {
 
-            $Stmt = $this->Db->prepare("UPDATE {$this->Tablo} SET Varsayilan = 0, DegistirenUserId = :Uid, DegisiklikZamani = GETDATE() WHERE Grup = :Grup AND Sil = 0");
+            $Stmt = $this->Db->prepare("UPDATE {$this->Tablo} SET Varsayilan = 0, DegistirenUserId = :Uid, DegisiklikZamani = SYSUTCDATETIME() WHERE Grup = :Grup AND Sil = 0");
             $Stmt->execute(['Grup' => $Grup, 'Uid' => $KullaniciId]);
 
-            $Stmt2 = $this->Db->prepare("UPDATE {$this->Tablo} SET Varsayilan = 1, DegistirenUserId = :Uid, DegisiklikZamani = GETDATE() WHERE Id = :Id");
+            $Stmt2 = $this->Db->prepare("UPDATE {$this->Tablo} SET Varsayilan = 1, DegistirenUserId = :Uid, DegisiklikZamani = SYSUTCDATETIME() WHERE Id = :Id");
             $Stmt2->execute(['Id' => $Id, 'Uid' => $KullaniciId]);
 
             ActionLogger::update($this->Tablo, ['Id' => $Id], ['Varsayilan' => 1, 'Grup' => $Grup]);
@@ -175,7 +175,7 @@ class ParameterRepository extends BaseRepository
 
             $this->yedekle($Id, 'bck_tbl_parametre', $KullaniciId);
 
-            $Stmt = $this->Db->prepare("UPDATE {$this->Tablo} SET Aktif = :Aktif, DegistirenUserId = :Uid, DegisiklikZamani = GETDATE() WHERE Id = :Id");
+            $Stmt = $this->Db->prepare("UPDATE {$this->Tablo} SET Aktif = :Aktif, DegistirenUserId = :Uid, DegisiklikZamani = SYSUTCDATETIME() WHERE Id = :Id");
             $Stmt->execute(['Id' => $Id, 'Aktif' => $Aktif ? 1 : 0, 'Uid' => $KullaniciId]);
 
             ActionLogger::update($this->Tablo, ['Id' => $Id], ['Aktif' => $Aktif]);
@@ -231,7 +231,7 @@ class ParameterRepository extends BaseRepository
 
         if ($Mevcut) {
 
-            $Sql = "UPDATE {$this->Tablo} SET Deger = :Deger, DegistirenUserId = :Uid, DegisiklikZamani = GETDATE() WHERE Id = :Id";
+            $Sql = "UPDATE {$this->Tablo} SET Deger = :Deger, DegistirenUserId = :Uid, DegisiklikZamani = SYSUTCDATETIME() WHERE Id = :Id";
             $Stmt = $this->Db->prepare($Sql);
             $Stmt->execute(['Id' => $Mevcut['Id'], 'Deger' => $Deger, 'Uid' => $KullaniciId]);
             ActionLogger::update($this->Tablo, ['Kod' => $ParametreKod], ['Deger' => $Deger]);

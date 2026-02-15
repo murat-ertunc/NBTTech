@@ -100,8 +100,7 @@ class AuthorizationService
 
     public function tumunuDuzenleyebilirMi(int $UserId, string $ModulAdi): bool
     {
-
-        $PermissionKodu = $ModulAdi . '.read_all';
+        $PermissionKodu = $ModulAdi . '.edit_all';
         return $this->can($UserId, $PermissionKodu);
     }
 

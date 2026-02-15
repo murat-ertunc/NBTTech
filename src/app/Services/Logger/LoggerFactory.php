@@ -16,6 +16,8 @@ class LoggerFactory
         switch ($Surucu) {
             case 'db':
                 return new DbLogger();
+            case 'file':
+                return new FileLogger();
             default:
                 throw new RuntimeException('Desteklenmeyen log surucusu: ' . $Surucu);
         }

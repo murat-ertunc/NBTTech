@@ -59,24 +59,59 @@ class ProjectRepository extends BaseRepository
     {
         Transaction::wrap(function() use ($Id, $KullaniciId) {
 
+            // Önce projeyi yedekle, sonra soft-delete
+            $this->yedekle($Id, 'bck_tbl_proje', $KullaniciId);
             $this->softSil($Id, $KullaniciId);
 
             $IliskiliTablolar = [
-                'tbl_fatura',
-                'tbl_odeme',
-                'tbl_teklif',
-                'tbl_sozlesme',
-                'tbl_teminat',
-                'tbl_gorusme',
-                'tbl_kisi',
-                'tbl_damgavergisi',
-                'tbl_dosya'
+                'tbl_fatura'       => 'bck_tbl_fatura',
+                'tbl_odeme'        => 'bck_tbl_odeme',
+                'tbl_teklif'       => 'bck_tbl_teklif',
+                'tbl_sozlesme'     => 'bck_tbl_sozlesme',
+                'tbl_teminat'      => 'bck_tbl_teminat',
+                'tbl_gorusme'      => 'bck_tbl_gorusme',
+                'tbl_kisi'         => 'bck_tbl_kisi',
+                'tbl_damgavergisi' => 'bck_tbl_damgavergisi',
+                'tbl_dosya'        => 'bck_tbl_dosya'
             ];
 
-            foreach ($IliskiliTablolar as $Tablo) {
+            foreach ($IliskiliTablolar as $Tablo => $YedekTablo) {
+                // İlişkili kayıtları yedekle
+                $IdlerStmt = $this->Db->prepare("SELECT Id FROM {$Tablo} WHERE ProjeId = :ProjeId AND Sil = 0");
+                $IdlerStmt->execute(['ProjeId' => $Id]);
+                $Idler = $IdlerStmt->fetchAll(\PDO::FETCH_COLUMN);
+
+                if (!empty($Idler)) {
+                    // Her ilişkili kaydı yedekle
+                    foreach ($Idler as $IliskiliId) {
+                        try {
+                            $Kayit = $this->Db->prepare("SELECT * FROM {$Tablo} WHERE Id = :Id");
+                            $Kayit->execute(['Id' => $IliskiliId]);
+                            $KayitVeri = $Kayit->fetch(\PDO::FETCH_ASSOC);
+                            if ($KayitVeri) {
+                                $KaynakId = $KayitVeri['Id'];
+                                unset($KayitVeri['Id']);
+                                $KayitVeri['KaynakId'] = $KaynakId;
+                                $KayitVeri['BackupZamani'] = date('Y-m-d H:i:s');
+                                $KayitVeri['BackupUserId'] = $KullaniciId;
+
+                                $Kolonlar = implode(', ', array_keys($KayitVeri));
+                                $Placeholders = implode(', ', array_map(fn($k) => ':' . $k, array_keys($KayitVeri)));
+                                $YedekSql = "INSERT INTO {$YedekTablo} ({$Kolonlar}) VALUES ({$Placeholders})";
+                                $YedekStmt = $this->Db->prepare($YedekSql);
+                                $YedekStmt->execute($KayitVeri);
+                            }
+                        } catch (\Throwable $E) {
+                            // Yedek tablosu yoksa engelleme — sadece logla
+                            error_log("[ProjectRepository] Cascade yedekleme uyarısı ({$YedekTablo}): " . $E->getMessage());
+                        }
+                    }
+                }
+
+                // İlişkili kayıtları soft-delete et
                 $Sql = "UPDATE {$Tablo} SET
                         Sil = 1,
-                        DegisiklikZamani = GETDATE(),
+                        DegisiklikZamani = SYSUTCDATETIME(),
                         DegistirenUserId = :UserId
                         WHERE ProjeId = :ProjeId AND Sil = 0";
                 $Stmt = $this->Db->prepare($Sql);

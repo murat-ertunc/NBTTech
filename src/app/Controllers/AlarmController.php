@@ -213,11 +213,13 @@ class AlarmController
                 WHERE t.Sil = 0
                   AND m.Sil = 0
                   AND t.TerminTarihi IS NOT NULL
-                  AND t.TerminTarihi <= DATEADD(day, {$GunInt}, GETDATE())
+                  AND t.TerminTarihi <= DATEADD(day, :GunSayisi, SYSUTCDATETIME())
                 ORDER BY t.TerminTarihi ASC
             ";
 
-            $Stmt = $Db->query($Sql);
+            $Stmt = $Db->prepare($Sql);
+            $Stmt->bindValue(':GunSayisi', $GunInt, \PDO::PARAM_INT);
+            $Stmt->execute();
             $Takvimler = $Stmt->fetchAll();
 
             $Kalemler = [];
@@ -273,7 +275,7 @@ class AlarmController
                 WHERE t.Sil = 0
                   AND m.Sil = 0
                   AND t.TerminTarihi IS NOT NULL
-                  AND t.TerminTarihi < GETDATE()
+                  AND t.TerminTarihi < SYSUTCDATETIME()
                 ORDER BY t.TerminTarihi ASC
             ";
 
@@ -349,12 +351,14 @@ class AlarmController
                 WHERE t.Sil = 0
                   AND m.Sil = 0
                   AND t.GecerlilikTarihi IS NOT NULL
-                  AND t.GecerlilikTarihi <= DATEADD(day, {$GunInt}, GETDATE())
+                  AND t.GecerlilikTarihi <= DATEADD(day, :GunSayisi, SYSUTCDATETIME())
                   AND t.Durum IN (0, 1)
                 ORDER BY t.GecerlilikTarihi ASC
             ";
 
-            $Stmt = $Db->query($Sql);
+            $Stmt = $Db->prepare($Sql);
+            $Stmt->bindValue(':GunSayisi', $GunInt, \PDO::PARAM_INT);
+            $Stmt->execute();
             $Teklifler = $Stmt->fetchAll();
 
             $Kalemler = [];

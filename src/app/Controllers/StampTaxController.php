@@ -108,7 +108,7 @@ class StampTaxController
 
             $OrijinalAd = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
-            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $GuvenliAd = bin2hex(random_bytes(16)) . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
 
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
@@ -131,19 +131,23 @@ class StampTaxController
             'DosyaYolu' => $DosyaYolu
         ];
 
-        $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
+        $Id = Transaction::wrap(function () use ($Repo, $YuklenecekVeri, $KullaniciId) {
+            $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
 
-        if (!empty($YuklenecekVeri['Tarih'])) {
-            $Notlar = !empty($YuklenecekVeri['Notlar']) ? $YuklenecekVeri['Notlar'] : 'Damga Vergisi';
-            CalendarService::createOrUpdateReminder(
-                (int)$YuklenecekVeri['MusteriId'],
-                'damgavergisi',
-                $Id,
-                $YuklenecekVeri['Tarih'],
-                'Damga Vergisi: ' . $Notlar,
-                $KullaniciId
-            );
-        }
+            if (!empty($YuklenecekVeri['Tarih'])) {
+                $Notlar = !empty($YuklenecekVeri['Notlar']) ? $YuklenecekVeri['Notlar'] : 'Damga Vergisi';
+                CalendarService::createOrUpdateReminder(
+                    (int)$YuklenecekVeri['MusteriId'],
+                    'damgavergisi',
+                    $Id,
+                    $YuklenecekVeri['Tarih'],
+                    'Damga Vergisi: ' . $Notlar,
+                    $KullaniciId
+                );
+            }
+
+            return $Id;
+        });
 
         Response::json(['id' => $Id], 201);
     }
@@ -174,6 +178,12 @@ class StampTaxController
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Damga vergisi kaydi bulunamadi.', 404);
             return;
         }
 
@@ -221,7 +231,7 @@ class StampTaxController
 
             $OrijinalAd = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
-            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $GuvenliAd = bin2hex(random_bytes(16)) . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
 
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
@@ -267,7 +277,15 @@ class StampTaxController
             return;
         }
 
-        $Repo->softSil($Id, $KullaniciId);
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Damga vergisi kaydi bulunamadi.', 404);
+            return;
+        }
+
+        Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
+            $Repo->softSil($Id, $KullaniciId);
+        });
 
         CalendarService::deleteReminder('damgavergisi', $Id);
 

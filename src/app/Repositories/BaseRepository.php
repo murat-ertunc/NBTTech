@@ -40,10 +40,15 @@ class BaseRepository
         $Sayfa = max(1, min($Sayfa, $ToplamSayfa > 0 ? $ToplamSayfa : 1));
         $Offset = ($Sayfa - 1) * $Limit;
 
-        $SayfaliBirSql = $BaseSql . " OFFSET {$Offset} ROWS FETCH NEXT {$Limit} ROWS ONLY";
+        $SayfaliBirSql = $BaseSql . " OFFSET :_paged_offset ROWS FETCH NEXT :_paged_limit ROWS ONLY";
 
         $Stmt = $this->Db->prepare($SayfaliBirSql);
-        $Stmt->execute($Parametreler);
+        foreach ($Parametreler as $Anahtar => $Deger) {
+            $Stmt->bindValue($Anahtar, $Deger);
+        }
+        $Stmt->bindValue(':_paged_offset', (int) $Offset, \PDO::PARAM_INT);
+        $Stmt->bindValue(':_paged_limit', (int) $Limit, \PDO::PARAM_INT);
+        $Stmt->execute();
         $Veri = $Stmt->fetchAll();
 
         return [
@@ -93,6 +98,14 @@ class BaseRepository
         }
         $KaynakId = $Kayit['Id'];
         unset($Kayit['Id']);
+
+        // Kaynak tabloda KaynakId varsa, OrijinalKaynakId olarak yeniden adlandır
+        // çünkü backup tablosundaki KaynakId backup FK olarak kullanılıyor.
+        if (array_key_exists('KaynakId', $Kayit)) {
+            $Kayit['OrijinalKaynakId'] = $Kayit['KaynakId'];
+            unset($Kayit['KaynakId']);
+        }
+
         $Kayit['KaynakId'] = $KaynakId;
         $Kayit['BackupZamani'] = date('Y-m-d H:i:s');
         $Kayit['BackupUserId'] = $KullaniciId;

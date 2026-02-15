@@ -85,7 +85,7 @@ class PaymentController
         }
         $Zorunlu = ['MusteriId', 'ProjeId', 'FaturaId', 'Tarih', 'Tutar'];
         foreach ($Zorunlu as $Alan) {
-            if (empty($Girdi[$Alan])) {
+            if (!isset($Girdi[$Alan]) || (empty($Girdi[$Alan]) && $Girdi[$Alan] !== 0 && $Girdi[$Alan] !== '0')) {
                 Response::error("$Alan alani zorunludur.", 422);
                 return;
             }
@@ -123,7 +123,7 @@ class PaymentController
 
             $OrijinalAd = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
-            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $GuvenliAd = bin2hex(random_bytes(16)) . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
 
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
@@ -197,7 +197,6 @@ class PaymentController
 
         $DosyaGuncellemesi = [];
         if (!empty($Girdi['removeFile'])) {
-            $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
                 if (file_exists($EskiDosyaYolu)) {
@@ -215,7 +214,6 @@ class PaymentController
                 return;
             }
 
-            $Mevcut = $Repo->bul($Id);
             if ($Mevcut && !empty($Mevcut['DosyaYolu'])) {
                 $EskiDosyaYolu = SRC_PATH . $Mevcut['DosyaYolu'];
                 if (file_exists($EskiDosyaYolu)) {
@@ -230,7 +228,7 @@ class PaymentController
 
             $OrijinalAd = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
-            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $GuvenliAd = bin2hex(random_bytes(16)) . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
 
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {

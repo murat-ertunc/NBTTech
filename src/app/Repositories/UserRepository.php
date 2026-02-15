@@ -143,10 +143,15 @@ class UserRepository extends BaseRepository
                 FROM {$this->Tablo}
                 {$WhereClause}
                 ORDER BY Id DESC
-                OFFSET {$Offset} ROWS FETCH NEXT {$Limit} ROWS ONLY";
+                OFFSET :_paged_offset ROWS FETCH NEXT :_paged_limit ROWS ONLY";
 
         $Stmt = $this->Db->prepare($Sql);
-        $Stmt->execute($Parametreler);
+        foreach ($Parametreler as $Anahtar => $Deger) {
+            $Stmt->bindValue($Anahtar, $Deger);
+        }
+        $Stmt->bindValue(':_paged_offset', (int) $Offset, \PDO::PARAM_INT);
+        $Stmt->bindValue(':_paged_limit', (int) $Limit, \PDO::PARAM_INT);
+        $Stmt->execute();
         $Sonuclar = $Stmt->fetchAll();
         $this->logSelect($Filtreler, $Sonuclar);
 

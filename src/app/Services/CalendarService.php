@@ -6,7 +6,10 @@
 
 namespace App\Services;
 
+use App\Core\Context;
 use App\Core\Database;
+use App\Core\Transaction;
+use App\Services\Logger\ActionLogger;
 
 class CalendarService
 {
@@ -115,6 +118,14 @@ class CalendarService
         return $Tarih->format('Y-m-d');
     }
 
+    private static function guvenliGuid(): string
+    {
+        $Veri = random_bytes(16);
+        $Veri[6] = chr((ord($Veri[6]) & 0x0f) | 0x40);
+        $Veri[8] = chr((ord($Veri[8]) & 0x3f) | 0x80);
+        return strtoupper(vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($Veri), 4)));
+    }
+
     public static function createOrUpdateReminder(
         int $MusteriId,
         string $KaynakTuru,
@@ -126,7 +137,7 @@ class CalendarService
 
         if (!self::isReminderActive($KaynakTuru)) {
 
-            self::deleteReminder($KaynakTuru, $KaynakId);
+            self::deleteReminder($KaynakTuru, $KaynakId, $KullaniciId);
             return null;
         }
 
@@ -141,7 +152,7 @@ class CalendarService
         }
 
         $Icerik = $OzelIcerik ?? $Konfig['icerikPrefix'];
-        $KullaniciId = $KullaniciId ?? ($_SESSION['user_id'] ?? 1);
+        $KullaniciId = $KullaniciId ?? Context::kullaniciId() ?? 1;
 
         $Db = Database::getInstance();
 
@@ -153,72 +164,87 @@ class CalendarService
         $VarsayilanDurum = self::getDefaultTakvimDurum();
 
         if ($Mevcut) {
-
-            $Db->execute(
-                "UPDATE tbl_takvim SET
-                    MusteriId = :musteriId,
-                    TerminTarihi = :tarih,
-                    Ozet = :ozet,
-                    Durum = CASE WHEN Durum IS NULL OR Durum = 0 THEN :durum ELSE Durum END,
-                    DegistirenUserId = :userId,
-                    DegisiklikZamani = GETDATE()
-                WHERE Id = :takvimId",
-                [
-                    'musteriId' => $MusteriId,
-                    'tarih' => $HatirlatmaTarihi,
-                    'ozet' => $Icerik,
-                    'durum' => $VarsayilanDurum,
-                    'userId' => $KullaniciId,
-                    'takvimId' => $Mevcut['Id']
-                ]
-            );
-            return $Mevcut['Id'];
+            return Transaction::wrap(function () use ($Db, $Mevcut, $MusteriId, $HatirlatmaTarihi, $Icerik, $VarsayilanDurum, $KullaniciId, $KaynakTuru, $KaynakId) {
+                $Db->execute(
+                    "UPDATE tbl_takvim SET
+                        MusteriId = :musteriId,
+                        TerminTarihi = :tarih,
+                        Ozet = :ozet,
+                        Durum = CASE WHEN Durum IS NULL OR Durum = 0 THEN :durum ELSE Durum END,
+                        DegistirenUserId = :userId,
+                        DegisiklikZamani = SYSUTCDATETIME()
+                    WHERE Id = :takvimId",
+                    [
+                        'musteriId' => $MusteriId,
+                        'tarih' => $HatirlatmaTarihi,
+                        'ozet' => $Icerik,
+                        'durum' => $VarsayilanDurum,
+                        'userId' => $KullaniciId,
+                        'takvimId' => $Mevcut['Id']
+                    ]
+                );
+                ActionLogger::update('tbl_takvim', ['Id' => $Mevcut['Id'], 'KaynakTuru' => $KaynakTuru, 'KaynakId' => $KaynakId], ['Ozet' => $Icerik, 'TerminTarihi' => $HatirlatmaTarihi]);
+                return $Mevcut['Id'];
+            });
         } else {
+            return Transaction::wrap(function () use ($Db, $MusteriId, $HatirlatmaTarihi, $Icerik, $VarsayilanDurum, $KaynakTuru, $KaynakId, $KullaniciId) {
+                $Guid = self::guvenliGuid();
+                $Simdi = date('Y-m-d H:i:s');
 
-            $Guid = strtoupper(sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X',
-                mt_rand(0, 65535), mt_rand(0, 65535),
-                mt_rand(0, 65535),
-                mt_rand(16384, 20479),
-                mt_rand(32768, 49151),
-                mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535)
-            ));
+                $Db->execute(
+                    "INSERT INTO tbl_takvim (Guid, MusteriId, TerminTarihi, Ozet, Durum, KaynakTuru, KaynakId, Sil, EkleyenUserId, EklemeZamani, DegistirenUserId, DegisiklikZamani)
+                    VALUES (:guid, :musteriId, :tarih, :ozet, :durum, :kaynakTuru, :kaynakId, 0, :userId, :simdi, :degistirenUserId, :degisiklikZamani)",
+                    [
+                        'guid' => $Guid,
+                        'musteriId' => $MusteriId,
+                        'tarih' => $HatirlatmaTarihi,
+                        'ozet' => $Icerik,
+                        'durum' => $VarsayilanDurum,
+                        'kaynakTuru' => $KaynakTuru,
+                        'kaynakId' => $KaynakId,
+                        'userId' => $KullaniciId,
+                        'simdi' => $Simdi,
+                        'degistirenUserId' => $KullaniciId,
+                        'degisiklikZamani' => $Simdi
+                    ]
+                );
 
-            $Db->execute(
-                "INSERT INTO tbl_takvim (Guid, MusteriId, TerminTarihi, Ozet, Durum, KaynakTuru, KaynakId, Sil, EkleyenUserId, EklemeZamani)
-                VALUES (:guid, :musteriId, :tarih, :ozet, :durum, :kaynakTuru, :kaynakId, 0, :userId, GETDATE())",
-                [
-                    'guid' => $Guid,
-                    'musteriId' => $MusteriId,
-                    'tarih' => $HatirlatmaTarihi,
-                    'ozet' => $Icerik,
-                    'durum' => $VarsayilanDurum,
-                    'kaynakTuru' => $KaynakTuru,
-                    'kaynakId' => $KaynakId,
-                    'userId' => $KullaniciId
-                ]
-            );
-
-            $SonId = $Db->fetchOne("SELECT SCOPE_IDENTITY() as id");
-            return $SonId ? (int)$SonId['id'] : null;
+                $SonId = $Db->fetchOne("SELECT SCOPE_IDENTITY() as id");
+                $Id = $SonId ? (int)$SonId['id'] : null;
+                if ($Id) {
+                    ActionLogger::insert('tbl_takvim', ['Id' => $Id], ['KaynakTuru' => $KaynakTuru, 'KaynakId' => $KaynakId, 'Ozet' => $Icerik]);
+                }
+                return $Id;
+            });
         }
     }
 
-    public static function deleteReminder(string $KaynakTuru, int $KaynakId): bool
+    public static function deleteReminder(string $KaynakTuru, int $KaynakId, ?int $KullaniciId = null): bool
     {
+        $KullaniciId = $KullaniciId ?? Context::kullaniciId() ?? 1;
         $Db = Database::getInstance();
-        return $Db->execute(
-            "UPDATE tbl_takvim SET Sil = 1 WHERE KaynakTuru = :turu AND KaynakId = :id",
-            ['turu' => $KaynakTuru, 'id' => $KaynakId]
-        );
+        return Transaction::wrap(function () use ($Db, $KaynakTuru, $KaynakId, $KullaniciId) {
+            $Sonuc = $Db->execute(
+                "UPDATE tbl_takvim SET Sil = 1, DegistirenUserId = :userId, DegisiklikZamani = SYSUTCDATETIME() WHERE KaynakTuru = :turu AND KaynakId = :id AND Sil = 0",
+                ['userId' => $KullaniciId, 'turu' => $KaynakTuru, 'id' => $KaynakId]
+            );
+            ActionLogger::delete('tbl_takvim', ['KaynakTuru' => $KaynakTuru, 'KaynakId' => $KaynakId]);
+            return $Sonuc;
+        });
     }
 
-    public static function deleteRemindersByCustomer(int $MusteriId, string $KaynakTuru): bool
+    public static function deleteRemindersByCustomer(int $MusteriId, string $KaynakTuru, ?int $KullaniciId = null): bool
     {
+        $KullaniciId = $KullaniciId ?? Context::kullaniciId() ?? 1;
         $Db = Database::getInstance();
-        return $Db->execute(
-            "UPDATE tbl_takvim SET Sil = 1 WHERE MusteriId = :musteriId AND KaynakTuru = :turu",
-            ['musteriId' => $MusteriId, 'turu' => $KaynakTuru]
-        );
+        return Transaction::wrap(function () use ($Db, $MusteriId, $KaynakTuru, $KullaniciId) {
+            $Sonuc = $Db->execute(
+                "UPDATE tbl_takvim SET Sil = 1, DegistirenUserId = :userId, DegisiklikZamani = SYSUTCDATETIME() WHERE MusteriId = :musteriId AND KaynakTuru = :turu AND Sil = 0",
+                ['userId' => $KullaniciId, 'musteriId' => $MusteriId, 'turu' => $KaynakTuru]
+            );
+            ActionLogger::delete('tbl_takvim', ['MusteriId' => $MusteriId, 'KaynakTuru' => $KaynakTuru]);
+            return $Sonuc;
+        });
     }
 
     public static function getAllReminderSettings(): array

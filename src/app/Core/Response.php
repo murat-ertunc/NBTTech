@@ -44,4 +44,14 @@ class Response
         ];
         self::json($Govde, 403);
     }
+
+    public static function unauthorized(string $Mesaj = 'Oturum gerekli.'): void
+    {
+        self::error($Mesaj, 401);
+    }
+
+    public static function badRequest(string $Mesaj = 'Geçersiz istek.'): void
+    {
+        self::error($Mesaj, 400);
+    }
 }

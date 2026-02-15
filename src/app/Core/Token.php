@@ -5,6 +5,9 @@ namespace App\Core;
 class Token
 {
 
+    /** @var string|null Geliştirme ortamı için tek seferlik rastgele anahtar */
+    private static ?string $DevAnahtar = null;
+
     private static function getKey(): string
     {
         $Anahtar = env('APP_KEY');
@@ -12,7 +15,11 @@ class Token
             if (env('APP_ENV', 'production') === 'production') {
                 throw new \RuntimeException('APP_KEY ortam degiskeni production ortaminda zorunludur');
             }
-            return 'development-only-key-not-secure';
+            // Her process için tek seferlik rastgele anahtar üret
+            if (self::$DevAnahtar === null) {
+                self::$DevAnahtar = bin2hex(random_bytes(32));
+            }
+            return self::$DevAnahtar;
         }
         return $Anahtar;
     }

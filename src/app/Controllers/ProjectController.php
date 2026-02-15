@@ -118,6 +118,12 @@ class ProjectController
             return;
         }
 
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Proje bulunamadi.', 404);
+            return;
+        }
+
         Transaction::wrap(function () use ($Repo, $Id, $Girdi, $KullaniciId) {
             $Guncellenecek = [];
             if (isset($Girdi['ProjeAdi'])) $Guncellenecek['ProjeAdi'] = trim((string)$Girdi['ProjeAdi']);
@@ -143,6 +149,12 @@ class ProjectController
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Proje bulunamadi.', 404);
             return;
         }
 

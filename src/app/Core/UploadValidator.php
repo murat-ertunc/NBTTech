@@ -22,10 +22,15 @@ class UploadValidator
         }
 
         $MimeType = self::tespitEtMime($Dosya);
-        if ($Uzanti === 'pdf') {
-            if ($MimeType !== 'application/pdf') {
-                return $HataMesaji;
-            }
+        $IzinliMime = [
+            'pdf'  => ['application/pdf'],
+            'doc'  => ['application/msword'],
+            'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/zip'] // docx is a zip archive
+        ];
+
+        if (isset($IzinliMime[$Uzanti]) && !in_array($MimeType, $IzinliMime[$Uzanti], true)) {
+            return $HataMesaji;
         }
 
         return null;

@@ -101,10 +101,15 @@ class LogController
                 LEFT JOIN tnm_user u ON la.EkleyenUserId = u.Id
                 {$WhereClause}
                 ORDER BY la.EklemeZamani DESC
-                OFFSET {$Offset} ROWS FETCH NEXT {$Limit} ROWS ONLY";
+                OFFSET :_paged_offset ROWS FETCH NEXT :_paged_limit ROWS ONLY";
 
         $Stmt = $Db->prepare($Sql);
-        $Stmt->execute($Parametreler);
+        foreach ($Parametreler as $Anahtar => $Deger) {
+            $Stmt->bindValue($Anahtar, $Deger);
+        }
+        $Stmt->bindValue(':_paged_offset', (int) $Offset, \PDO::PARAM_INT);
+        $Stmt->bindValue(':_paged_limit', (int) $Limit, \PDO::PARAM_INT);
+        $Stmt->execute();
         $Loglar = $Stmt->fetchAll();
 
         Response::json([

@@ -137,7 +137,7 @@ class InvoiceRepository extends BaseRepository
     {
         Transaction::wrap(function() use ($FaturaId, $Kalemler, $KullaniciId) {
 
-            $SqlSil = "UPDATE tbl_fatura_kalem SET Sil = 1, DegisiklikZamani = GETDATE(), DegistirenUserId = :UserId WHERE FaturaId = :FaturaId";
+            $SqlSil = "UPDATE tbl_fatura_kalem SET Sil = 1, DegisiklikZamani = SYSUTCDATETIME(), DegistirenUserId = :UserId WHERE FaturaId = :FaturaId";
             $StmtSil = $this->Db->prepare($SqlSil);
             $StmtSil->execute(['FaturaId' => $FaturaId, 'UserId' => $KullaniciId]);
 
@@ -154,7 +154,7 @@ class InvoiceRepository extends BaseRepository
                 }
 
                 $SqlEkle = "INSERT INTO tbl_fatura_kalem (FaturaId, Sira, Miktar, Aciklama, KdvOran, BirimFiyat, Tutar, EklemeZamani, EkleyenUserId, Sil)
-                            VALUES (:FaturaId, :Sira, :Miktar, :Aciklama, :KdvOran, :BirimFiyat, :Tutar, GETDATE(), :UserId, 0)";
+                            VALUES (:FaturaId, :Sira, :Miktar, :Aciklama, :KdvOran, :BirimFiyat, :Tutar, SYSUTCDATETIME(), :UserId, 0)";
                 $StmtEkle = $this->Db->prepare($SqlEkle);
                 $StmtEkle->execute([
                     'FaturaId' => $FaturaId,
@@ -223,7 +223,7 @@ class InvoiceRepository extends BaseRepository
     {
 
         $Sql = "UPDATE tbl_takvim
-                SET Sil = 1, DegisiklikZamani = GETDATE(), DegistirenUserId = :UserId
+                SET Sil = 1, DegisiklikZamani = SYSUTCDATETIME(), DegistirenUserId = :UserId
                 WHERE Ozet LIKE :OzetPattern AND Sil = 0";
         $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute([
@@ -236,16 +236,13 @@ class InvoiceRepository extends BaseRepository
     {
         $VarsayilanDurum = CalendarService::getDefaultTakvimDurum();
 
-        $Guid = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-        );
+        $Veri = random_bytes(16);
+        $Veri[6] = chr((ord($Veri[6]) & 0x0f) | 0x40);
+        $Veri[8] = chr((ord($Veri[8]) & 0x3f) | 0x80);
+        $Guid = strtoupper(vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($Veri), 4)));
 
         $Sql = "INSERT INTO tbl_takvim (Guid, MusteriId, ProjeId, TerminTarihi, Ozet, Durum, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil)
-            VALUES (:Guid, :MusteriId, :ProjeId, :TerminTarihi, :Ozet, :Durum, GETDATE(), :UserId, GETDATE(), :UserId2, 0)";
+            VALUES (:Guid, :MusteriId, :ProjeId, :TerminTarihi, :Ozet, :Durum, SYSUTCDATETIME(), :UserId, SYSUTCDATETIME(), :UserId2, 0)";
         $Stmt = $this->Db->prepare($Sql);
         $Stmt->execute([
             'Guid' => $Guid,

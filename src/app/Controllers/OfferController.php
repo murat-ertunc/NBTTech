@@ -120,7 +120,7 @@ class OfferController
 
             $OrijinalAd = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
-            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $GuvenliAd = bin2hex(random_bytes(16)) . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
 
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
@@ -232,7 +232,7 @@ class OfferController
 
             $OrijinalAd = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OrijinalAd, PATHINFO_EXTENSION));
-            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $GuvenliAd = bin2hex(random_bytes(16)) . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
 
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {

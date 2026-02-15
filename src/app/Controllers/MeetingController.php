@@ -95,18 +95,22 @@ class MeetingController
             'Telefon' => isset($Girdi['Telefon']) ? trim((string)$Girdi['Telefon']) : null
         ];
 
-        $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
+        $Id = Transaction::wrap(function () use ($Repo, $YuklenecekVeri, $KullaniciId) {
+            $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
 
-        if (!empty($YuklenecekVeri['Tarih'])) {
-            CalendarService::createOrUpdateReminder(
-                (int)$YuklenecekVeri['MusteriId'],
-                'gorusme',
-                $Id,
-                $YuklenecekVeri['Tarih'],
-                'Görüşme: ' . $YuklenecekVeri['Konu'],
-                $KullaniciId
-            );
-        }
+            if (!empty($YuklenecekVeri['Tarih'])) {
+                CalendarService::createOrUpdateReminder(
+                    (int)$YuklenecekVeri['MusteriId'],
+                    'gorusme',
+                    $Id,
+                    $YuklenecekVeri['Tarih'],
+                    'Görüşme: ' . $YuklenecekVeri['Konu'],
+                    $KullaniciId
+                );
+            }
+
+            return $Id;
+        });
 
         Response::json(['id' => $Id], 201);
     }
@@ -124,6 +128,12 @@ class MeetingController
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Gorusme bulunamadi.', 404);
             return;
         }
 
@@ -170,6 +180,12 @@ class MeetingController
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Gorusme bulunamadi.', 404);
             return;
         }
 

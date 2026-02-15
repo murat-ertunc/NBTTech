@@ -86,7 +86,7 @@ class GuaranteeController
 
         $Zorunlu = ['MusteriId', 'Tur', 'Tutar'];
         foreach ($Zorunlu as $Alan) {
-            if (empty($Girdi[$Alan])) {
+            if (!isset($Girdi[$Alan]) || (empty($Girdi[$Alan]) && $Girdi[$Alan] !== 0 && $Girdi[$Alan] !== '0')) {
                 Response::error("$Alan alani zorunludur.", 422);
                 return;
             }
@@ -113,7 +113,7 @@ class GuaranteeController
 
             $OriginalName = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
-            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $GuvenliAd = bin2hex(random_bytes(16)) . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
 
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {
@@ -221,7 +221,7 @@ class GuaranteeController
 
             $OriginalName = $_FILES['dosya']['name'];
             $Uzanti = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
-            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            $GuvenliAd = bin2hex(random_bytes(16)) . '.' . $Uzanti;
             $HedefYol = $YuklemeKlasoru . $GuvenliAd;
 
             if (move_uploaded_file($_FILES['dosya']['tmp_name'], $HedefYol)) {

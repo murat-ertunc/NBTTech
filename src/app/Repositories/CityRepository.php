@@ -60,6 +60,11 @@ class CityRepository extends BaseRepository
     public function guncelle(int $Id, array $Veri, ?int $KullaniciId = null, array $EkKosul = []): void
     {
         Transaction::wrap(function () use ($Id, $Veri, $KullaniciId) {
+            try {
+                $this->yedekle($Id, 'bck_tnm_sehir', $KullaniciId);
+            } catch (\Throwable $Ignored) {
+            }
+
             $SetParts = ['DegisiklikZamani = SYSUTCDATETIME()', 'DegistirenUserId = :DegistirenUserId'];
             $Params = ['DegistirenUserId' => $KullaniciId];
 
@@ -79,6 +84,11 @@ class CityRepository extends BaseRepository
     public function softSil(int $Id, ?int $KullaniciId = null, array $EkKosul = []): void
     {
         Transaction::wrap(function () use ($Id, $KullaniciId) {
+            try {
+                $this->yedekle($Id, 'bck_tnm_sehir', $KullaniciId);
+            } catch (\Throwable $Ignored) {
+            }
+
             $Sql = "UPDATE {$this->Tablo} SET Sil = 1, DegisiklikZamani = SYSUTCDATETIME(), DegistirenUserId = :DegistirenUserId WHERE Id = :Id";
             $Stmt = $this->Db->prepare($Sql);
             $Stmt->execute(['DegistirenUserId' => $KullaniciId, 'Id' => $Id]);

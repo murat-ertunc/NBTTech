@@ -7,6 +7,7 @@
 namespace App\Controllers;
 
 use App\Core\Context;
+use App\Core\DownloadHelper;
 use App\Core\Response;
 use App\Core\Transaction;
 use App\Repositories\FileRepository;
@@ -102,7 +103,14 @@ class FileController
 
         $Uzanti = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
 
-        $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+        // Tehlikeli uzantıları engelle
+        $YasakliUzantilar = ['php', 'phtml', 'phar', 'php3', 'php4', 'php5', 'phps', 'cgi', 'pl', 'py', 'jsp', 'asp', 'aspx', 'htaccess', 'htpasswd', 'exe', 'bat', 'cmd', 'sh', 'svg', 'html', 'htm', 'shtml'];
+        if (in_array($Uzanti, $YasakliUzantilar, true) || $Uzanti === '') {
+            Response::error('Bu dosya türü yüklenemez.', 422);
+            return;
+        }
+
+        $GuvenliAd = bin2hex(random_bytes(16)) . '.' . $Uzanti;
         $UploadDir = self::getUploadDir();
 
         if (!is_dir($UploadDir)) {
@@ -205,7 +213,14 @@ class FileController
 
             $Uzanti = strtolower(pathinfo($OriginalName, PATHINFO_EXTENSION));
 
-            $GuvenliAd = uniqid() . '_' . time() . '.' . $Uzanti;
+            // Tehlikeli uzantıları engelle
+            $YasakliUzantilar = ['php', 'phtml', 'phar', 'php3', 'php4', 'php5', 'phps', 'cgi', 'pl', 'py', 'jsp', 'asp', 'aspx', 'htaccess', 'htpasswd', 'exe', 'bat', 'cmd', 'sh', 'svg', 'html', 'htm', 'shtml'];
+            if (in_array($Uzanti, $YasakliUzantilar, true) || $Uzanti === '') {
+                Response::error('Bu dosya türü yüklenemez.', 422);
+                return;
+            }
+
+            $GuvenliAd = bin2hex(random_bytes(16)) . '.' . $Uzanti;
             $UploadDir = self::getUploadDir();
             if (!is_dir($UploadDir)) {
                 mkdir($UploadDir, 0755, true);
@@ -289,15 +304,6 @@ class FileController
 
         $TamDosyaYolu = SRC_PATH . $Dosya['DosyaYolu'];
 
-        if (!file_exists($TamDosyaYolu)) {
-            Response::error('Dosya bulunamadi.', 404);
-            return;
-        }
-
-        header('Content-Type: ' . ($Dosya['DosyaTipi'] ?: 'application/octet-stream'));
-        header('Content-Disposition: attachment; filename="' . $Dosya['DosyaAdi'] . '"');
-        header('Content-Length: ' . filesize($TamDosyaYolu));
-        readfile($TamDosyaYolu);
-        exit;
+        DownloadHelper::outputFile($TamDosyaYolu, $Dosya['DosyaAdi'], $Dosya['DosyaTipi'] ?: null);
     }
 }

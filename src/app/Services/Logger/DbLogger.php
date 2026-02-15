@@ -36,13 +36,10 @@ class DbLogger implements LoggerInterface
                 $KayitId = (int) $Veri['Yukleme']['Filtreler']['Id'];
             }
 
-            $Guid = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-                mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-                mt_rand(0, 0xffff),
-                mt_rand(0, 0x0fff) | 0x4000,
-                mt_rand(0, 0x3fff) | 0x8000,
-                mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-            );
+            $Veri = random_bytes(16);
+            $Veri[6] = chr((ord($Veri[6]) & 0x0f) | 0x40);
+            $Veri[8] = chr((ord($Veri[8]) & 0x3f) | 0x80);
+            $Guid = strtoupper(vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($Veri), 4)));
 
             $Sql = "INSERT INTO {$this->tablo()}
                     (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil,

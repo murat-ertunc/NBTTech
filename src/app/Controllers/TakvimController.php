@@ -8,6 +8,7 @@ namespace App\Controllers;
 
 use App\Core\Context;
 use App\Core\Response;
+use App\Core\Transaction;
 use App\Repositories\CalendarRepository;
 use App\Services\CalendarService;
 
@@ -97,7 +98,9 @@ class TakvimController
             'Durum' => (isset($Girdi['Durum']) && trim((string)$Girdi['Durum']) !== '') ? (int)$Girdi['Durum'] : $VarsayilanDurum
         ];
 
-        $Id = $Repo->ekle($YuklenecekVeri, $KullaniciId);
+        $Id = Transaction::wrap(function () use ($Repo, $YuklenecekVeri, $KullaniciId) {
+            return $Repo->ekle($YuklenecekVeri, $KullaniciId);
+        });
 
         Response::json(['id' => $Id], 201);
     }
@@ -115,6 +118,12 @@ class TakvimController
         $KullaniciId = Context::kullaniciId();
         if (!$KullaniciId) {
             Response::error('Oturum gecersiz veya suresi dolmus.', 401);
+            return;
+        }
+
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Takvim kaydi bulunamadi.', 404);
             return;
         }
 
@@ -155,7 +164,15 @@ class TakvimController
             return;
         }
 
-        $Repo->softSil($Id, $KullaniciId);
+        $Mevcut = $Repo->bul($Id);
+        if (!$Mevcut) {
+            Response::error('Takvim kaydi bulunamadi.', 404);
+            return;
+        }
+
+        Transaction::wrap(function () use ($Repo, $Id, $KullaniciId) {
+            $Repo->softSil($Id, $KullaniciId);
+        });
 
         Response::json(['status' => 'success']);
     }
