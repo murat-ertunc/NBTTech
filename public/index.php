@@ -23,6 +23,8 @@ if (substr($CleanPath, 0, 11) === '/index.php/') {
 
 $CleanPath = ltrim($CleanPath, '/');
 
+goto bootstrap;
+
 if (strpos($CleanPath, 'api/') === 0 ||
     strpos($CleanPath, '__internal__/') === 0 ||
     $CleanPath === 'health' ||

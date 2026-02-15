@@ -22,7 +22,7 @@ $Logo = config('app.logo', '/assets/logo.png');
 <body class="bg-light">
   <div class="container d-flex align-items-center justify-content-center min-vh-100">
     <div class="card shadow-sm p-4" style="max-width:420px; width:100%;">
-      <form id="loginForm" novalidate>
+      <form id="loginForm" data-testid="login-form" novalidate>
         <div class="text-center mb-3">
           <img id="brandLogo" src="<?= htmlspecialchars($Logo, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="max-height:80px;" class="mb-2" />
           <h5 class="mb-0" id="brandName"><?= htmlspecialchars($UygulamaAdi, ENT_QUOTES, 'UTF-8') ?></h5>
@@ -30,18 +30,18 @@ $Logo = config('app.logo', '/assets/logo.png');
         </div>
         <div class="mb-3">
           <label class="form-label">Kullanıcı</label>
-          <input id="username" class="form-control" placeholder="kullanıcı" />
+          <input id="username" data-testid="login-username" class="form-control" placeholder="kullanıcı" />
           <small class="text-muted">En az 3 karakter olmalı.</small>
         </div>
         <div class="mb-3">
           <label class="form-label">Parola</label>
-          <input id="password" type="password" class="form-control" placeholder="parola" />
+          <input id="password" data-testid="login-password" type="password" class="form-control" placeholder="parola" />
           <small class="text-muted">En az 6 karakter olmalı.</small>
         </div>
         <div class="d-grid gap-2">
-          <button id="btnLogin" class="btn btn-primary" type="submit">Giriş</button>
+          <button id="btnLogin" data-testid="login-submit" class="btn btn-primary" type="submit">Giriş</button>
         </div>
-        <div class="alert alert-danger d-none mt-3" role="alert" id="alertBox"></div>
+        <div class="alert alert-danger d-none mt-3" role="alert" id="alertBox" data-testid="login-error"></div>
       </form>
     </div>
   </div>

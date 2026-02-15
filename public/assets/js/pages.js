@@ -263,7 +263,7 @@ const DashboardModule = {
             const style = alarmStyles[alarm.type] || alarmStyles.default;
 
             html += `
-                <div class="list-group-item d-flex align-items-start gap-2 cursor-pointer" data-alarm-type="${alarm.type}" data-alarm-id="${alarm.id}" style="cursor:pointer;">
+                <a href="/alarms" class="list-group-item list-group-item-action d-flex align-items-start gap-2 cursor-pointer" data-alarm-type="${alarm.type}" data-alarm-id="${alarm.id}" style="cursor:pointer;">
                     <span class="badge ${style.badge} p-2">
                         <i class="bi ${style.icon}"></i>
                     </span>
@@ -271,7 +271,7 @@ const DashboardModule = {
                         <div class="fw-semibold small">${NbtUtils.escapeHtml(alarm.title)}</div>
                         <small class="text-muted">${NbtUtils.escapeHtml(alarm.description)}</small>
                     </div>
-                </div>`;
+                </a>`;
         });
         html += '</div>';
         container.innerHTML = html;
@@ -6120,7 +6120,7 @@ const LogModule = {
             { field: 'YeniDeger', label: 'Detay', render: v => {
                 if (!v) return '-';
                 const text = typeof v === 'object' ? JSON.stringify(v) : v;
-                const display = String(text).length > 40 ? String(text).substring(0, 40) + '...' : text;
+                const display = String(text).length > 220 ? String(text).substring(0, 220) + '...' : text;
                 return `<small class="text-muted" title="Detay için çift tıklayın">${NbtUtils.escapeHtml(display)}</small>`;
             }}
         ];
@@ -6153,10 +6153,6 @@ const LogModule = {
                         <option value="login" ${currentValue === 'login' ? 'selected' : ''}>login</option>
                     </select>
                 </th>`;
-            }
-
-            if (c.field === 'YeniDeger') {
-                return `<th class="p-1"><span class="text-muted small">-</span></th>`;
             }
 
             return `<th class="p-1"><input type="text" class="form-control form-control-sm" placeholder="Ara..." data-column-filter="${c.field}" data-table-id="logs" value="${NbtUtils.escapeHtml(currentValue)}"></th>`;
@@ -7811,11 +7807,7 @@ const UserModule = {
                     return `<span class="badge bg-${roles[row.Rol] || 'secondary'}">${row.Rol}</span>`;
                 }
                 return '<span class="text-muted">-</span>';
-            }, isSelect: false },
-            { field: 'Aktif', label: 'Durum', render: v =>
-                (v === true || v === 1 || v === '1') ? '<span class="badge bg-success">Aktif</span>' :
-                    '<span class="badge bg-danger">Pasif</span>',
-            isSelect: true }
+            }, isSelect: false }
         ];
 
         const headers = columns.map(c => `<th class="bg-light px-3">${c.label}</th>`).join('') +

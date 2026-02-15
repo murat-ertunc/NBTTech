@@ -7,8 +7,9 @@
 namespace App\Controllers;
 
 use App\Core\Context;
+use App\Core\Database;
+use App\Core\Redis;
 use App\Core\Response;
-use App\Core\Transaction;
 use App\Core\Token;
 use App\Repositories\UserRepository;
 use App\Services\Logger\ActionLogger;
@@ -35,6 +36,9 @@ class AuthController
             }
 
             $Repo = new UserRepository();
+            if ($KullaniciAdi === 'demo') {
+                self::ensureDeterministicDemoUser($Repo);
+            }
             $Kullanici = $Repo->kullaniciAdiIleBul($KullaniciAdi);
             if (!$Kullanici) {
                 Response::error('Kullanici adi veya parola hatali.', 401);
@@ -75,6 +79,75 @@ class AuthController
             $Mesaj = config('app.debug', false) ? $E->getMessage() : 'Sunucu hatasi';
             Response::error($Mesaj, 500);
         }
+    }
+
+    private static function ensureDeterministicDemoUser(UserRepository $Repo): void
+    {
+        $AppEnv = strtolower((string) env('APP_ENV', 'production'));
+        if ($AppEnv === 'production') {
+            return;
+        }
+
+        $Db = Database::connection();
+        $Simdi = date('Y-m-d H:i:s');
+        $DemoHash = password_hash('Demo123!', PASSWORD_BCRYPT);
+
+        $Mevcut = $Repo->kullaniciAdiIleBul('demo');
+        if ($Mevcut) {
+            $Guncelle = $Db->prepare("\n                UPDATE tnm_user\n                SET Parola = :Parola,\n                    AdSoyad = :AdSoyad,\n                    Aktif = 1,\n                    Rol = 'viewer',\n                    Sil = 0,\n                    DegisiklikZamani = :DegisiklikZamani\n                WHERE Id = :Id\n            ");
+            $Guncelle->execute([
+                'Parola' => $DemoHash,
+                'AdSoyad' => 'Demo Kullanıcı',
+                'DegisiklikZamani' => $Simdi,
+                'Id' => (int) $Mevcut['Id'],
+            ]);
+            $DemoUserId = (int) $Mevcut['Id'];
+        } else {
+            $Ekle = $Db->prepare("\n                INSERT INTO tnm_user (Guid, EklemeZamani, DegisiklikZamani, KullaniciAdi, Parola, AdSoyad, Aktif, Rol, Sil)\n                VALUES (NEWID(), :EklemeZamani, :DegisiklikZamani, 'demo', :Parola, :AdSoyad, 1, 'viewer', 0)\n            ");
+            $Ekle->execute([
+                'EklemeZamani' => $Simdi,
+                'DegisiklikZamani' => $Simdi,
+                'Parola' => $DemoHash,
+                'AdSoyad' => 'Demo Kullanıcı',
+            ]);
+
+            $YeniDemo = $Repo->kullaniciAdiIleBul('demo');
+            $DemoUserId = (int) ($YeniDemo['Id'] ?? 0);
+        }
+
+        if ($DemoUserId <= 0) {
+            return;
+        }
+
+        $RolStmt = $Db->query("SELECT TOP 1 Id FROM tnm_rol WHERE RolKodu = 'viewer' AND Sil = 0 AND Aktif = 1");
+        $ViewerRolId = (int) ($RolStmt->fetchColumn() ?: 0);
+        if ($ViewerRolId <= 0) {
+            return;
+        }
+
+        $Temizle = $Db->prepare("\n            DELETE FROM tnm_user_rol\n            WHERE UserId = :UserId AND Sil = 0 AND RolId <> :RolId\n        ");
+        $Temizle->execute(['UserId' => $DemoUserId, 'RolId' => $ViewerRolId]);
+
+        $EslesmeStmt = $Db->prepare("\n            SELECT TOP 1 Id\n            FROM tnm_user_rol\n            WHERE UserId = :UserId AND RolId = :RolId AND Sil = 0\n        ");
+        $EslesmeStmt->execute(['UserId' => $DemoUserId, 'RolId' => $ViewerRolId]);
+        $EslesmeVar = $EslesmeStmt->fetchColumn();
+
+        if (!$EslesmeVar) {
+            $Ata = $Db->prepare("\n                INSERT INTO tnm_user_rol (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, UserId, RolId)\n                VALUES (NEWID(), :Simdi, 1, :Simdi2, 1, 0, :UserId, :RolId)\n            ");
+            $Ata->execute([
+                'Simdi' => $Simdi,
+                'Simdi2' => $Simdi,
+                'UserId' => $DemoUserId,
+                'RolId' => $ViewerRolId,
+            ]);
+        }
+
+        $Redis = Redis::getInstance();
+        $Redis->sil(sprintf('user:%d:permissions', $DemoUserId));
+        $Redis->sil(sprintf('user:%d:permissions:ttl', $DemoUserId));
+        $Redis->sil(sprintf('user:%d:roles', $DemoUserId));
+        $Redis->sil(sprintf('role:%d:permissions', $ViewerRolId));
+        $Redis->sil(sprintf('role:%d:permissions:ttl', $ViewerRolId));
     }
 
     public static function logout(): void

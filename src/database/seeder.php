@@ -245,6 +245,13 @@ $Kullanicilar = [
         'Aktif' => 1,
         'Rol' => 'superadmin',
     ],
+    [
+        'KullaniciAdi' => 'demo',
+        'Parola' => password_hash('Demo123!', PASSWORD_BCRYPT),
+        'AdSoyad' => 'Demo Kullanıcı',
+        'Aktif' => 1,
+        'Rol' => 'viewer',
+    ],
 ];
 
 foreach ($Kullanicilar as $Kullanici) {
@@ -284,6 +291,19 @@ foreach ($Kullanicilar as $Kullanici) {
             'DegisiklikZamani' => $Simdi,
         ]);
         echo "  ↻ {$Kullanici['Rol']} kullanici geri yuklendi: {$Kullanici['KullaniciAdi']}\n";
+    } elseif ($Kullanici['KullaniciAdi'] === 'demo') {
+        $Simdi = date('Y-m-d H:i:s');
+        $Sql = "UPDATE tnm_user SET Aktif = :Aktif, Rol = :Rol, Parola = :Parola, AdSoyad = :AdSoyad, DegisiklikZamani = :DegisiklikZamani WHERE Id = :Id";
+        $Stmt = $Db->prepare($Sql);
+        $Stmt->execute([
+            'Id' => $Mevcut['Id'],
+            'Aktif' => $Kullanici['Aktif'],
+            'Rol' => $Kullanici['Rol'],
+            'Parola' => $Kullanici['Parola'],
+            'AdSoyad' => $Kullanici['AdSoyad'],
+            'DegisiklikZamani' => $Simdi,
+        ]);
+        echo "  ↻ demo kullanici deterministik olarak guncellendi\n";
     } else {
         echo "  • {$Kullanici['KullaniciAdi']} zaten mevcut.\n";
     }
@@ -381,6 +401,46 @@ if ($SuperAdminUser && $SuperAdminRol) {
     }
 } else {
     echo "  ✗ Superadmin kullanici veya rol bulunamadi!\n";
+}
+
+echo "\n━━━ 3B. DEMO KULLANICI-ROL ESLEMESI ━━━\n";
+
+$Stmt = $Db->prepare("SELECT Id FROM tnm_user WHERE KullaniciAdi = 'demo' AND Sil = 0");
+$Stmt->execute();
+$DemoUser = $Stmt->fetch();
+
+$Stmt = $Db->prepare("SELECT Id FROM tnm_rol WHERE RolKodu = 'viewer' AND Sil = 0");
+$Stmt->execute();
+$ViewerRol = $Stmt->fetch();
+
+if ($DemoUser && $ViewerRol) {
+    $DemoUserId = (int) $DemoUser['Id'];
+    $ViewerRolId = (int) $ViewerRol['Id'];
+
+    $Stmt = $Db->prepare("DELETE FROM tnm_user_rol WHERE UserId = :UserId AND Sil = 0 AND RolId <> :RolId");
+    $Stmt->execute(['UserId' => $DemoUserId, 'RolId' => $ViewerRolId]);
+
+    $Stmt = $Db->prepare("SELECT Id FROM tnm_user_rol WHERE UserId = :UserId AND RolId = :RolId AND Sil = 0");
+    $Stmt->execute(['UserId' => $DemoUserId, 'RolId' => $ViewerRolId]);
+    $MevcutEsleme = $Stmt->fetch();
+
+    if (!$MevcutEsleme) {
+        $Simdi = date('Y-m-d H:i:s');
+        $Guid = generateGuid();
+        $Stmt = $Db->prepare("\n            INSERT INTO tnm_user_rol (Guid, EklemeZamani, EkleyenUserId, DegisiklikZamani, DegistirenUserId, Sil, UserId, RolId)\n            VALUES (:Guid, :Simdi, 1, :Simdi2, 1, 0, :UserId, :RolId)\n        ");
+        $Stmt->execute([
+            'Guid' => $Guid,
+            'Simdi' => $Simdi,
+            'Simdi2' => $Simdi,
+            'UserId' => $DemoUserId,
+            'RolId' => $ViewerRolId,
+        ]);
+        echo "  ✓ Demo kullanicisina viewer rolu atandi\n";
+    } else {
+        echo "  ✓ Demo kullanici-rol eslemesi zaten mevcut\n";
+    }
+} else {
+    echo "  ✗ Demo kullanici veya viewer rol bulunamadi!\n";
 }
 
 echo "\n━━━ 4. DOGRULAMA (FAIL-FAST) ━━━\n";
@@ -485,5 +545,6 @@ if ($EffectivePerms === $TotalPerms) {
 echo "\n════════════════════════════════════════════════════════════\n";
 echo "=== Varsayilan Kullanicilar ===\n";
 echo "  Super Admin: superadmin / Super123!\n";
+echo "  Demo       : demo / Demo123!\n";
 echo "\n✅ Seeder BASARIYLA tamamlandi.\n";
 echo "════════════════════════════════════════════════════════════\n";

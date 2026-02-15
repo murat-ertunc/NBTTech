@@ -19,14 +19,8 @@
     'dashboard' => ['customer.php', 'calendar-day.php']
   ];
 
-  $modalPath = __DIR__ . '/modals/customer.php';
-  if (file_exists($modalPath)) {
-    require $modalPath;
-  }
-
   if (isset($modalFiles[$currentPageForModals])) {
     foreach ($modalFiles[$currentPageForModals] as $modalFile) {
-      if ($modalFile === 'customer.php') continue;
       $modalPath = __DIR__ . '/modals/' . $modalFile;
       if (file_exists($modalPath)) {
         require $modalPath;
