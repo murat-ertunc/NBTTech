@@ -30,12 +30,15 @@ class Env
 
     public static function get(string $Anahtar, $Varsayilan = null)
     {
+        if (array_key_exists($Anahtar, self::$Veriler)) {
+            return self::$Veriler[$Anahtar];
+        }
         if (array_key_exists($Anahtar, $_ENV)) {
             return $_ENV[$Anahtar];
         }
         if (array_key_exists($Anahtar, $_SERVER)) {
             return $_SERVER[$Anahtar];
         }
-        return self::$Veriler[$Anahtar] ?? $Varsayilan;
+        return $Varsayilan;
     }
 }
